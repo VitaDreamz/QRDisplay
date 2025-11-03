@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
         const resend = new Resend(process.env.RESEND_API_KEY);
 
         await resend.emails.send({
-          from: 'QRDisplay <onboarding@resend.dev>',
+          from: 'QRDisplay <noreply@qrdisplay.com>',
           to: store.contactEmail,
           subject: 'Your Store Dashboard Login Link',
           html: `

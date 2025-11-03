@@ -175,10 +175,8 @@ export async function sendActivationEmail(data: {
   `;
 
   try {
-    // Use Resend's test domain (works immediately, no DNS setup required)
-    // TODO: Switch to noreply@qrdisplay.com after domain verification
     await resend.emails.send({
-      from: `${organization.emailFromName || organization.name} <onboarding@resend.dev>`,
+      from: 'QRDisplay <noreply@qrdisplay.com>',
       to: store.contactEmail,
       replyTo: organization.supportEmail || undefined,
       subject,

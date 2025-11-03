@@ -3,10 +3,10 @@ import prisma from '@/lib/prisma';
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { displayId: string } }
+  { params }: { params: Promise<{ displayId: string }> }
 ) {
   try {
-    const displayId = params.displayId;
+    const { displayId } = await params;
 
     if (!displayId) {
       return NextResponse.json({ error: 'Missing displayId' }, { status: 400 });

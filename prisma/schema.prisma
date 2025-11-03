@@ -1,0 +1,320 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// LEVEL 1 & 2: Organizations (QRDisplay + Client Brands)
+model Organization {
+  id        String   @id @default(cuid())
+  orgId     String   @unique
+  name      String
+  slug      String   @unique
+  type      String   // 'platform' (QRDisplay) or 'client' (brands)
+  
+  // Public Support Settings
+  logoUrl           String?
+  supportEmail      String?
+  supportPhone      String?
+  emailFromName     String?
+  emailFromAddress  String?
+  emailReplyTo      String?
+  websiteUrl        String?
+  
+  subscriptionStatus String?
+  subscriptionPlan   String?
+  stripeCustomerId   String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  users     User[]
+  stores    Store[]
+  displays  Display[]
+  packs     DisplayPack[]
+  orders    Order[]
+  customers Customer[]
+  promoRedemptions PromoRedemption[]
+  
+  @@map("organizations")
+}
+
+// Users (all levels)
+model User {
+  id       String   @id @default(cuid())
+  userId   String   @unique
+  orgId    String
+  email    String   @unique
+  name     String?
+  phone    String?
+  role     String   // 'super-admin', 'org-admin', 'store-admin'
+  storeId  String?
+  
+  createdAt DateTime @default(now())
+  
+  organization Organization @relation(fields: [orgId], references: [orgId])
+  store        Store?       @relation(fields: [storeId], references: [storeId])
+  
+  @@map("users")
+}
+
+// LEVEL 3: Stores
+model Store {
+  id           String   @id @default(cuid())
+  storeId      String   @unique
+  orgId        String
+  
+  status       String   @default("active")
+  storeName    String
+  contactName  String?
+  contactEmail String?
+  contactPhone String?
+  
+  streetAddress String?
+  city          String?
+  state         String?
+  zipCode       String?
+  
+  timezone     String   @default("America/Los_Angeles")
+  promoOffer   String   @default("20%-off 1st Purchase")
+  followupDays Int[]    @default([4, 12])
+  staffPin     String?
+  
+  activatedAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  organization Organization @relation(fields: [orgId], references: [orgId])
+  displays     Display[]
+  customers    Customer[]
+  users        User[]
+  promoRedemptions PromoRedemption[]
+  
+  @@map("stores")
+}
+
+// Display Packs (boxes of 10 displays)
+model DisplayPack {
+  id          String   @id @default(cuid())
+  packId      String   @unique
+  
+  displayIds  String[]
+  quantity    Int
+  
+  status      String   @default("inventory") // inventory, shipped, activated
+  orderId     String?
+  assignedOrgId String?
+  
+  qrCodeUrl   String?
+  
+  shippedAt   DateTime?
+  activatedAt DateTime?
+  activatedBy String?
+  
+  createdAt   DateTime @default(now())
+  
+  organization Organization? @relation(fields: [assignedOrgId], references: [orgId])
+  order        Order?         @relation(fields: [orderId], references: [orderId])
+  
+  @@map("display_packs")
+}
+
+// Individual Displays
+model Display {
+  id          String   @id @default(cuid())
+  displayId   String   @unique
+  
+  ownerOrgId    String  @default("ORG-QRDISPLAY")
+  assignedOrgId String?
+  storeId       String?
+  packId        String?
+  
+  shortlink   String?  @unique
+  targetUrl   String?
+  prefillUrl  String?
+  qrPngUrl    String?
+  
+  status      String   @default("inventory")
+  
+  orderId     String?
+  shippedAt   DateTime?
+  activatedAt DateTime?
+  activatedBy String?
+  
+  createdAt   DateTime @default(now())
+  
+  organization Organization? @relation(fields: [assignedOrgId], references: [orgId])
+  store        Store?         @relation(fields: [storeId], references: [storeId])
+  order        Order?         @relation(fields: [orderId], references: [orderId])
+  
+  @@map("displays")
+}
+
+// Orders
+model Order {
+  id            String   @id @default(cuid())
+  orderId       String   @unique
+  orgId         String
+  
+  quantity      Int
+  unitPrice     Float
+  totalPrice    Float
+  
+  status        String   @default("pending")
+  
+  trackingNumber String?
+  shippedAt     DateTime?
+  deliveredAt   DateTime?
+  
+  createdAt     DateTime @default(now())
+  
+  organization  Organization @relation(fields: [orgId], references: [orgId])
+  displays      Display[]
+  packs         DisplayPack[]
+  
+  @@map("orders")
+}
+
+// Customers
+model Customer {
+  id           String    @id @default(cuid())
+  memberId     String    @unique
+  orgId        String
+  storeId      String
+  
+  firstName    String
+  lastName     String
+  phone        String
+  email        String?
+  sampleChoice String
+  
+  activated    Boolean   @default(false)
+  activatedAt  DateTime?
+  redeemed     Boolean   @default(false)
+  redeemedAt   DateTime?
+  redeemedBy   String?
+  
+  promoSlug        String?
+  promoRedeemed    Boolean   @default(false)
+  promoRedeemedAt  DateTime?
+  
+  requestedAt  DateTime  @default(now())
+  
+  organization Organization @relation(fields: [orgId], references: [orgId])
+  store        Store        @relation(fields: [storeId], references: [storeId])
+  promoRedemptions PromoRedemption[]
+  
+  @@map("customers")
+}
+
+// Shortlinks
+model Shortlink {
+  id         String    @id @default(cuid())
+  slug       String    @unique
+  action     String
+  storeId    String
+  memberId   String?
+  role       String
+  
+  requiresPin Boolean  @default(false)
+  redeemed    Boolean  @default(false)
+  redeemedAt  DateTime?
+  
+  createdAt   DateTime @default(now())
+  usedAt      DateTime?
+  
+  @@map("shortlinks")
+}
+
+// Promo Redemptions
+model PromoRedemption {
+  id            String    @id @default(cuid())
+  
+  customerId    String
+  customer      Customer  @relation(fields: [customerId], references: [id])
+  
+  storeId       String
+  store         Store     @relation(fields: [storeId], references: [id])
+  
+  orgId         String
+  organization  Organization @relation(fields: [orgId], references: [orgId])
+  
+  promoOffer    String
+  promoSlug     String    @unique
+  
+  redeemedAt    DateTime?
+  redeemedBy    String?
+  
+  purchaseAmount Decimal?  @db.Decimal(10, 2)
+  discountAmount Decimal?  @db.Decimal(10, 2)
+  
+  createdAt     DateTime  @default(now())
+  
+  @@index([customerId])
+  @@index([storeId])
+  @@index([orgId])
+  
+  @@map("promo_redemptions")
+}
+
+// Message Log
+model MessageLog {
+  id           String   @id @default(cuid())
+  timestamp    DateTime @default(now())
+  type         String
+  templateKey  String?
+  toAddress    String
+  status       String
+  sidOrReason  String?
+  storeId      String?
+  memberId     String?
+  context      Json?
+  body         String?
+  
+  @@map("message_log")
+}
+
+// Opt Outs
+model OptOut {
+  id        String   @id @default(cuid())
+  phone     String   @unique
+  timestamp DateTime @default(now())
+  reason    String?
+  
+  @@map("opt_outs")
+}
+
+// Errors
+model Error {
+  id         String   @id @default(cuid())
+  timestamp  DateTime @default(now())
+  whereError String
+  meta       Json?
+  userInfo   String?
+  
+  @@map("errors")
+}
+
+// Magic Links for Store Auth
+model MagicLink {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  storeId   String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  
+  @@map("magic_links")
+}
+

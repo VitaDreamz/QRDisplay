@@ -1,0 +1,28 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Light mode: Purple squares on white background -->
+  <rect width="64" height="64" fill="white"/>
+  
+  <!-- Row 1 -->
+  <rect x="4" y="4" width="12" height="12" rx="2" fill="#6f42c1"/>
+  <rect x="20" y="4" width="12" height="12" rx="2" fill="white" stroke="#6f42c1" stroke-width="1"/>
+  <rect x="36" y="4" width="12" height="12" rx="2" fill="white" stroke="#6f42c1" stroke-width="1"/>
+  <rect x="52" y="4" width="12" height="12" rx="2" fill="#6f42c1"/>
+  
+  <!-- Row 2 -->
+  <rect x="4" y="20" width="12" height="12" rx="2" fill="white" stroke="#6f42c1" stroke-width="1"/>
+  <rect x="20" y="20" width="12" height="12" rx="2" fill="#6f42c1"/>
+  <rect x="36" y="20" width="12" height="12" rx="2" fill="#6f42c1"/>
+  <rect x="52" y="20" width="12" height="12" rx="2" fill="white" stroke="#6f42c1" stroke-width="1"/>
+  
+  <!-- Row 3 -->
+  <rect x="4" y="36" width="12" height="12" rx="2" fill="white" stroke="#6f42c1" stroke-width="1"/>
+  <rect x="20" y="36" width="12" height="12" rx="2" fill="#6f42c1"/>
+  <rect x="36" y="36" width="12" height="12" rx="2" fill="#6f42c1"/>
+  <rect x="52" y="36" width="12" height="12" rx="2" fill="white" stroke="#6f42c1" stroke-width="1"/>
+  
+  <!-- Row 4 -->
+  <rect x="4" y="52" width="12" height="12" rx="2" fill="#6f42c1"/>
+  <rect x="20" y="52" width="12" height="12" rx="2" fill="white" stroke="#6f42c1" stroke-width="1"/>
+  <rect x="36" y="52" width="12" height="12" rx="2" fill="white" stroke="#6f42c1" stroke-width="1"/>
+  <rect x="52" y="52" width="12" height="12" rx="2" fill="#6f42c1"/>
+</svg>

@@ -18,6 +18,7 @@ export default function HomePage() {
 
     if (user.primaryEmailAddress?.emailAddress === "jbonutto@gmail.com") {
       router.push("/admin/brands/new");
+      return;
     }
   }, [isLoaded, user, router]);
 

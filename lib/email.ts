@@ -31,6 +31,7 @@ export async function sendActivationEmail(data: {
     state: string;
     zipCode: string;
   };
+  shortLinkUrl?: string;
 }) {
   const { organization, store, display, settings } = data;
 
@@ -66,6 +67,16 @@ export async function sendActivationEmail(data: {
                     <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.6; color: #2b2b2b;">
                       Your display has been successfully activated and the <strong>Free Sample Program</strong> is up and running!
                     </p>
+
+                    ${data.shortLinkUrl ? `
+                    <div style="text-align: center; margin: 24px 0 28px 0;">
+                      <a href="${data.shortLinkUrl}"
+                         style="background: #6f42c1; color: #ffffff; padding: 14px 24px; border-radius: 10px; text-decoration: none; display: inline-block; font-weight: 700;">
+                        Access Your Store Dashboard
+                      </a>
+                      <p style="margin: 10px 0 0; font-size: 12px; color: #6b6b6b;">Short link: ${data.shortLinkUrl}</p>
+                    </div>
+                    ` : ''}
 
                     <!-- Details -->
                     <div style="background: #f7f5fb; border-radius: 12px; padding: 20px; margin-bottom: 24px;">

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { sendActivationEmail } from '@/lib/email';
+import { generateBase62Slug } from '@/lib/shortid';
 
 // Helper to generate a new Store ID with 3-digit minimum padding
 function generateStoreId(nextIndex: number) {
@@ -175,6 +176,19 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Create short magic link for store login
+    const slug = generateBase62Slug(7);
+    await prisma.shortlink.create({
+      data: {
+        slug,
+        action: 'store_login',
+        storeId: store.storeId,
+        role: 'store',
+      }
+    });
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+    const shortLinkUrl = `${baseUrl}/s/${slug}`;
+
     // Send activation email (non-blocking for overall activation)
     try {
       if (!display.organization) {
@@ -207,6 +221,7 @@ export async function POST(req: NextRequest) {
             state,
             zipCode: zip,
           },
+          shortLinkUrl,
         });
       }
     } catch (emailError) {
@@ -231,7 +246,7 @@ export async function POST(req: NextRequest) {
       );
 
       // 1. SMS to store contact
-      const storeMessage = `Hi ${contactName}, your new sample display for ${storeName} is now activated and ready for customers! Reply HELP for support.`;
+  const storeMessage = `Hi ${contactName}, your new sample display for ${storeName} is now activated and ready for customers!\n\nAccess your dashboard: ${shortLinkUrl}\n\nReply HELP for support.`;
       
       await client.messages.create({
         to: phone,

@@ -1,0 +1,2062 @@
+/*************** QRDisplay v3 — Activation-First Flow (5pm-local follow-ups) ****
+ * Master tabs (you create): Stores, Displays, Settings(Key|Value)
+ * Per-store sheet (cloned from template), should contain:
+ *   Customers, Displays, Settings, Message_Log, Redemptions, Form Responses
+ *
+ * Flow:
+ * 1) Seed Displays -> each has Shortlink and TargetURL to Activation Prefill.
+ * 2) Staff scans QR -> Activation Form (dest = Master Sheet) submits.
+ * 3) handleDisplayActivationSubmit() runs:
+ *      - Allocates StoreID, clones Response Sheet + Sample Form.
+ *      - Links form destination, builds prefill, writes Stores row.
+ *      - Updates Displays row (StoreID, TargetURL, Prefill URL).
+ *      - Mirrors into the per-store sheet (Displays tab).
+ *      - (Optional) Flips the Cloudflare shortlink to the customer prefill.
+ * 4) sendReminderDue_() runs hourly and only sends when it's *5:00 PM local*
+ *    for each store, using that store’s TimeZone from Stores (fallback Settings.DEFAULT_TIMEZONE).
+ *******************************************************************************/
+
+const T_STORES   = 'Stores';
+const T_DISPLAYS = 'Displays';
+const T_SETTINGS = 'Settings';
+const TARGET_HOUR_LOCAL = 17; // 5pm in each store’s timezone
+
+// ========== MENU ==========
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+
+  // Main ops menu
+  ui.createMenu('QRDisplay')
+    .addItem('Seed Displays (x N)', 'uiSeedDisplays')
+    .addItem('Generate QR for DisplayID', 'uiGenerateQrForDisplayId')
+    .addItem('Manually Activate a Display', 'uiManualActivateDisplay')
+    .addItem('Repoint Shortlink (by DisplayID)', 'uiRepointShortlinkById')
+    .addSeparator()
+    .addItem('Sync ALL Shortlinks to Worker', 'uiSyncAllShortlinksToWorker')
+    .addSeparator()
+    .addItem('Send Test SMS (Twilio)', 'uiTestTwilio')
+    .addItem('Build QR Labels CSV', 'buildQrLabelsCsv')
+    .addItem('Open Store Folder', 'openStoreFolder')
+    .addSeparator()
+    .addItem('Initialize Master Headers', 'initMasterHeaders')
+    .addToUi();
+
+  // Setup/Admin + Diagnostics
+  ui.createMenu('Setup/Admin')
+    .addItem('Install Activation Form Trigger', 'installActivationFormTrigger')
+    .addItem('Install Hourly 5pm Reminder Trigger', 'uiInstallHourlyReminderTrigger')
+    .addSeparator()
+    .addItem('List Project Triggers (Log)', 'logProjectTriggers')
+    .addItem('Uninstall ALL Project Triggers', 'uninstallAllProjectTriggers')
+    .addSeparator()
+    .addItem('Diagnose Activation Wiring', 'diagActivationWiring')
+    .addItem('Reinstall Activation Trigger (Hard Reset)', 'reinstallActivationTriggerHard')
+    .addItem('Test Activation Submit (Simulated)', 'testActivationSubmit')
+    .addToUi();
+
+  // Rescue/Debug (from Rescue Pack v2)
+  ui.createMenu('Rescue/Debug')
+    .addItem('Auth Warmup (ask for all perms)', 'authWarmup_')
+    .addItem('Reinstall Probe + Real Handler', 'reinstallAllActivationHooks_')
+    .addItem('Run Real Handler with MOCK event', 'runActivationHandlerWithMock_')
+    .addItem('Ping Handler (settings sanity)', 'pingHandler_')
+    .addToUi();
+}
+
+
+// --- NEW: Bulk sync all Displays → Cloudflare KV (uses your existing updateShortlinkTarget_ ) ---
+function uiSyncAllShortlinksToWorker() {
+  ensureMasterHeaders_();
+
+  const sh = SpreadsheetApp.getActive().getSheetByName(T_DISPLAYS);
+  if (!sh || sh.getLastRow() < 2) {
+    SpreadsheetApp.getUi().alert('No rows found in "Displays".');
+    return;
+  }
+  const data = sh.getDataRange().getValues();
+  const headers = data.shift();
+  const m = {}; headers.forEach((h,i)=>m[h]=i);
+
+  const actFormId = getSetting('ACTIVATION_FORM_ID');
+  if (!actFormId) {
+    SpreadsheetApp.getUi().alert('Settings missing ACTIVATION_FORM_ID — cannot fallback-build activation prefills.');
+    return;
+  }
+
+  let ok = 0, fail = 0;
+  data.forEach((r, i) => {
+    const displayId = String(r[m['DisplayID']]||'').trim();
+    if (!displayId) return;
+
+    // Destination logic:
+    let dest = String(r[m['TargetURL']]||'').trim();
+    if (!dest) {
+      // If the row has no TargetURL yet, build an Activation prefill
+      dest = buildActivationPrefillUrl_(actFormId, displayId);
+      r[m['TargetURL']] = dest;
+      sh.getRange(i+2, 1, 1, headers.length).setValues([r]);
+    }
+
+    try {
+      updateShortlinkTarget_(displayId, dest);
+      ok++;
+    } catch (e) {
+      console.error('KV sync failed for', displayId, e);
+      fail++;
+    }
+  });
+
+  SpreadsheetApp.getUi().alert(`KV sync complete.\nSuccessful: ${ok}\nFailed: ${fail}`);
+}
+
+// ========== MASTER HEADERS ==========
+function ensureMasterHeaders_() {
+  const ss = getMasterSS_();
+  const need = (sheetName, headers) => {
+    const sh = ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
+    const hasHeaders = sh.getLastRow() >= 1 && sh.getLastColumn() >= headers.length;
+    if (!hasHeaders) {
+      sh.clear();
+      sh.getRange(1,1,1,headers.length).setValues([headers]);
+      sh.setFrozenRows(1);
+    }
+    return sh;
+  };
+
+  need(T_STORES, [
+    'StoreID','Status','Store Name','Contact Name','Contact Email','Contact Phone',
+    'Street Address','City','State','ZipCode','TimeZone','PromoOffer','Followup Days',
+    'Response Sheet','Sample Form','Prefill URL','Staff Verify Form'
+  ]);
+
+  need(T_DISPLAYS, [
+    'DisplayID','StoreID','Shortlink','TargetURL','Prefill URL (with DisplayID)'
+  ]);
+
+  need(T_SETTINGS, ['Key','Value']);
+}
+
+function initMasterHeaders() {
+  const ss = SpreadsheetApp.getActive();
+
+  // STORES
+  const shStores = ss.getSheetByName(T_STORES) || ss.insertSheet(T_STORES);
+  shStores.clear();
+  shStores.getRange(1,1,1,17).setValues([[
+    'StoreID','Status','Store Name','Contact Name','Contact Email','Contact Phone',
+    'Street Address','City','State','ZipCode','TimeZone','PromoOffer','Followup Days',
+    'Response Sheet','Sample Form','Prefill URL','Staff Verify Form'
+  ]]);
+  shStores.setFrozenRows(1);
+
+  // DISPLAYS
+  const shDisp = ss.getSheetByName(T_DISPLAYS) || ss.insertSheet(T_DISPLAYS);
+  shDisp.clear();
+  shDisp.getRange(1,1,1,5).setValues([[
+    'DisplayID','StoreID','Shortlink','TargetURL','Prefill URL (with DisplayID)'
+  ]]);
+  shDisp.setFrozenRows(1);
+
+  // SETTINGS
+  const shSet = ss.getSheetByName(T_SETTINGS) || ss.insertSheet(T_SETTINGS);
+  if (shSet.getLastRow() === 0 || shSet.getLastColumn() === 0) {
+    shSet.clear();
+    shSet.getRange(1,1,1,2).setValues([['Key','Value']]);
+    shSet.setFrozenRows(1);
+  }
+
+  SpreadsheetApp.getUi().alert('Master headers initialized. Add your Settings values next.');
+}
+
+// ========== SETTINGS ==========
+function getSetting(key) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(T_SETTINGS);
+  if (!sh) throw new Error('Settings tab missing');
+
+  const last = sh.getLastRow();
+  const vals = (last > 1) ? sh.getRange(2,1,last-1,2).getValues() : [];
+
+  const map = {};
+  vals.forEach(r => { if (r[0]) map[String(r[0]).trim()] = String(r[1]||'').trim(); });
+
+  const defaults = {
+    ROOT_FOLDER_ID: '',
+    ACTIVATION_FORM_ID: '',
+    TEMPLATE_SAMPLE_FORM_ID: '',
+    TEMPLATE_RESPONSE_SHEET_ID: '',
+    DOMAIN_SHORTLINK_PREFIX: 'https://vdzgo.com',
+    DEFAULT_TIMEZONE: 'America/Los_Angeles',
+    VERIFY_WEBAPP_URL: '',
+    SHORTLINK_ADMIN_URL: '',   // optional: Cloudflare Worker admin endpoint
+    SHORTLINK_ADMIN_KEY: '',   // optional: auth key for the Worker
+    QR_FOLDER_ID: '',          // optional: where to drop QR PNGs
+    TWILIO_ACCOUNT_SID: '',
+    TWILIO_AUTH_TOKEN: '',
+    TWILIO_FROM_NUMBER: ''
+  };
+  return map[key] || defaults[key] || '';
+}
+
+// ========== TRIGGERS ==========
+function installActivationFormTrigger() {
+  const actFormId = getSetting('ACTIVATION_FORM_ID');
+  if (!actFormId) throw new Error('Settings missing ACTIVATION_FORM_ID');
+
+  // Avoid duplicates
+  const exists = ScriptApp.getProjectTriggers().some(t =>
+    t.getHandlerFunction() === 'handleDisplayActivationSubmit' &&
+    t.getEventType() === ScriptApp.EventType.ON_FORM_SUBMIT &&
+    t.getTriggerSourceId() === actFormId
+  );
+  if (!exists) {
+    ScriptApp.newTrigger('handleDisplayActivationSubmit')
+      .forForm(actFormId)
+      .onFormSubmit()
+      .create();
+  }
+}
+
+// Hourly trigger for 5pm-local sends
+function uiInstallHourlyReminderTrigger() {
+  ScriptApp.getProjectTriggers()
+    .filter(t => t.getHandlerFunction() === 'sendReminderDue_' && t.getEventType() === ScriptApp.EventType.CLOCK)
+    .forEach(t => ScriptApp.deleteTrigger(t));
+
+  ScriptApp.newTrigger('sendReminderDue_')
+    .timeBased()
+    .everyHours(1)
+    .create();
+
+  SpreadsheetApp.getUi().alert('Hourly trigger installed for sendReminderDue_ (will only send at each store’s 5pm).');
+}
+
+// Back-compat alias
+function uiInstallDailyReminderTrigger() { uiInstallHourlyReminderTrigger(); }
+
+// ===== TRIGGERS: Utilities =====
+function logProjectTriggers() {
+  const triggers = ScriptApp.getProjectTriggers();
+  console.log('=== Project Triggers ===');
+  triggers.forEach(t => {
+    console.log(JSON.stringify({
+      handler: t.getHandlerFunction(),
+      type: String(t.getEventType && t.getEventType()),
+      sourceId: t.getTriggerSourceId && t.getTriggerSourceId(),
+      uid: t.getUniqueId && t.getUniqueId()
+    }));
+  });
+  SpreadsheetApp.getUi().alert('Triggers listed to View > Logs.');
+}
+
+function uninstallAllProjectTriggers() {
+  const ui = SpreadsheetApp.getUi();
+  const confirm = ui.prompt(
+    '⚠️ Danger Zone: Uninstall ALL Triggers',
+    'This removes EVERY trigger for this project (time-driven, form, spreadsheet, etc.).\n\n' +
+    'Type EXACTLY: DELETE TRIGGERS',
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (confirm.getSelectedButton() !== ui.Button.OK) return;
+  if ((confirm.getResponseText() || '').trim().toUpperCase() !== 'DELETE TRIGGERS') {
+    ui.alert('Cancelled — phrase did not match.');
+    return;
+  }
+
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(t => ScriptApp.deleteTrigger(t));
+  ui.alert(`Removed ${triggers.length} trigger(s).`);
+}
+
+// ========== ID/DRIVE HELPERS ==========
+function nextDisplayId_() {
+  const sh = SpreadsheetApp.getActive().getSheetByName(T_DISPLAYS);
+  const last = sh.getLastRow();
+  const vals = (last > 1) ? sh.getRange(2,1,last-1,1).getValues() : [];
+  const nums = vals.flat().filter(Boolean)
+    .map(v => Number(String(v).split('-')[1]||'0'))
+    .filter(n => !isNaN(n));
+  const next = (nums.length ? Math.max(...nums) : 0) + 1;
+  return `QRD-${next}`; // QRD-1, QRD-2, ...
+}
+
+function nextStoreId_() {
+  const sh = SpreadsheetApp.getActive().getSheetByName(T_STORES);
+  const last = sh ? sh.getLastRow() : 0;
+  const vals = (last > 1) ? sh.getRange(2,1,last-1,1).getValues() : [];
+  const nums = vals.flat().filter(Boolean)
+    .map(v => Number(String(v).split('-')[1]||'0'))
+    .filter(n => !isNaN(n));
+  const next = (nums.length ? Math.max(...nums) : 1000) + 1;
+  return `SID-${next}`;
+}
+
+function urlId_(url){ if(!url) return ''; const m=String(url).match(/[-\w]{25,}/); return m?m[0]:''; }
+
+function ensureStoreFolder_(rootFolder, storeId, label) {
+  const prefix = `${storeId} — `;
+  const it = rootFolder.getFolders();
+  while (it.hasNext()) { const f=it.next(); if (f.getName().startsWith(prefix)) return f; }
+  return rootFolder.createFolder(`${storeId} — ${label}`);
+}
+
+function renameStoreFolder_(rootFolder, storeId, newLabel) {
+  const prefix = `${storeId} — `;
+  const it = rootFolder.getFolders();
+  while (it.hasNext()) { const f=it.next(); if (f.getName().startsWith(prefix)) { f.setName(`${storeId} — ${newLabel}`); return f; } }
+  return rootFolder.createFolder(`${storeId} — ${newLabel}`);
+}
+
+function moveFileExclusivelyToFolder_(fileId, folder) {
+  const file = DriveApp.getFileById(fileId);
+  folder.addFile(file);
+  const parents = file.getParents();
+  while (parents.hasNext()) { const p=parents.next(); if (p.getId()!==folder.getId()) p.removeFile(file); }
+}
+
+// ========== SHEET HELPERS ==========
+function colMap_(headers){ const m={}; headers.forEach((h,i)=>m[h]=i); return m; }
+
+function ensureDisplaysTab_(respId) {
+  const ss = SpreadsheetApp.openById(respId);
+  let s = ss.getSheetByName('Displays');
+  if (!s) s = ss.insertSheet('Displays');
+  if (s.getLastRow()<1) {
+    s.getRange(1,1,1,6).setValues([['DisplayID','StoreID','Shortlink','TargetURL','Prefill URL (with DisplayID)','Location']]);
+    s.setFrozenRows(1);
+  }
+  return s;
+}
+
+// ========== SHORTLINKS ==========
+function shortlinkForDisplay_(displayId) {
+  const base = (getSetting('DOMAIN_SHORTLINK_PREFIX') || 'https://vdzgo.com').replace(/\/+$/,'');
+  return `${base}/${displayId}`;
+}
+
+function uiRepointShortlinkById() {
+  ensureMasterHeaders_();
+  const ui = SpreadsheetApp.getUi();
+  const res = ui.prompt(
+    'Repoint Shortlink',
+    'Enter a DisplayID (e.g., QRD-12) or multiple comma-separated (e.g., QRD-12, QRD-13):',
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (res.getSelectedButton() !== ui.Button.OK) return;
+
+  const ids = String(res.getResponseText()||'')
+    .split(',')
+    .map(s=>s.trim())
+    .filter(Boolean);
+
+  if (!ids.length) { ui.alert('No DisplayID(s) entered.'); return; }
+
+  const results = ids.map(did=>{
+    try {
+      const dest = repointShortlinkById_(did);
+      return `✅ ${did} → ${dest}`;
+    } catch (e) {
+      return `❌ ${did} → ${e}`;
+    }
+  });
+
+  ui.alert(results.join('\n'));
+}
+
+function repointShortlinkById_(displayId) {
+  if (!/^QRD-\d+$/.test(displayId)) throw new Error('Invalid DisplayID format (expected QRD-#).');
+
+  const sh = SpreadsheetApp.getActive().getSheetByName(T_DISPLAYS);
+  if (!sh) throw new Error('Displays sheet missing.');
+
+  const headers = sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
+  const m = colMap_(headers);
+  const data = sh.getRange(2,1,Math.max(0, sh.getLastRow()-1), sh.getLastColumn()).getValues();
+
+  const idx = data.findIndex(r => String(r[m['DisplayID']]||'').trim() === displayId);
+  if (idx < 0) throw new Error('DisplayID not found in Displays sheet.');
+
+  const row = data[idx];
+
+  // Determine the destination
+  let dest = String(row[m['TargetURL']]||'').trim() || String(row[m['Prefill URL (with DisplayID)']]||'').trim();
+
+  // If still no destination, build an activation prefill so the QR works pre-activation
+  if (!dest) {
+    const actFormId = getSetting('ACTIVATION_FORM_ID');
+    if (!actFormId) throw new Error('No TargetURL/Prefill on row and ACTIVATION_FORM_ID not set.');
+    dest = buildActivationPrefillUrl_(actFormId, displayId);
+    // Persist what we’re pointing at for visibility
+    row[m['TargetURL']] = dest;
+  }
+
+  // Ensure shortlink value exists in the sheet
+  if (!String(row[m['Shortlink']]||'').trim()) {
+    row[m['Shortlink']] = shortlinkForDisplay_(displayId);
+  }
+
+  // Write any changes back to the row
+  sh.getRange(idx+2, 1, 1, headers.length).setValues([row]);
+
+  // Call the Worker to repoint
+  updateShortlinkTarget_(displayId, dest);
+  return dest; // for UI summary
+}
+
+function updateShortlinkTarget_(displayId, targetUrl) {
+  const adminUrl = getSetting('SHORTLINK_ADMIN_URL'); // e.g., https://vdzgo.com/admin/set
+  const apiKey   = getSetting('SHORTLINK_ADMIN_KEY');
+  if (!adminUrl) return; // optional
+  const payload = JSON.stringify({ displayId, target: targetUrl });
+  const res = UrlFetchApp.fetch(adminUrl, {
+    method: 'post',
+    contentType: 'application/json',
+    payload,
+    headers: apiKey ? { 'x-api-key': apiKey } : {},
+    muteHttpExceptions: true
+  });
+  const code = res.getResponseCode();
+  if (code >= 300) throw new Error('Shortlink update failed: '+res.getContentText());
+}
+
+// ========== PREFILLS ==========
+// --- SAFE PREFILL BUILDER: never throw on unpublished forms ---
+function safePrefillOrResponder_(formId, buildParamsFn) {
+  try {
+    const responder = responderUrlForFormId_(formId);  // safe public URL
+    // Open form directly and build params (no publish required)
+    const form = FormApp.openById(formId);
+    const params = (typeof buildParamsFn === 'function') ? buildParamsFn(form) : [];
+    const qs = (params || []).filter(Boolean).join('&');
+    return qs ? `${responder}?usp=pp_url&${qs}` : responder;
+  } catch (e) {
+    // Log and fall back to responder (no params)
+    dbg_('PREFILL_FALLBACK', String(e));
+    return responderUrlForFormId_(formId);
+  }
+}
+
+// Build customer Sample Form prefill (StoreID + DisplayID), with fallback
+function buildPrefillUrl_(formId, storeId, displayId) {
+  return safePrefillOrResponder_(formId, (form) => {
+    const items = form.getItems();
+    const byTitle = (t) => items.find(i => String(i.getTitle() || '').trim() === String(t).trim());
+    const params = [];
+
+    const storeItem = byTitle('StoreID');
+    if (storeItem && storeId) params.push(`entry.${storeItem.getId()}=${encodeURIComponent(storeId)}`);
+
+    const dispItem = byTitle('DisplayID (do not edit)') || byTitle('DisplayID');
+    if (dispItem && displayId) params.push(`entry.${dispItem.getId()}=${encodeURIComponent(displayId)}`);
+
+    return params;
+  });
+}
+
+// Build Activation Form prefill (DisplayID only), with fallback
+function buildActivationPrefillUrl_(activationFormId, displayId) {
+  return safePrefillOrResponder_(activationFormId, (form) => {
+    const items = form.getItems();
+    const byTitle = (t) => items.find(i => String(i.getTitle() || '').trim() === String(t).trim());
+    const dispItem = byTitle('DisplayID') || byTitle('Display ID');
+    return (dispItem && displayId)
+      ? [`entry.${dispItem.getId()}=${encodeURIComponent(displayId)}`]
+      : [];
+  });
+}
+
+// ========== UI: SEED DISPLAYS ==========
+function uiSeedDisplays() {
+  const n = Number(SpreadsheetApp.getUi().prompt('How many displays?', 'Enter 1–500:', SpreadsheetApp.getUi().ButtonSet.OK_CANCEL).getResponseText()||'0');
+  if (!n) return;
+  seedPlaceholderDisplays(Math.min(500, Math.max(1,n)));
+}
+
+function seedPlaceholderDisplays(n) {
+  ensureMasterHeaders_();
+  const sh = SpreadsheetApp.getActive().getSheetByName(T_DISPLAYS);
+  const actFormId = getSetting('ACTIVATION_FORM_ID');
+
+  // HARD GUARD: don’t seed if no Activation Form configured (prevents blank shortlinks)
+  if (!actFormId) throw new Error('Set ACTIVATION_FORM_ID in Settings before seeding displays.');
+
+  // Make sure QR column exists before we start
+  ensureDisplaysQrColumn_();
+
+  for (let i=0;i<n;i++) {
+    const displayId = nextDisplayId_();
+    const shortlink = shortlinkForDisplay_(displayId);
+    const target    = buildActivationPrefillUrl_(actFormId, displayId); // always prefill activation
+
+    sh.appendRow([displayId, '', shortlink, target, '']);
+
+    // Create shortlink in your Worker/edge (seed KV) now:
+    try { updateShortlinkTarget_(displayId, target); } catch(e){ /* optional */ }
+
+    // Generate QR PNG file and write URL
+    try { generateQrForDisplay_(displayId); } catch(e){ console.error('QR gen failed for', displayId, e); }
+  }
+}
+
+function ensureDisplaysQrColumn_() {
+  const sh = SpreadsheetApp.getActive().getSheetByName(T_DISPLAYS);
+  if (!sh) return null;
+  const headers = sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
+  if (!headers.includes('QR PNG URL')) {
+    sh.insertColumnAfter(headers.length);
+    sh.getRange(1, headers.length + 1, 1, 1).setValues([['QR PNG URL']]);
+  }
+  const updated = sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
+  const m = colMap_(updated);
+  return { sheet: sh, map: m };
+}
+
+function buildQrPngBlob_(text, size) {
+  const url = 'https://quickchart.io/qr?size=' + encodeURIComponent(String(size || 512)) +
+              '&text=' + encodeURIComponent(String(text || ''));
+  const resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+  if (resp.getResponseCode() >= 300) {
+    throw new Error('QR fetch failed: ' + resp.getContentText());
+  }
+  return resp.getBlob().setName('qr.png');
+}
+
+function generateQrForDisplay_(displayId) {
+  const ctx = ensureDisplaysQrColumn_();
+  const sh = ctx.sheet, m = ctx.map;
+
+  const lr = sh.getLastRow();
+  const lc = sh.getLastColumn();
+
+  // NEW: guard — no data rows yet
+  if (lr < 2) {
+    throw new Error('No display rows exist yet (only headers). Seed or append a display row first.');
+  }
+
+  // Read all rows 2..lr (safe: lr-1 >= 1 here)
+  const data = sh.getRange(2, 1, lr - 1, lc).getValues();
+  const idx = data.findIndex(r => String(r[m['DisplayID']]||'').trim() === String(displayId).trim());
+  if (idx < 0) throw new Error('DisplayID not found: ' + displayId);
+
+  const row = data[idx];
+  const short = String(row[m['Shortlink']]||'').trim();
+  if (!short) throw new Error('No shortlink on row; seed or repoint first.');
+
+  const blob = buildQrPngBlob_(short, 512);
+  const qrFolderId = getSetting('QR_FOLDER_ID');
+  const folder = qrFolderId ? DriveApp.getFolderById(qrFolderId) : DriveApp.getRootFolder();
+  const file = folder.createFile(blob).setName(`${displayId}__qr.png`);
+
+  // write URL back to the **actual sheet row index** (idx+2)
+  row[m['QR PNG URL']] = file.getUrl();
+  sh.getRange(idx + 2, 1, 1, lc).setValues([row]);
+
+  return file.getUrl();
+}
+
+
+// Simple UI wrapper for QR gen
+function uiGenerateQrForDisplayId() {
+  const ui = SpreadsheetApp.getUi();
+  const res = ui.prompt('Generate QR', 'Enter DisplayID (e.g., QRD-1):', ui.ButtonSet.OK_CANCEL);
+  if (res.getSelectedButton() !== ui.Button.OK) return;
+  const did = (res.getResponseText()||'').trim();
+  try {
+    const url = generateQrForDisplay_(did);
+    ui.alert('QR generated:\n' + url);
+  } catch (e) {
+    ui.alert('QR generation failed:\n' + e);
+  }
+}
+// Normalize Apps Script form events into a simple {namedValues} map of strings/arrays
+function coerceNamedValues_(e){
+  if (!e) return {};
+  if (e.namedValues && Object.keys(e.namedValues).length) return e.namedValues;
+  if (e.response && typeof e.response.getItemResponses === 'function') {
+    const nv = {};
+    e.response.getItemResponses().forEach(ir => {
+      const t = ir.getItem().getTitle();
+      const v = ir.getResponse();
+      if (t) nv[t] = Array.isArray(v) ? v : [v];
+    });
+    return nv;
+  }
+  return {};
+}
+
+// Build a public responder URL for a Form ID (avoids getPublishedUrl)
+function responderUrlForFormId_(formId){
+  return `https://docs.google.com/forms/d/${encodeURIComponent(formId)}/viewform`;
+}
+function getMasterSS_() {
+  const id = getSetting('MASTER_SPREADSHEET_ID');
+  if (id) {
+    try { return SpreadsheetApp.openById(id); } catch (e) { /* ignore */ }
+  }
+  // Fallback for UI calls when bound to the Master file itself
+  return SpreadsheetApp.getActive();
+}
+// ========== ACTIVATION HANDLER (UNIVERSAL FORM → MASTER SHEET) ==========
+function handleDisplayActivationSubmit(e) {
+  ensureMasterHeaders_();
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    // Normalize event input
+    const nv = coerceNamedValues_(e);
+    if (!nv || !Object.keys(nv).length) {
+      throw new Error('Event had no answers (namedValues/response empty). Check that the trigger is bound to the Activation FORM and submit the actual form.');
+    }
+
+    // Extract fields safely
+    const displayId    = nvGet_(nv, ['DisplayID','Display ID']);
+    const storeName    = nvGet_(nv, ['Store Name','Store']);
+    const contactName  = nvGet_(nv, ['Contact Name','Contact']);
+    const contactEmail = nvGet_(nv, ['Contact Email','Email']);
+    const contactPhone = normalizeUSPhone_(nvGet_(nv, ['Contact Phone','Phone']));
+    const street       = nvGet_(nv, ['Street Address','Address','Street']);
+    const city         = nvGet_(nv, ['City']);
+    const state        = nvGet_(nv, ['State']);
+    const zip          = nvGet_(nv, ['ZipCode','Zip Code','Postal Code','Zip']);
+
+    const tzFromForm = nvGet_(nv, ['Time Zone','TimeZone','TZ']);
+    const tzDefault  = resolveStoreTimezone_(tzFromForm);
+    const promoOffer = nvGet_(nv, ['Promo Offer','Promotion','Offer']) || '20%-Off 1st Purchase';
+
+    const cadenceRaw  = nv['Automated Follow-up Cadence (Please select 2)'] 
+                     || nv['Automated Follow up Cadence (Please select 2)'] 
+                     || nv['Follow-up Cadence']
+                     || [];
+    const followDays  = parseFollowupDays_(Array.isArray(cadenceRaw) ? cadenceRaw : [cadenceRaw]);
+    const followCsv   = followDays.join(',');
+
+    if (!displayId || !storeName) {
+      throw new Error(`Missing required field(s). displayId="${displayId}" storeName="${storeName}"`);
+    }
+
+    // Required settings
+    const rootId    = assertSetting_('ROOT_FOLDER_ID');
+    const formTplId = assertSetting_('TEMPLATE_SAMPLE_FORM_ID');
+    const respTplId = assertSetting_('TEMPLATE_RESPONSE_SHEET_ID');
+
+    const ss        = getMasterSS_();
+    const shStores  = ss.getSheetByName(T_STORES);
+    const shDisp    = ss.getSheetByName(T_DISPLAYS);
+
+    // Find display row
+    const dispData = shDisp.getDataRange().getValues();
+    const dh = dispData.shift();
+    const dm = colMap_(dh);
+    const dIdx = dispData.findIndex(r => String(r[dm['DisplayID']]||'').trim() === displayId);
+    if (dIdx < 0) throw new Error('DisplayID not found in Displays: ' + displayId);
+
+    const alreadyStore = String(dispData[dIdx][dm['StoreID']]||'').trim();
+    if (alreadyStore) return; // already activated — no-op
+
+    // Allocate StoreID & create folder
+    const storeId     = nextStoreId_();
+    const rootFolder  = DriveApp.getFolderById(rootId);
+    const storeFolder = ensureStoreFolder_(rootFolder, storeId, storeName || '[Activated]');
+
+    // Clone Response Sheet (store-specific "Program Data" file)
+    const respFile = DriveApp.getFileById(respTplId)
+      .makeCopy(`${storeId} ${storeName} Program Data`, storeFolder);
+    const respId   = respFile.getId();
+    const respUrl  = `https://docs.google.com/spreadsheets/d/${respId}/edit`;
+
+    // === Clone, Publish, and Wire Form ===
+    const formFile = DriveApp.getFileById(formTplId)
+      .makeCopy(`${storeId} ${storeName} Sample Form`, storeFolder);
+    const formId = formFile.getId();
+    Utilities.sleep(500);
+
+    const form = FormApp.openById(formId);
+    try { form.setPublished(true); } catch (err) { dbg_('WARN_PUBLISH_FAILED', String(err)); }
+    try { form.setDestination(FormApp.DestinationType.SPREADSHEET, respId); } catch (_) {}
+    try { form.setAcceptingResponses(true); } catch (_) {}
+    try { form.setRequireLogin(false); } catch (_) {}
+    try { form.setLimitOneResponsePerUser(false); } catch (_) {}
+
+    // Build responder + prefill URLs
+    const responderUrl = responderUrlForFormId_(formId);
+    const prefill      = buildPrefillUrl_(formId, storeId, displayId);
+
+    // --- IMPORTANT: Pre-create Customers & Message_Log tabs on the store sheet
+    const storeSS = SpreadsheetApp.openById(respId);
+    ensureCustomersScaffold_(storeSS);
+    ensureMessageLog_(storeSS);
+
+    // --- Install the per-store onFormSubmit trigger (so handleProgramSheetSubmit runs in master)
+    const exists = ScriptApp.getProjectTriggers().some(t =>
+      t.getHandlerFunction() === 'handleProgramSheetSubmit' &&
+      t.getEventType() === ScriptApp.EventType.ON_FORM_SUBMIT &&
+      t.getTriggerSourceId() === respId
+    );
+    if (!exists) {
+      ScriptApp.newTrigger('handleProgramSheetSubmit')
+        .forSpreadsheet(respId)
+        .onFormSubmit()
+        .create();
+      dbg_('PER_STORE_TRIGGER_INSTALLED', { respId });
+    } else {
+      dbg_('PER_STORE_TRIGGER_ALREADY_EXISTS', { respId });
+    }
+
+    // Append Stores row
+    shStores.appendRow([
+      storeId,'Active',storeName,contactName,contactEmail,contactPhone,
+      street,city,state,zip,
+      tzDefault,promoOffer,followCsv,
+      respUrl, responderUrl, buildPrefillUrl_(formId, storeId, ''), buildVerifyUrlForStore_(storeId)
+    ]);
+    dbg_('STORES_ROW_APPENDED', { storeId, responderUrl, prefill });
+
+    // Update Displays
+    const shortlink = String(dispData[dIdx][dm['Shortlink']] || '').trim() || shortlinkForDisplay_(displayId);
+    dispData[dIdx][dm['Shortlink']] = shortlink;
+    dispData[dIdx][dm['StoreID']]   = storeId;
+    dispData[dIdx][dm['TargetURL']] = prefill;
+    dispData[dIdx][dm['Prefill URL (with DisplayID)']] = prefill;
+    shDisp.getRange(dIdx + 2, 1, 1, dh.length).setValues([dispData[dIdx]]);
+
+    // Mirror into per-store sheet (Displays tab)
+    const tab = ensureDisplaysTab_(respId);
+    tab.appendRow([displayId, storeId, shortlink, prefill, prefill, '' ]);
+
+    // Ensure per-store Settings values
+    let setSh = storeSS.getSheetByName('Settings');
+    if (!setSh) {
+      setSh = storeSS.insertSheet('Settings');
+      setSh.getRange(1,1,1,2).setValues([['Key','Value']]);
+      setSh.setFrozenRows(1);
+    }
+    const patch = (k,v)=>{ 
+      const lr = setSh.getLastRow();
+      for (let r=2;r<=lr;r++){ 
+        if (String(setSh.getRange(r,1).getValue())===k){ setSh.getRange(r,2).setValue(v); return; }
+      }
+      setSh.appendRow([k,v]);
+    };
+    [['StoreID',storeId],['StoreName',storeName],['ContactName',contactName],['ContactEmail',contactEmail],
+     ['ContactPhone',contactPhone],['StreetAddress',street],['City',city],['State',state],['ZipCode',zip],
+     ['TimeZone',tzDefault],['PromoOffer',promoOffer],['FollowupDays',followCsv]
+    ].forEach(([k,v])=>patch(k,v));
+
+    // Flip shortlink to customer prefill
+    try { updateShortlinkTarget_(displayId, prefill); } catch(e){ /* optional */ }
+
+    // Activation confirmation email (best-effort)
+    try {
+      if (contactEmail) {
+        const payload = {
+          contactName, storeName, storeId, displayId, promoOffer,
+          followCsv, tzDefault, contactEmail, contactPhone, street, city, state, zip
+        };
+        const { subject, body, htmlBody } = composeActivationEmail_(payload);
+        MailApp.sendEmail({ to: contactEmail, cc: 'teamvitadreamz@gmail.com', subject, body, htmlBody });
+      }
+    } catch (mailErr) {
+      logError_('Activation Email', mailErr, { storeId, contactEmail });
+    }
+
+  } catch (err) {
+    logError_('handleDisplayActivationSubmit', err, { hasEvent: !!e, keys: e && Object.keys((e && e.namedValues)||{}) });
+    console.error(err);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function parseFollowupDays_(arr){
+  // arr like ["Day 3","Day 7"] → [3,7], enforce 2 unique days within 2..10
+  const nums = (arr || [])
+    .map(x => Number(String(x).replace(/[^\d]/g,'')))
+    .filter(n => n >= 2 && n <= 10);
+  const uniq = [...new Set(nums)].sort((a,b)=>a-b);
+  return (uniq.length === 2) ? uniq : [4,8]; // default fallback
+}
+
+/**
+ * Build subject, plaintext body, and HTML body for the activation confirmation email.
+ * Calming purple palette, clean layout.
+ * @param {Object} d
+ * @returns {{subject:string, body:string, htmlBody:string}}
+ */
+function composeActivationEmail_(d) {
+  const {
+    contactName, storeName, storeId, displayId, promoOffer,
+    followCsv, tzDefault, contactEmail, contactPhone,
+    street, city, state, zip
+  } = d;
+
+  const subject = '✅ Your VitaDreamz Sample Display is Activated !';
+
+  const body =
+`Hi ${contactName || 'there'},
+
+Thanks for choosing to offer our samples in ${storeName}!
+Your display has been successfully activated and Free Sample Program is up and running!
+
+Here’s a quick summary of your activation details:
+
+Store Name: ${storeName}
+Store ID: ${storeId}
+Display ID: ${displayId}
+Promo Offer: ${promoOffer}
+Follow-Up Cadence: ${followCsv} days
+Store Time Zone: ${tzDefault}
+Contact Email: ${contactEmail}
+Contact Phone: ${contactPhone}
+Store Address:
+${street}, ${city}, ${state} ${zip}
+
+Need help or have questions?
+Our support team is always here to help:
+📞 In-Store Help Line: +1 (323) 536-1296
+📧 teamvitadreamz@gmail.com
+
+You can also reply directly to this email and one of our team members will get right back to you.
+
+We’re excited to have you onboard — your customers are going to love their new found rest & relaxation!
+Let’s make it easy (and fun) for people to rest better together. 🌙💤
+
+Warm regards,
+The VitaDreamz / RestRewardz Team
+www.vitadreamz.com`;
+
+  // Calming purple palette
+  const bg     = '#f7f5fb';
+  const card   = '#ffffff';
+  const brand  = '#6f42c1';
+  const accent = '#9a7bd3';
+  const text   = '#2b2b2b';
+  const sub    = '#6b6b6b';
+  const divider= '#eeeeee';
+
+  const htmlBody =
+`<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>${subject}</title>
+  <style>
+    body,table,td,a { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+    img { border: 0; outline: none; text-decoration: none; }
+    table { border-collapse: collapse !important; }
+    body { margin: 0 !important; padding: 0 !important; width: 100% !important; background: ${bg}; }
+    a { color: ${brand}; text-decoration: none; }
+    .button { display: inline-block; padding: 12px 18px; border-radius: 10px; background: ${brand}; color: #fff !important; font-weight: 600; }
+    .muted { color: ${sub}; }
+    .mono  { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .pill  { display:inline-block; padding:4px 10px; border-radius:999px; background:${bg}; color:#ffffff; border:1px solid rgba(255,255,255,0.35); font-weight:600; }
+  </style>
+</head>
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${bg}; padding: 32px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px; max-width: 94%; background:${card}; border-radius: 16px; box-shadow: 0 4px 14px rgba(0,0,0,0.06); overflow:hidden;">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, ${brand}, ${accent}); padding: 20px 24px; color:#fff;">
+              <table width="100%">
+                <tr>
+                  <td style="font-size: 18px; font-weight:700;">VitaDreamz RestRewardz</td>
+                  <td align="right"><span class="pill">Activation</span></td>
+                </tr>
+              </table>
+              <div style="font-size: 22px; font-weight:700; margin-top: 6px;">Your Sample Display is Activated!</div>
+              <div style="opacity:0.95; margin-top: 6px;">Thanks for choosing to offer our samples in <strong>${storeName}</strong>.</div>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding: 24px;">
+              <p style="margin:0 0 14px 0; color:${text}; font-size:16px;">Hi ${contactName || 'there'},</p>
+              <p style="margin:0 0 18px 0; color:${text}; line-height:1.55; font-size:16px;">
+                Your display has been successfully activated and the <strong>Free Sample Program</strong> is up and running!
+              </p>
+
+              <!-- Summary Card -->
+              <table role="presentation" width="100%" style="border:1px solid ${divider}; border-radius:12px;">
+                <tr>
+                  <td style="padding:16px 16px 0 16px;">
+                    <div style="font-weight:700; color:${brand}; font-size:14px; letter-spacing:.02em;">Activation Details</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px 16px 6px 16px;">
+                    <table role="presentation" width="100%" style="font-size:14px; color:${text};">
+                      <tr><td width="42%" class="muted">Store Name</td><td><strong>${storeName}</strong></td></tr>
+                      <tr><td class="muted">Store ID</td><td class="mono">${storeId}</td></tr>
+                      <tr><td class="muted">Display ID</td><td class="mono">${displayId}</td></tr>
+                      <tr><td class="muted">Promo Offer</td><td>${promoOffer}</td></tr>
+                      <tr><td class="muted">Follow-Up Cadence</td><td>${followCsv} days</td></tr>
+                      <tr><td class="muted">Store Time Zone</td><td>${tzDefault}</td></tr>
+                      <tr><td class="muted">Contact Email</td><td><a href="mailto:${contactEmail}">${contactEmail}</a></td></tr>
+                      <tr><td class="muted">Contact Phone</td><td>${contactPhone || '-'}</td></tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 6px 16px 16px 16px;">
+                    <table role="presentation" width="100%" style="font-size:14px; color:${text};">
+                      <tr><td class="muted" width="42%" style="vertical-align:top;">Store Address</td>
+                          <td>${street}, ${city}, ${state} ${zip}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Help Box -->
+              <table role="presentation" width="100%" style="margin:18px 0 8px 0; border:1px dashed ${accent}; border-radius:12px;">
+                <tr>
+                  <td style="padding:14px 16px;">
+                    <div style="font-weight:700; color:${brand}; margin-bottom:6px;">Need help or have questions?</div>
+                    <div style="color:${text}; line-height:1.55; font-size:14px;">
+                      Our support team is always here to help.<br>
+                      📞 <strong>In-Store Help Line:</strong> <a href="tel:+13235361296">+1 (323) 536-1296</a><br>
+                      📧 <strong>Email:</strong> <a href="mailto:teamvitadreamz@gmail.com">teamvitadreamz@gmail.com</a>
+                    </div>
+                    <div style="margin-top:12px;">
+                      <a href="mailto:teamvitadreamz@gmail.com?subject=RestRewardz%20Support%20Request%20-%20${encodeURIComponent(storeId)}" class="button">Email Support</a>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:18px 0 8px 0; color:${text}; line-height:1.55; font-size:16px;">
+                We’re excited to have you onboard — your customers are going to love their new found rest & relaxation!
+              </p>
+              <p style="margin:0 0 16px 0; color:${text}; line-height:1.55; font-size:16px;">
+                Let’s make it easy (and fun) for people to rest better together. 🌙💤
+              </p>
+
+              <div style="margin-top:22px; color:${sub}; font-size:13px;">
+                Warm regards,<br>
+                <strong>The VitaDreamz / RestRewardz Team</strong><br>
+                <a href="https://www.vitadreamz.com">www.vitadreamz.com</a>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background:${bg}; padding: 16px 24px; color:${sub}; font-size:12px; text-align:center;">
+              You received this because your store activated a VitaDreamz RestRewardz display.<br>
+              © ${new Date().getFullYear()} VitaDreamz. All rights reserved.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  return { subject, body, htmlBody };
+}
+
+// ----- Customers + Message_Log scaffolding (safe idempotent) -----
+function ensureCustomersScaffold_(ss){
+  // Ensure Customers sheet exists and has headers copied from "Form Responses"
+  let cust = ss.getSheetByName('Customers');
+  const form = ss.getSheetByName('Form Responses');
+  if (!form) throw new Error('Template missing "Form Responses" tab');
+
+  // Base headers = the responder headers
+  const baseHdrs = form.getRange(1,1,1,form.getLastColumn()).getValues()[0];
+
+  // Computed/required fields we rely on elsewhere:
+  const computed = ['Phone_E164','MemberID','WelcomeCode','WelcomeLink','Source'];
+
+  if (!cust) {
+    cust = ss.insertSheet('Customers');
+    const all = baseHdrs.concat(computed.filter(h => !baseHdrs.includes(h)));
+    cust.getRange(1,1,1,all.length).setValues([all]);
+    cust.setFrozenRows(1);
+  } else if (cust.getLastRow() < 1) {
+    const all = baseHdrs.concat(computed.filter(h => !baseHdrs.includes(h)));
+    cust.getRange(1,1,1,all.length).setValues([all]);
+    cust.setFrozenRows(1);
+  } else {
+    // Ensure computed columns exist (append any missing)
+    const curHdrs = cust.getRange(1,1,1,cust.getLastColumn()).getValues()[0];
+    const missing = computed.filter(h => !curHdrs.includes(h));
+    missing.forEach(h => {
+      cust.insertColumnAfter(cust.getLastColumn());
+      cust.getRange(1, cust.getLastColumn(), 1, 1).setValue(h);
+    });
+  }
+  return cust;
+}
+
+function ensureMessageLog_(ss){
+  let log = ss.getSheetByName('Message_Log');
+  if (!log) {
+    log = ss.insertSheet('Message_Log');
+    log.getRange(1,1,1,9).setValues([[
+      'Timestamp','StoreID','MemberID','Phone','TemplateID','Body','Status','Error','Meta'
+    ]]);
+    log.setFrozenRows(1);
+  } else if (log.getLastRow() < 1) {
+    log.getRange(1,1,1,9).setValues([[
+      'Timestamp','StoreID','MemberID','Phone','TemplateID','Body','Status','Error','Meta'
+    ]]);
+    log.setFrozenRows(1);
+  }
+  return log;
+}
+
+// ========== CUSTOMER FORM SUBMIT (per-store sheets) ==========
+function handleProgramSheetSubmit(e) {
+  try {
+    const sheet = e.range.getSheet();
+    if (sheet.getName() !== 'Form Responses') return;
+    const row = e.range.getRow();
+
+    // ---- Read headers/values (dynamic width) ----
+    const lastCol = sheet.getLastColumn();
+    const vals = sheet.getRange(row, 1, 1, lastCol).getValues()[0];
+    let   hdrs = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+    let   m    = colMap_(hdrs);
+
+    // ---- Ensure computed headers exist on "Form Responses" before writing back ----
+    const computed = ['Phone_E164','MemberID','WelcomeCode','WelcomeLink','Source'];
+    const missing = computed.filter(h => !hdrs.includes(h));
+    if (missing.length) {
+      missing.forEach(h => {
+        sheet.insertColumnAfter(sheet.getLastColumn());
+        sheet.getRange(1, sheet.getLastColumn(), 1, 1).setValue(h);
+      });
+      // refresh header map after mutation
+      const newLast = sheet.getLastColumn();
+      hdrs = sheet.getRange(1, 1, 1, newLast).getValues()[0];
+      m = colMap_(hdrs);
+    }
+
+    // ---- Pull core fields (tolerant if a header is absent) ----
+    const get = (key) => (m[key] != null ? vals[m[key]] : '');
+    const first     = get('FirstName') || '';
+    const sampleChoice = get('Sample Choice') || get('SampleChoice') || get('Sample') || '';
+    const phoneRaw  = String(get('Phone') || '');
+    const phoneE164 = normalizeUSPhone_(phoneRaw);
+    const storeId   = String(get('StoreID') || '');
+
+    // MemberID derives from store + row number (stable)
+    const memberId  = `${storeId}-${String(row).padStart(6,'0')}`;
+    const code      = genCode_();
+
+    const verifyBase = getSetting('VERIFY_WEBAPP_URL') || '';
+    const welcomeLink = verifyBase
+      ? `${verifyBase}?storeId=${encodeURIComponent(storeId)}&m=${encodeURIComponent(memberId)}&t=${encodeURIComponent(code)}`
+      : '';
+
+    // ---- Write computed columns back onto the raw Form Responses row ----
+    sheet.getRange(row, m['Phone_E164']+1).setValue(phoneE164);
+    sheet.getRange(row, m['MemberID']+1).setValue(memberId);
+    sheet.getRange(row, m['WelcomeCode']+1).setValue(code);
+    sheet.getRange(row, m['WelcomeLink']+1).setValue(welcomeLink);
+    sheet.getRange(row, m['Source']+1).setValue('Form');
+
+    // ---- Ensure per-store tabs exist, then append to Customers using its headers ----
+    const ss         = sheet.getParent();
+    const customers  = ensureCustomersScaffold_(ss);  // << tiny helper
+    const log        = ensureMessageLog_(ss);         // << tiny helper
+
+    // Build a name->value map from the Form Responses row + computed
+    const rowMap = {};
+    hdrs.forEach((h,i) => { rowMap[String(h)] = vals[i]; });
+    rowMap['Phone_E164']  = phoneE164;
+    rowMap['MemberID']    = memberId;
+    rowMap['WelcomeCode'] = code;
+    rowMap['WelcomeLink'] = welcomeLink;
+    rowMap['Source']      = 'Form';
+
+    // Align output to Customers' headers to avoid mis-ordered writes
+    const custHdrs = customers.getRange(1,1,1,customers.getLastColumn()).getValues()[0];
+    const out = custHdrs.map(h => (rowMap.hasOwnProperty(h) ? rowMap[h] : ''));
+    customers.appendRow(out);
+
+    // ---- Immediate welcome SMS (safe no-op if Twilio not configured) ----
+    const body = `${first || 'Hi'}, Show this text to a store employee to receive your ${sampleChoice || 'free sample'}.`;
+    twilioSendSms_(phoneE164, body);
+
+    // ---- Log send ----
+    log.appendRow([new Date(), storeId, memberId, phoneE164, 'WELCOME', body, 'Sent', '', '']);
+
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+
+// ========== REMINDER SCHEDULER (5pm per store, hourly trigger) ==========
+function sendReminderDue_(){
+  const ssMaster = getMasterSS_();
+  const shStores = ssMaster.getSheetByName(T_STORES);
+  if (!shStores || shStores.getLastRow() < 2) return;
+
+  const data = shStores.getDataRange().getValues(); 
+  const headers = data.shift(); 
+  const m = colMap_(headers);
+
+  data.forEach(r=>{
+    try {
+      if ((r[m['Status']]||'') !== 'Active') return;
+
+      const respUrl = r[m['Response Sheet']] || '';
+      const respId  = urlId_(respUrl);
+      if (!respId) return;
+
+      // timezone: prefer per-store TimeZone column; fallback to per-store Settings; then DEFAULT_TIMEZONE
+      let tz = String(r[m['TimeZone']] || '').trim() || '';
+      if (!tz) tz = getPerStoreSetting_(respId, 'TimeZone') || getSetting('DEFAULT_TIMEZONE') || 'America/Los_Angeles';
+
+      // Only run if it's currently within the 5:00pm window in that store's timezone
+      if (!isWithinLocalWindow_(tz, TARGET_HOUR_LOCAL, 20)) return; // 20-min window: 17:00–17:19
+
+      const ss = SpreadsheetApp.openById(respId);
+      const customers  = ss.getSheetByName('Customers');
+      const log        = ss.getSheetByName('Message_Log');
+      const settingsSh = ss.getSheetByName('Settings');
+      if (!customers || customers.getLastRow() < 2 || !log) return;
+
+      // FollowupDays from per-store Settings (default "4,8")
+      let followCsv = '4,8';
+      if (settingsSh && settingsSh.getLastRow() > 1){
+        const rows = settingsSh.getRange(2,1,settingsSh.getLastRow()-1,2).getValues();
+        const rec = rows.find(x=> String(x[0])==='FollowupDays');
+        if (rec && rec[1]) followCsv = String(rec[1]);
+      }
+      const followDays = followCsv.split(',').map(s=>Number(s.trim())).filter(n=>!isNaN(n) && n>=2 && n<=10);
+
+      const ch = customers.getRange(1,1,1,customers.getLastColumn()).getValues()[0];
+      const cm = colMap_(ch);
+      const rows = customers.getRange(2,1,customers.getLastRow()-1,customers.getLastColumn()).getValues();
+
+      rows.forEach(row=>{
+        try {
+          const ts = new Date(row[cm['Timestamp']]); // timestamp of join
+          if (!ts) return;
+
+          const ageDays = daysDiffInTz_(ts, new Date(), tz);
+          const phone   = row[cm['Phone_E164']]; 
+          const storeId = row[cm['StoreID']]; 
+          const memberId= row[cm['MemberID']];
+          if (!phone || !storeId || !memberId) return;
+
+          // for each chosen follow-up day, send once per day per member
+          followDays.forEach(day=>{
+            const tag = `DAY${day}`;
+            if (ageDays >= day && !hasTemplateSentToday_(log, storeId, memberId, tag, tz)) {
+              const body = (day===followDays[0])
+                ? `Quick check-in — how’d you sleep? If you liked it, come back soon. Reply STOP to opt out.`
+                : `Still interested? Pop in this week. Reply STOP to opt out.`;
+              twilioSendSms_(phone, body);
+              log.appendRow([new Date(), storeId, memberId, phone, tag, body, 'Sent', '', '']);
+            }
+          });
+        } catch(e){ /* per-customer guard */ }
+      });
+    } catch(e){ /* per-store guard */ }
+  });
+}
+
+/* =========================
+ *  IMPROVED CORE HELPERS
+ * ========================= */
+// Exponential backoff helper
+function backoffSleep_(attempt, baseMs, maxMs) {
+  const ms = Math.min(maxMs, baseMs * Math.pow(1.8, attempt));
+  Utilities.sleep(Math.floor(ms));
+}
+
+// Check if current time in tz is within [targetHour : targetHour+windowMins)
+// windowMins = 0 → EXACTLY at HH:00
+function isWithinLocalWindow_(tz, targetHour, windowMins){
+  const now = new Date();
+  const hh = Number(Utilities.formatDate(now, tz, 'H'));  // 0..23
+  const mm = Number(Utilities.formatDate(now, tz, 'm'));  // 0..59
+  if (hh !== Number(targetHour)) return false;
+  const w = Math.max(0, Math.floor(Number(windowMins) || 0));
+  return w === 0 ? (mm === 0) : (mm >= 0 && mm < w);
+}
+
+// Compute whole-day difference between two dates in a given tz (floor, DST-safe)
+function daysDiffInTz_(fromDate, toDate, tz){
+  const d0 = Utilities.formatDate(new Date(fromDate), tz, 'yyyy-MM-dd'); // local date strings
+  const d1 = Utilities.formatDate(new Date(toDate),   tz, 'yyyy-MM-dd');
+  const t0 = new Date(d0 + 'T00:00:00Z'); // compare UTC midnights of the local days
+  const t1 = new Date(d1 + 'T00:00:00Z');
+  return Math.floor((t1.getTime() - t0.getTime()) / 86400000);
+}
+
+// True if a row with same storeId, memberId, tag exists in Message_Log for "today" in tz
+function hasTemplateSentToday_(logSheet, storeId, memberId, tag, tz){
+  const lr = logSheet.getLastRow();
+  if (lr < 2) return false;
+
+  const today = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
+
+  // Only read the needed columns: [Timestamp(A), StoreID(B), MemberID(C), Phone(D), TemplateID(E)]
+  const numRows = lr - 1;
+  const vals = logSheet.getRange(2, 1, numRows, 5).getValues();
+
+  const sId = String(storeId);
+  const mId = String(memberId);
+  const tg  = String(tag);
+
+  for (let i = 0; i < vals.length; i++) {
+    const r = vals[i];
+    const ts = new Date(r[0]);
+    if (isNaN(ts)) continue;
+    const day = Utilities.formatDate(ts, tz, 'yyyy-MM-dd');
+    if (day !== today) continue;
+    if (String(r[1]) === sId && String(r[2]) === mId && String(r[4]) === tg) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Read a single Key from the per-store Settings tab
+function getPerStoreSetting_(respId, key){
+  try {
+    const sh = SpreadsheetApp.openById(respId).getSheetByName('Settings');
+    if (!sh || sh.getLastRow() < 2) return '';
+    const rows = sh.getRange(2,1,sh.getLastRow()-1,2).getValues();
+    const want = String(key);
+    for (let i=0;i<rows.length;i++){
+      if (String(rows[i][0]) === want) return String(rows[i][1]||'').trim();
+    }
+    return '';
+  } catch(e){ return ''; }
+}
+
+// ========== VERIFY URL BUILDER ==========
+function buildVerifyUrlForStore_(storeId) {
+  const base = getSetting('VERIFY_WEBAPP_URL');
+  return base ? `${base}?storeId=${encodeURIComponent(storeId)}` : '';
+}
+
+// ========== TOOLS / UTILS ==========
+function buildQrLabelsCsv(){
+  const sh = SpreadsheetApp.getActive().getSheetByName(T_DISPLAYS);
+  const data = sh.getDataRange().getValues(); const headers = data.shift(); const m = colMap_(headers);
+  const lines = ['DisplayID,StoreID,Shortlink,TargetURL,PrefillURL'];
+  data.forEach(r=>lines.push([r[m['DisplayID']], r[m['StoreID']], r[m['Shortlink']], r[m['TargetURL']], r[m['Prefill URL (with DisplayID)']]].map(csvEscape_).join(',')));
+  const file = DriveApp.createFile(Utilities.newBlob(lines.join('\n'),'text/csv','qr_labels.csv'));
+  SpreadsheetApp.getUi().alert('CSV created: '+file.getUrl());
+}
+
+function openStoreFolder(){
+  const sh = SpreadsheetApp.getActiveSheet();
+  if (sh.getName() !== T_STORES) return SpreadsheetApp.getUi().alert('Select a row in Stores.');
+  const row = sh.getActiveRange().getRow(); if (row<2) return;
+  const storeId = sh.getRange(row,1).getValue();
+  const root = DriveApp.getFolderById(getSetting('ROOT_FOLDER_ID'));
+  const it = root.getFolders(); const prefix = `${storeId} — `;
+  while (it.hasNext()) { const f=it.next(); if (f.getName().startsWith(prefix)) return SpreadsheetApp.getUi().alert(f.getUrl()); }
+  SpreadsheetApp.getUi().alert('Folder not found yet.');
+}
+
+function csvEscape_(s){ s=String(s||''); return (s.includes(',')||s.includes('"')||s.includes('\n'))?`"${s.replace(/"/g,'""')}"`:s; }
+
+function normalizeUSPhone_(p){
+  const d=String(p||'').replace(/\D+/g,'');
+  if (d.length===10) return `+1${d}`;
+  if (d.length===11 && d.startsWith('1')) return `+${d}`;
+  return d ? `+1${d.slice(-10)}` : '';
+}
+
+function genCode_(){ return String(Math.floor(100000+Math.random()*900000)); }
+
+// Twilio stub: replace with real UrlFetchApp to your service
+function twilioSendSms_(toE164, body) {
+  const sid  = getSetting('TWILIO_ACCOUNT_SID');
+  const tok  = getSetting('TWILIO_AUTH_TOKEN');
+  const from = getSetting('TWILIO_FROM_NUMBER');
+
+  if (!sid || !tok || !from) {
+    console.log('Twilio not configured — SMS skipped.', { toE164, body });
+    return;
+  }
+  if (!toE164 || !toE164.startsWith('+')) {
+    console.log('Invalid recipient E.164 — SMS skipped.', { toE164 });
+    return;
+  }
+
+  const url = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/Messages.json`;
+  const payload = { To: toE164, From: from, Body: body };
+
+  const res = UrlFetchApp.fetch(url, {
+    method: 'post',
+    payload,
+    muteHttpExceptions: true,
+    headers: { Authorization: 'Basic ' + Utilities.base64Encode(sid + ':' + tok) }
+  });
+
+  const code = res.getResponseCode();
+  if (code < 200 || code >= 300) {
+    console.error('Twilio send failed', code, res.getContentText());
+  } else {
+    console.log('Twilio sent', JSON.parse(res.getContentText()).sid);
+  }
+}
+
+function uiTestTwilio() {
+  const ui = SpreadsheetApp.getUi();
+  const to = ui.prompt('Test Twilio', 'Enter a phone number (E.164, e.g., +13105551234):', ui.ButtonSet.OK_CANCEL);
+  if (to.getSelectedButton() !== ui.Button.OK) return;
+  const num = (to.getResponseText() || '').trim();
+  if (!num.startsWith('+')) { ui.alert('Please enter E.164 format, e.g., +13105551234'); return; }
+  try {
+    twilioSendSms_(num, 'VitaDreamz test: SMS wiring looks good! Reply STOP to opt out.');
+    ui.alert('Sent! Check your phone.');
+  } catch (e) {
+    ui.alert('Send failed: ' + e);
+  }
+}
+
+// ========== MANUAL ACTIVATE UI ==========
+function uiManualActivateDisplay() {
+  ensureMasterHeaders_();
+  const ui = SpreadsheetApp.getUi();
+
+  const ask = (title, msg, def='') => {
+    const res = ui.prompt(title, msg + (def ? `\n\n(Leave blank for: ${def})` : ''), ui.ButtonSet.OK_CANCEL);
+    if (res.getSelectedButton() !== ui.Button.OK) throw new Error('Cancelled');
+    return (res.getResponseText() || def || '').trim();
+  };
+
+  try {
+    // 1) DisplayID
+    let displayId = ask('Manual Activation', 'Enter DisplayID (e.g., QRD-12)');
+    if (!/^QRD-\d+$/.test(displayId)) throw new Error('DisplayID must look like QRD-#');
+
+    // Ensure display row exists; if not, create one pointed to Activation prefill
+    const shDisp = SpreadsheetApp.getActive().getSheetByName(T_DISPLAYS);
+    const data   = shDisp.getDataRange().getValues();
+    const dh     = data.shift(); 
+    const dm     = colMap_(dh);
+    let idx      = data.findIndex(r => String(r[dm['DisplayID']]) === displayId);
+
+    if (idx < 0) {
+      const actFormId = getSetting('ACTIVATION_FORM_ID');
+      if (!actFormId) throw new Error('Set ACTIVATION_FORM_ID in Settings first.');
+      const shortlink = shortlinkForDisplay_(displayId);
+      const target    = buildActivationPrefillUrl_(actFormId, displayId);
+      shDisp.appendRow([displayId, '', shortlink, target, '']);
+      try { updateShortlinkTarget_(displayId, target); } catch(e){}
+      idx = shDisp.getLastRow(); // new row (convert to 1-based later)
+    } else {
+      idx = idx + 2; // 1-based row (header offset)
+    }
+
+    // 2) Store basics
+    const storeName    = ask('Store Name', 'Enter the Store Name');
+    const contactName  = ask('Contact Name', 'Enter the contact person’s name', '');
+    const contactEmail = ask('Contact Email', 'Enter contact email', 'info@vitadreamz.com');
+    const contactPhone = ask('Contact Phone', 'Enter contact phone (US)', '');
+
+    // 3) Address
+    const street = ask('Street Address', 'Street address', '');
+    const city   = ask('City', 'City', '');
+    const state  = ask('State', '2-letter code (e.g., CA)', '');
+    const zip    = ask('ZipCode', 'Zip/Postal', '');
+    // 3b) Time Zone (NEW)
+    const tzInput    = ask('Time Zone', 'Enter PST/MST/CST/EST or an IANA tz (e.g., America/Chicago)', 'PST');
+    const tzResolved = resolveStoreTimezone_(tzInput);
+    // 4) Promo Offer
+    const promoChoice = ask(
+      'Promo Offer',
+      'Choose one by number:\n1) 20%-Off 1st Purchase\n2) 10%-Off 1st Purchase\n3) Buy 1 Get 1 Free on 1st Purchase\n4) No Offer',
+      '1'
+    );
+    const promoOffer = ({'1':'20%-Off 1st Purchase','2':'10%-Off 1st Purchase','3':'Buy 1 Get 1 Free on 1st Purchase','4':'No Offer'})[promoChoice] || '20%-Off 1st Purchase';
+
+    // 5) Follow-up cadence (exactly two days 2–10)
+    const cadence = ask('Follow-up Cadence', 'Enter TWO days between 2–10, comma-separated (e.g., 3,7)', '4,8');
+    const followDays = cadence.split(',').map(s=>Number(s.trim())).filter(n=>!isNaN(n));
+    if (followDays.length !== 2 || followDays.some(n=>n<2 || n>10)) throw new Error('Please enter exactly TWO days between 2 and 10 (e.g., 3,7).');
+
+    // Build payload and activate
+    const payload = {
+    displayId, storeName, contactName, contactEmail, contactPhone,
+    street, city, state, zip,
+    promoOffer,
+    followCsv: `${Math.min(...followDays)},${Math.max(...followDays)}`,
+    tz: tzResolved            // <— NEW
+    };
+
+    doDisplayActivation_(idx, payload);
+    ui.alert(`Done! ${displayId} activated for ${storeName}.`);
+
+  } catch (err) {
+    if (String(err) !== 'Error: Cancelled') {
+      SpreadsheetApp.getUi().alert('Manual activation failed:\n' + err);
+    }
+  }
+}
+
+/**
+ * Core activation logic shared by the form-handler and the manual UI.
+ * @param {number} dispRow - 1-based row index in the Displays sheet (>=2)
+ * @param {object} info    - store & activation payload
+ */
+function doDisplayActivation_(dispRow, info) {
+  ensureMasterHeaders_();
+
+  const {
+    displayId, storeName, contactName, contactEmail, contactPhone,
+    street, city, state, zip, promoOffer, followCsv, tz
+  } = info;
+
+  const tzDefault = tz || getSetting('DEFAULT_TIMEZONE') || 'America/Los_Angeles';
+  const ss        = SpreadsheetApp.getActive();
+  const shStores  = ss.getSheetByName(T_STORES);
+  const shDisp    = ss.getSheetByName(T_DISPLAYS);
+
+  // Resolve display row data
+  const dh  = shDisp.getRange(1, 1, 1, shDisp.getLastColumn()).getValues()[0];
+  const dm  = colMap_(dh);
+  const row = shDisp.getRange(dispRow, 1, 1, dh.length).getValues()[0];
+
+  if (!row[dm['DisplayID']]) throw new Error('Displays row missing DisplayID.');
+  if (row[dm['DisplayID']] !== displayId) throw new Error('DisplayID mismatch for selected row.');
+  if (row[dm['StoreID']]) throw new Error('This display is already activated.');
+
+  // Templates & root
+  const rootId    = getSetting('ROOT_FOLDER_ID');
+  const formTplId = getSetting('TEMPLATE_SAMPLE_FORM_ID');
+  const respTplId = getSetting('TEMPLATE_RESPONSE_SHEET_ID');
+  if (!rootId || !formTplId || !respTplId)
+    throw new Error('Missing ROOT_FOLDER_ID or TEMPLATE_* IDs in Settings.');
+
+  // Allocate StoreID & create folder
+  const storeId     = nextStoreId_();
+  const rootFolder  = DriveApp.getFolderById(rootId);
+  const storeFolder = ensureStoreFolder_(rootFolder, storeId, storeName || '[Activated]');
+
+  // Clone Response Sheet
+  const respFile = DriveApp.getFileById(respTplId)
+    .makeCopy(`${storeId} ${storeName} Program Data`, storeFolder);
+  const respId   = respFile.getId();
+  const respUrl  = `https://docs.google.com/spreadsheets/d/${respId}/edit`;
+
+  // === Clone, Publish, and Wire Form ===
+  const formFile = DriveApp.getFileById(formTplId)
+    .makeCopy(`${storeId} ${storeName} Sample Form`, storeFolder);
+  const formId = formFile.getId();
+  Utilities.sleep(500);
+
+  const form = FormApp.openById(formId);
+  try { form.setPublished(true); } catch (err) { dbg_('WARN_PUBLISH_FAILED', String(err)); }
+  try { form.setDestination(FormApp.DestinationType.SPREADSHEET, respId); } catch (_) {}
+  try { form.setAcceptingResponses(true); } catch (_) {}
+  try { form.setRequireLogin(false); } catch (_) {}
+  try { form.setLimitOneResponsePerUser(false); } catch (_) {}
+
+  // Responder + prefill URLs
+  const responderUrl = responderUrlForFormId_(formId);
+  const prefill      = buildPrefillUrl_(formId, storeId, displayId);
+
+  // --- Pre-create Customers & Message_Log tabs
+  const storeSS = SpreadsheetApp.openById(respId);
+  ensureCustomersScaffold_(storeSS);
+  ensureMessageLog_(storeSS);
+
+  // --- Install the onFormSubmit trigger (so handleProgramSheetSubmit in master fires)
+  const exists = ScriptApp.getProjectTriggers().some(t =>
+    t.getHandlerFunction() === 'handleProgramSheetSubmit' &&
+    t.getEventType() === ScriptApp.EventType.ON_FORM_SUBMIT &&
+    t.getTriggerSourceId() === respId
+  );
+  if (!exists) {
+    ScriptApp.newTrigger('handleProgramSheetSubmit')
+      .forSpreadsheet(respId)
+      .onFormSubmit()
+      .create();
+    dbg_('PER_STORE_TRIGGER_INSTALLED', { respId });
+  } else {
+    dbg_('PER_STORE_TRIGGER_ALREADY_EXISTS', { respId });
+  }
+
+  // --- Inject local handler (lets each store sheet move its own responses + send webhook)
+  const webhook = getSetting('MASTER_WEBHOOK_URL'); // master webhook endpoint for Twilio SMS
+  if (webhook) {
+    const code = `
+  function onFormSubmit(e){
+  try{
+    const sheet = e.range.getSheet();
+    if(!/^Form Responses/i.test(sheet.getName())) return;
+    const nv = e.namedValues || {};
+    const first  = (nv['First Name']||nv['FirstName']||[''])[0];
+    const phone  = (nv['Phone']||[''])[0];
+    const sample = (nv['Sample Choice']||nv['SampleChoice']||[''])[0];
+    const ts     = new Date();
+    const ss = sheet.getParent();
+    let cust = ss.getSheetByName('Customers');
+    if(!cust){
+      cust = ss.insertSheet('Customers');
+      cust.appendRow(['Timestamp','Phone','First Name','Sample Choice']);
+    }
+    cust.appendRow([ts, phone, first, sample]);
+    if(phone && phone.length >= 10){
+      const payload = {phone: phone, first: first, sample: sample};
+      UrlFetchApp.fetch('${webhook}', {
+        method:'post',
+        contentType:'application/json',
+        payload:JSON.stringify(payload)
+      });
+    }
+  }catch(err){Logger.log(err);}
+}`;
+    const blob = Utilities.newBlob(code, 'application/vnd.google-apps.script+javascript', 'Code.js');
+    Drive.Files.insert({
+      mimeType: 'application/vnd.google-apps.script',
+      parents: [{ id: respId }],
+      title: 'Code.gs'
+    }, blob);
+    dbg_('LOCAL_HANDLER_INJECTED', { respId });
+  }
+
+  // Append Stores row
+  shStores.appendRow([
+    storeId, 'Active', storeName, contactName, contactEmail, contactPhone,
+    street, city, state, zip,
+    tzDefault, promoOffer, followCsv,
+    respUrl, responderUrl, buildPrefillUrl_(formId, storeId, ''), buildVerifyUrlForStore_(storeId)
+  ]);
+  dbg_('STORES_ROW_APPENDED_MANUAL', { storeId, responderUrl, prefill });
+
+  // Update Displays row (master)
+  const shortlink = row[dm['Shortlink']] || shortlinkForDisplay_(displayId);
+  row[dm['StoreID']] = storeId;
+  row[dm['TargetURL']] = prefill;
+  row[dm['Prefill URL (with DisplayID)']] = prefill;
+  if (!row[dm['Shortlink']]) row[dm['Shortlink']] = shortlink;
+  shDisp.getRange(dispRow, 1, 1, dh.length).setValues([row]);
+
+  // Mirror into per-store sheet (Displays tab)
+  const tab = ensureDisplaysTab_(respId);
+  tab.appendRow([displayId, storeId, shortlink, prefill, prefill, '' ]);
+
+  // Reflect promo + cadence + contact into per-store Settings
+  const setSh = SpreadsheetApp.openById(respId).getSheetByName('Settings');
+  const patch = (k, v) => {
+    const lr = setSh.getLastRow();
+    for (let r = 2; r <= lr; r++) {
+      if (String(setSh.getRange(r, 1).getValue()) === k) {
+        setSh.getRange(r, 2).setValue(v);
+        return;
+      }
+    }
+    setSh.appendRow([k, v]);
+  };
+  patch('StoreID', storeId);
+  patch('StoreName', storeName);
+  patch('ContactName', contactName);
+  patch('ContactEmail', contactEmail);
+  patch('ContactPhone', contactPhone);
+  patch('StreetAddress', street);
+  patch('City', city);
+  patch('State', state);
+  patch('ZipCode', zip);
+  patch('TimeZone', tzDefault);
+  patch('PromoOffer', promoOffer);
+  patch('FollowupDays', followCsv);
+
+  // Flip shortlink to customer prefill (optional)
+  try { updateShortlinkTarget_(displayId, prefill); } catch (e) { /* optional */ }
+}
+
+
+/* =========================
+ *  DEBUG HELPERS (LOUD + MENU-FRIENDLY)
+ * ========================= */
+
+// Ensure debug columns exist on Displays
+function ensureDisplaysDebugCols_() {
+  const sh = SpreadsheetApp.getActive().getSheetByName(T_DISPLAYS);
+  if (!sh) throw new Error('Displays sheet not found');
+  const headers = sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
+  const need = (name) => {
+    if (!headers.includes(name)) {
+      sh.insertColumnAfter(sh.getLastColumn());
+      sh.getRange(1, sh.getLastColumn(), 1, 1).setValue(name);
+    }
+  };
+  need('Last Admin Code');
+  need('Last Admin Body');
+  return sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
+}
+
+// Loud, no-arg tester: uses currently selected row in Displays
+function testAdminSetterLoud() {
+  const sh = SpreadsheetApp.getActive().getSheetByName(T_DISPLAYS);
+  if (!sh) { SpreadsheetApp.getUi().alert('No "Displays" sheet.'); return; }
+
+  let row = sh.getActiveRange() ? sh.getActiveRange().getRow() : 0;
+  if (row < 2) row = 2;
+
+  const headers = sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
+  const m = {}; headers.forEach((h,i)=>m[h]=i);
+  const vals = sh.getRange(row,1,1,sh.getLastColumn()).getValues()[0];
+
+  const displayId = String(vals[m['DisplayID']]||'').trim();
+  const target    = String(vals[m['TargetURL']] || vals[m['Prefill URL (with DisplayID)']] || '').trim();
+  if (!displayId) { SpreadsheetApp.getUi().alert('Active row has no DisplayID.'); return; }
+  if (!target)    { SpreadsheetApp.getUi().alert('No TargetURL/Prefill on row. Run "Repoint Shortlink" first.'); return; }
+
+  const adminUrl = getSetting('SHORTLINK_ADMIN_URL');
+  const apiKey   = getSetting('SHORTLINK_ADMIN_KEY');
+  if (!adminUrl) { SpreadsheetApp.getUi().alert('SHORTLINK_ADMIN_URL not set.'); return; }
+
+  let code = 0, body = '';
+  try {
+    const res = UrlFetchApp.fetch(adminUrl, {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({ displayId, target }),
+      headers: apiKey ? { 'x-api-key': apiKey } : {},
+      muteHttpExceptions: true
+    });
+    code = res.getResponseCode();
+    body = res.getContentText();
+  } catch (e) {
+    code = -1; body = String(e);
+  }
+
+  const updatedHeaders = ensureDisplaysDebugCols_();
+  const mm = {}; updatedHeaders.forEach((h,i)=>mm[h]=i);
+  const rowVals = sh.getRange(row,1,1,sh.getLastColumn()).getValues()[0];
+  rowVals[mm['Last Admin Code']] = code;
+  rowVals[mm['Last Admin Body']] = body.slice(0,5000);
+  sh.getRange(row,1,1,sh.getLastColumn()).setValues([rowVals]);
+
+  SpreadsheetApp.getUi().alert(`Admin setter called for ${displayId}\nHTTP ${code}\n\n${body.substring(0,500)}`);
+}
+
+// Prompt wrapper so it appears in menu and works
+function testAdminSetterPrompt() {
+  const ui = SpreadsheetApp.getUi();
+  const sh = SpreadsheetApp.getActive().getSheetByName(T_DISPLAYS);
+  if (!sh) { ui.alert('No "Displays" sheet.'); return; }
+  const res = ui.prompt('Test Admin Setter', 'Enter DisplayID (e.g., QRD-1):', ui.ButtonSet.OK_CANCEL);
+  if (res.getSelectedButton() !== ui.Button.OK) return;
+  const did = (res.getResponseText()||'').trim();
+
+  const headers = sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
+  const m = {}; headers.forEach((h,i)=>m[h]=i);
+  const data = sh.getRange(2,1,Math.max(0, sh.getLastRow()-1), sh.getLastColumn()).getValues();
+  const idx = data.findIndex(r => String(r[m['DisplayID']]||'') === did);
+  if (idx < 0) { ui.alert('DisplayID not found in "Displays".'); return; }
+
+  // select that row so testAdminSetterLoud can read it
+  sh.setActiveRange(sh.getRange(idx+2,1,1,1));
+  testAdminSetterLoud();
+}
+
+// Quick peek at targets (logs)
+function debugShowTargetFor_(displayId) {
+  const sh = SpreadsheetApp.getActive().getSheetByName(T_DISPLAYS);
+  const headers = sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
+  const m = {}; headers.forEach((h,i)=>m[h]=i);
+  const data = sh.getRange(2,1,Math.max(0, sh.getLastRow()-1), sh.getLastColumn()).getValues();
+  const row = data.find(r => String(r[m['DisplayID']]||'') === displayId);
+  if (!row) return console.log('Not found:', displayId);
+  console.log('Shortlink:', row[m['Shortlink']]);
+  console.log('TargetURL:', row[m['TargetURL']]);
+  console.log('Prefill:', row[m['Prefill URL (with DisplayID)']]);
+}
+
+function debugShowTargetPrompt() {
+  const ui = SpreadsheetApp.getUi();
+  const res = ui.prompt('Debug: Show Target', 'Enter DisplayID (e.g., QRD-1):', ui.ButtonSet.OK_CANCEL);
+  if (res.getSelectedButton() !== ui.Button.OK) return;
+  const did = (res.getResponseText()||'').trim();
+  debugShowTargetFor_(did);
+  ui.alert('Check View → Logs for details.');
+}
+
+/* =========================
+ *  HELPER PATCH (added)
+ * ========================= */
+
+// Safely read from e.namedValues with multiple possible titles (case-insensitive),
+// flatten arrays, trim, and return the first non-empty value.
+function nvGet_(namedValues, keys) {
+  if (!namedValues) return '';
+  const list = Array.isArray(keys) ? keys : [keys];
+  for (let i = 0; i < list.length; i++) {
+    const k = String(list[i] || '').trim();
+    if (!k) continue;
+    // find key in a case-insensitive manner
+    const foundKey = Object.keys(namedValues).find(N => String(N).toLowerCase() === k.toLowerCase());
+    if (!foundKey) continue;
+    const v = namedValues[foundKey];
+    if (Array.isArray(v)) {
+      const flat = v.map(x => Array.isArray(x) ? x.join(' ') : x).join(' ').trim();
+      if (flat) return flat;
+    } else if (v != null) {
+      const s = String(v).trim();
+      if (s) return s;
+    }
+  }
+  return '';
+}
+
+// Assert a setting exists; return its value or throw a clear error
+function assertSetting_(key) {
+  const val = getSetting(key);
+  if (!val) throw new Error(`Missing required setting: ${key}`);
+  return val;
+}
+
+// Log an error robustly to a sheet "Errors" (created on demand) and console
+function logError_(where, err, meta) {
+  try {
+    console.error('[ERR]', where, err, meta || {});
+    const ss = getMasterSS_();
+    let sh = ss.getSheetByName('Errors');
+    if (!sh) {
+      sh = ss.insertSheet('Errors');
+      sh.getRange(1,1,1,5).setValues([['Timestamp','Where','Error','Meta(JSON)','User']]);
+      sh.setFrozenRows(1);
+    }
+    const msg = (err && err.stack) ? String(err.stack) : String(err);
+    sh.appendRow([new Date(), String(where||''), msg.substring(0,5000), JSON.stringify(meta||{}).substring(0,5000), Session.getActiveUser().getEmail()]);
+  } catch (e) {
+    // swallow
+  }
+}
+
+/* ====== Time Zone helpers (NEW) ====== */
+
+// Allow PST/MST/CST/EST or a full IANA to be provided. Returns IANA or ''.
+function mapTzAbbrevToIana_(abbr) {
+  const a = String(abbr || '').trim().toUpperCase();
+  if (!a) return '';
+  // You can expand this mapping any time.
+  const MAP = {
+    PST: 'America/Los_Angeles',
+    PDT: 'America/Los_Angeles',
+    MST: 'America/Denver',
+    MDT: 'America/Denver',
+    CST: 'America/Chicago',
+    CDT: 'America/Chicago',
+    EST: 'America/New_York',
+    EDT: 'America/New_York'
+  };
+  if (MAP[a]) return MAP[a];
+  // If it's already an IANA, just return it (basic sanity check: has a slash)
+  if (a.includes('/')) return abbr.trim();
+  return '';
+}
+
+function resolveStoreTimezone_(input) {
+  const m = mapTzAbbrevToIana_(input);
+  if (m) return m;
+  // fallback to DEFAULT_TIMEZONE or LA
+  return getSetting('DEFAULT_TIMEZONE') || 'America/Los_Angeles';
+}
+/**************** DIAGNOSTIC + FIX UTILS FOR ACTIVATION FLOW ****************/
+
+
+// 1) Diagnose: check Settings, Form items, and trigger binding
+function diagActivationWiring() {
+  try {
+    const actFormId = getSetting('ACTIVATION_FORM_ID');
+    const rootId    = getSetting('ROOT_FOLDER_ID');
+    if (!actFormId) throw new Error('Settings missing ACTIVATION_FORM_ID');
+    if (!rootId)    throw new Error('Settings missing ROOT_FOLDER_ID');
+
+    // Open the form, list item titles
+    const form = FormApp.openById(actFormId);
+    const itemTitles = form.getItems().map(i => i.getTitle());
+
+    // Look for required items (as used by handleDisplayActivationSubmit)
+    const required = ['DisplayID','Store Name'];
+    const missingRequired = required.filter(t => !itemTitles.some(x => x.trim().toLowerCase() === t.toLowerCase()));
+
+    // Check triggers in THIS project
+    const triggers = ScriptApp.getProjectTriggers()
+      .filter(t => t.getHandlerFunction() === 'handleDisplayActivationSubmit');
+    const hasFormTrigger = triggers.some(t =>
+      t.getEventType() === ScriptApp.EventType.ON_FORM_SUBMIT &&
+      t.getTriggerSourceId && t.getTriggerSourceId() === actFormId
+    );
+
+    // Sheets exist?
+    const ss = SpreadsheetApp.getActive();
+    const hasStores   = !!ss.getSheetByName('Stores');
+    const hasDisplays = !!ss.getSheetByName('Displays');
+    const hasSettings = !!ss.getSheetByName('Settings');
+
+    const summary = [
+      '=== Activation Wiring Diagnostics ===',
+      `Active Script Project: OK`,
+      `Settings.ACTIVATION_FORM_ID: ${actFormId ? 'OK' : 'MISSING'}`,
+      `Settings.ROOT_FOLDER_ID: ${rootId ? 'OK' : 'MISSING'}`,
+      `Sheets: Stores=${hasStores}, Displays=${hasDisplays}, Settings=${hasSettings}`,
+      `Form Items (${itemTitles.length}): ${itemTitles.slice(0,12).join(' | ')}${itemTitles.length>12?' ...':''}`,
+      `Required Items Present: ${missingRequired.length===0 ? 'YES' : 'NO → Missing: '+missingRequired.join(', ')}`,
+      `Trigger bound to Activation Form: ${hasFormTrigger ? 'YES' : 'NO'}`
+    ].join('\n');
+
+    SpreadsheetApp.getUi().alert(summary);
+  } catch (e) {
+    SpreadsheetApp.getUi().alert('Diagnosis failed:\n' + e);
+  }
+}
+
+// 2) Hard reset: remove ALL triggers for handleDisplayActivationSubmit, reinstall against the Form ID in Settings
+function reinstallActivationTriggerHard() {
+  try {
+    const actFormId = getSetting('ACTIVATION_FORM_ID');
+    if (!actFormId) throw new Error('Settings missing ACTIVATION_FORM_ID');
+
+    const all = ScriptApp.getProjectTriggers();
+    let removed = 0;
+    all.forEach(t => {
+      if (t.getHandlerFunction() === 'handleDisplayActivationSubmit') {
+        ScriptApp.deleteTrigger(t);
+        removed++;
+      }
+    });
+
+    ScriptApp.newTrigger('handleDisplayActivationSubmit')
+      .forForm(actFormId)
+      .onFormSubmit()
+      .create();
+
+    SpreadsheetApp.getUi().alert(
+      `Reinstalled activation trigger.\nRemoved: ${removed}\nInstalled for form: ${actFormId}`
+    );
+  } catch (e) {
+    SpreadsheetApp.getUi().alert('Reinstall failed:\n' + e);
+  }
+}
+
+// 3) Fire a real test submission into the Activation Form to validate end-to-end
+// NOTE: Your form must have "DisplayID" and "Store Name" item titles.
+// We also try to fill Contact Email so you see the confirmation email.
+// 3) Fire a “manual” test by opening a prefilled responder URL (no programmatic submit)
+function testActivationSubmit() {
+  try {
+    const actFormId = getSetting('ACTIVATION_FORM_ID');
+    if (!actFormId) throw new Error('Settings missing ACTIVATION_FORM_ID');
+
+    const shDisp = SpreadsheetApp.getActive().getSheetByName(T_DISPLAYS);
+    if (!shDisp || shDisp.getLastRow() < 2) throw new Error('No Displays rows. Seed a display first.');
+
+    const headers = shDisp.getRange(1,1,1,shDisp.getLastColumn()).getValues()[0];
+    const m = {}; headers.forEach((h,i)=>m[h]=i);
+    const rows = shDisp.getRange(2,1,shDisp.getLastRow()-1,shDisp.getLastColumn()).getValues();
+
+    const unactivated = rows.find(r => !String(r[m['StoreID']]||'').trim());
+    const displayId = String((unactivated ? unactivated[m['DisplayID']] : rows[0][m['DisplayID']])||'').trim();
+    if (!displayId) throw new Error('Could not determine a DisplayID from Displays sheet.');
+
+    const form = FormApp.openById(actFormId);
+    const items = form.getItems();
+    const find = t => items.find(i => String(i.getTitle()||'').trim().toLowerCase() === String(t).trim().toLowerCase());
+
+    const dispItem  = find('DisplayID');
+    const storeItem = find('Store Name') || find('Store');
+    const emailItem = find('Contact Email') || find('Email');
+    if (!dispItem || !storeItem) throw new Error('Activation Form must include "DisplayID" and "Store Name" items.');
+
+    const base = responderUrlForFormId_(actFormId);
+    const params = [
+      `entry.${dispItem.getId()}=${encodeURIComponent(displayId)}`,
+      `entry.${storeItem.getId()}=${encodeURIComponent('Test Store ' + new Date().toISOString().slice(0,19).replace('T',' '))}`
+    ];
+    if (emailItem) params.push(`entry.${emailItem.getId()}=${encodeURIComponent('teamvitadreamz@gmail.com')}`);
+
+    const url = `${base}?usp=pp_url&${params.join('&')}`;
+
+    // Show a clickable link in a modal (best UX Apps Script allows)
+    const html = HtmlService
+      .createHtmlOutput(
+        `<div style="font:14px/1.5 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial">
+           <p><b>Prefilled Activation Form</b></p>
+           <p>Click the link below to open the form in a new tab, then submit it to trigger the real handler.</p>
+           <p><a href="${url}" target="_blank" rel="noopener">Open Prefilled Activation Form</a></p>
+           <p style="word-break:break-all;color:#666;margin-top:12px">${url}</p>
+         </div>`
+      )
+      .setWidth(520).setHeight(180);
+    SpreadsheetApp.getUi().showModalDialog(html, 'Activation Test Link');
+
+    console.log('Prefilled Activation URL:', url);
+  } catch (e) {
+    SpreadsheetApp.getUi().alert('Test submit prep failed:\n' + e);
+  }
+}
+function doPost(e) {
+  try {
+    var data = readJsonPost_(e);
+    if (!data) {
+      return ContentService.createTextOutput(JSON.stringify({ok:false,error:'invalid_json'}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    var phone  = normalizeUSPhone_(data.phone || '');
+    var first  = String(data.first  || '').trim() || 'Hi';
+    var sample = String(data.sample || '').trim() || 'free sample';
+
+    if (!phone || phone.length < 12) {
+      return ContentService.createTextOutput(JSON.stringify({ok:false,error:'bad_phone'}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    var body = first + ', Show this text to a store employee to receive your ' + sample + '.';
+    twilioSendSms_(phone, body);
+
+    return ContentService.createTextOutput(JSON.stringify({ok:true}))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    logError_('doPost', err, {});
+    return ContentService.createTextOutput(JSON.stringify({ok:false,error:String(err)}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function readJsonPost_(e) {
+  try {
+    if (!e || !e.postData || !e.postData.contents) return null;
+    return JSON.parse(e.postData.contents);
+  } catch (_) { return null; }
+}
+/******************** RESCUE PACK v2 — Trigger & Auth Probe ********************/
+
+/** 0) One-time auth warmup: touches all scopes used by your project. */
+function authWarmup_() {
+  // Touch the services you use so Apps Script asks for every permission up-front.
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheets()[0];
+  const v  = sh.getRange(1,1).getValue(); // read
+  sh.getRange(1,1).setValue(v);           // write
+  DriveApp.getRootFolder().getName();     // Drive
+  MailApp.getRemainingDailyQuota();       // Mail
+  const actId = getSetting('ACTIVATION_FORM_ID');
+  if (actId) FormApp.openById(actId).getTitle(); // Form
+  // Twilio via UrlFetch scope:
+  UrlFetchApp.fetch('https://example.com', {muteHttpExceptions:true}); // harmless ping
+  SpreadsheetApp.getUi().alert('Auth warmup complete. If you saw a permission dialog, accept it.');
+}
+
+/** 1) Create a PROBES sheet if missing. */
+function ensureProbesSheet_() {
+  const ss = SpreadsheetApp.getActive();
+  let s = ss.getSheetByName('PROBES');
+  if (!s) {
+    s = ss.insertSheet('PROBES');
+    s.getRange(1,1,1,6).setValues([['When','Source','Note','DisplayID','StoreName','RawKeys']]);
+    s.setFrozenRows(1);
+  }
+  return s;
+}
+
+/** 2) A super-safe probe handler that logs every activation form submit. */
+function onActivationSubmitProbe_(e) {
+  try {
+    const s = ensureProbesSheet_();
+    const nv = (e && e.namedValues) || {};
+    const disp = (nv['DisplayID'] || nv['Display ID'] || [''])[0];
+    const store= (nv['Store Name'] || nv['Store'] || [''])[0];
+    const keys = Object.keys(nv).join(' | ');
+    s.appendRow([new Date(), 'FormSubmit', 'Probe fired', disp, store, keys]);
+  } catch (err) {
+    // Also mirror to Errors sheet so you see *something*.
+    logError_('onActivationSubmitProbe_', err, {});
+  }
+}
+
+/** 3) Installs the probe trigger and re-installs the *real* activation trigger. */
+function reinstallAllActivationHooks_() {
+  const actFormId = getSetting('ACTIVATION_FORM_ID');
+  if (!actFormId) throw new Error('Settings missing ACTIVATION_FORM_ID');
+
+  // Remove any existing probe/handler triggers
+  ScriptApp.getProjectTriggers().forEach(t => {
+    const h = t.getHandlerFunction();
+    if (h === 'onActivationSubmitProbe_' || h === 'handleDisplayActivationSubmit') {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+
+  // Reinstall both
+  ScriptApp.newTrigger('onActivationSubmitProbe_').forForm(actFormId).onFormSubmit().create();
+  ScriptApp.newTrigger('handleDisplayActivationSubmit').forForm(actFormId).onFormSubmit().create();
+
+  SpreadsheetApp.getUi().alert('Reinstalled triggers for: onActivationSubmitProbe_ + handleDisplayActivationSubmit');
+}
+
+/** 4) Ultra-loud logger you can call anywhere while debugging. */
+function dbg_(label, obj) {
+  try {
+    const s = ensureProbesSheet_();
+    s.appendRow([new Date(), 'DBG', label, '', '', typeof obj === 'string' ? obj : JSON.stringify(obj).slice(0,5000)]);
+  } catch (e) {
+    // fall back to Errors sheet
+    logError_('dbg_'+label, e, {});
+  }
+}
+
+/** 5) Run your real handler with a synthetic event (bypasses triggers). */
+function runActivationHandlerWithMock_() {
+  const e = {
+    namedValues: {
+      'DisplayID': ['QRD-MOCK-' + Math.floor(Math.random()*100000)],
+      'Store Name': ['Mock Store ' + new Date().toISOString().slice(0,19).replace('T',' ')],
+      'Contact Name': ['Vita Dream'],
+      'Contact Email': ['teamvitadreamz@gmail.com'],
+      'Contact Phone': ['(323) 536-1296'],
+      'Street Address': ['210 Pacific Ave'],
+      'City': ['Venice'],
+      'State': ['CA'],
+      'ZipCode': ['90291'],
+      'Time Zone': ['PST'],
+      'Promo Offer': ['20%-Off 1st Purchase'],
+      'Automated Follow-up Cadence (Please select 2)': ['Day 4','Day 8']
+    }
+  };
+  dbg_('MOCK: calling handleDisplayActivationSubmit', e.namedValues);
+  handleDisplayActivationSubmit(e);
+  SpreadsheetApp.getUi().alert('Mock event sent. Check Stores tab, Displays, Drive clones, and email.');
+}
+
+/** 6) Quick check: is our real handler callable at all? */
+function pingHandler_() {
+  try {
+    // touch some required settings to ensure throws surface in UI
+    assertSetting_('ROOT_FOLDER_ID');
+    assertSetting_('TEMPLATE_SAMPLE_FORM_ID');
+    assertSetting_('TEMPLATE_RESPONSE_SHEET_ID');
+    assertSetting_('ACTIVATION_FORM_ID');
+    SpreadsheetApp.getUi().alert('pingHandler_: OK — settings exist and handler is loaded.');
+  } catch (e) {
+    SpreadsheetApp.getUi().alert('pingHandler_ failed:\n'+e);
+  }
+}
+// Safety shim: if anything still calls getPublishedUrl(), avoid crashing
+(function(){
+  try {
+    const proto = FormApp.Form.prototype;
+    if (proto.getPublishedUrl) {
+      const _orig = proto.getPublishedUrl;
+      proto.getPublishedUrl = function(){
+        const id = this.getId && this.getId();
+        return id ? responderUrlForFormId_(id) : '';
+      };
+    }
+  } catch(e) { /* ignore */ }
+})();

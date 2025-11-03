@@ -16,8 +16,9 @@ export default function HomePage() {
       return;
     }
 
+    // Super admin goes to dashboard
     if (user.primaryEmailAddress?.emailAddress === "jbonutto@gmail.com") {
-      router.push("/admin/brands/new");
+      router.push("/admin/dashboard");
     }
   }, [isLoaded, user, router]);
 

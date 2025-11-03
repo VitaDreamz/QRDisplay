@@ -1,11 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export const dynamic = 'force-dynamic';
-
-export default function StoreLoginPage() {
+function StoreLoginContent() {
   const [storeId, setStoreId] = useState('');
   const [contact, setContact] = useState('');
   const [sending, setSending] = useState(false);
@@ -162,5 +160,22 @@ export default function StoreLoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function StoreLoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-700 to-purple-500">
+        <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-3/4 mx-auto mb-4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto"></div>
+          </div>
+        </div>
+      </div>
+    }>
+      <StoreLoginContent />
+    </Suspense>
   );
 }

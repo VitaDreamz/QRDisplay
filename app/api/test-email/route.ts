@@ -10,7 +10,7 @@ export async function GET() {
     
     const result = await resend.emails.send({
       from: 'QRDisplay <onboarding@resend.dev>',
-      to: 'jbonutto@gmail.com',
+      to: 'jimbonutto@vitadreamz.com',
       subject: 'Test Email from QRDisplay',
       html: '<h1>Success!</h1><p>Resend is working!</p>'
     });
@@ -20,7 +20,7 @@ export async function GET() {
     return NextResponse.json({ 
       success: true, 
       result,
-      message: 'Email sent! Check jbonutto@gmail.com' 
+      message: 'Email sent! Check jimbonutto@vitadreamz.com' 
     });
   } catch (error: any) {
     console.error('Email failed:', error);

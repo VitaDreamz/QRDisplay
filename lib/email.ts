@@ -69,27 +69,50 @@ export async function sendActivationEmail(data: {
 
                     <!-- Details -->
                     <div style="background: #f7f5fb; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
-                      <h2 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 700; color: #6f42c1; text-transform: uppercase;">Activation Details</h2>
-                      <table width="100%" cellpadding="4" cellspacing="0" style="font-size: 14px;">
+                      <h2 style="margin: 0 0 16px 0; font-size: 14px; font-weight: 700; color: #6f42c1; text-transform: uppercase; border-bottom: 2px solid #6f42c1; padding-bottom: 8px;">Activation Details</h2>
+                      <table width="100%" cellpadding="6" cellspacing="0" style="font-size: 14px;">
                         <tr>
-                          <td style="color: #6b6b6b;">Store Name</td>
-                          <td style="color: #2b2b2b; font-weight: 600;">${store.storeName}</td>
+                          <td style="color: #6b6b6b; padding: 8px 0;">Store Name</td>
+                          <td style="color: #2b2b2b; font-weight: 600; text-align: right; padding: 8px 0;">${store.storeName}</td>
                         </tr>
                         <tr>
-                          <td style="color: #6b6b6b;">Store ID</td>
-                          <td style="color: #2b2b2b; font-family: monospace;">${store.storeId}</td>
+                          <td style="color: #6b6b6b; padding: 8px 0;">Store ID</td>
+                          <td style="color: #2b2b2b; font-family: monospace; text-align: right; padding: 8px 0;">${store.storeId}</td>
                         </tr>
                         <tr>
-                          <td style="color: #6b6b6b;">Display ID</td>
-                          <td style="color: #2b2b2b; font-family: monospace;">${display.displayId}</td>
+                          <td style="color: #6b6b6b; padding: 8px 0;">Display ID</td>
+                          <td style="color: #2b2b2b; font-family: monospace; text-align: right; padding: 8px 0;">${display.displayId}</td>
+                        </tr>
+                        <tr style="border-top: 1px solid #e5e7eb;">
+                          <td style="color: #6b6b6b; padding: 8px 0;">Contact Person</td>
+                          <td style="color: #2b2b2b; text-align: right; padding: 8px 0;">${store.contactName}</td>
                         </tr>
                         <tr>
-                          <td style="color: #6b6b6b;">Promo Offer</td>
-                          <td style="color: #2b2b2b;">${settings.promoOffer}</td>
+                          <td style="color: #6b6b6b; padding: 8px 0;">Email</td>
+                          <td style="color: #2b2b2b; text-align: right; padding: 8px 0;">${store.contactEmail}</td>
                         </tr>
                         <tr>
-                          <td style="color: #6b6b6b;">Follow-Up Days</td>
-                          <td style="color: #2b2b2b;">${settings.followupDays.join(', ')} days</td>
+                          <td style="color: #6b6b6b; padding: 8px 0;">Phone</td>
+                          <td style="color: #2b2b2b; text-align: right; padding: 8px 0;">${settings.contactPhone}</td>
+                        </tr>
+                        <tr style="border-top: 1px solid #e5e7eb;">
+                          <td style="color: #6b6b6b; padding: 8px 0;">Address</td>
+                          <td style="color: #2b2b2b; text-align: right; padding: 8px 0;">
+                            ${settings.streetAddress}<br/>
+                            ${settings.city}, ${settings.state} ${settings.zipCode}
+                          </td>
+                        </tr>
+                        <tr style="border-top: 1px solid #e5e7eb;">
+                          <td style="color: #6b6b6b; padding: 8px 0;">Promo Offer</td>
+                          <td style="color: #6f42c1; font-weight: 600; text-align: right; padding: 8px 0;">${settings.promoOffer}</td>
+                        </tr>
+                        <tr>
+                          <td style="color: #6b6b6b; padding: 8px 0;">Follow-Up Days</td>
+                          <td style="color: #2b2b2b; text-align: right; padding: 8px 0;">${settings.followupDays.join(', ')} days</td>
+                        </tr>
+                        <tr>
+                          <td style="color: #6b6b6b; padding: 8px 0;">Staff PIN</td>
+                          <td style="color: #2b2b2b; text-align: right; padding: 8px 0; font-family: monospace;">••••</td>
                         </tr>
                       </table>
                     </div>

@@ -2,6 +2,23 @@ import prisma from '../lib/prisma';
 
 async function sellDisplaysToVitaDreamz() {
   try {
+    // Resolve VitaDreamz organization first (avoid creating duplicates)
+    const vitaDreamz = await prisma.organization.findFirst({
+      where: {
+        OR: [
+          { orgId: 'ORG-VITADREAMZ' },
+          { slug: 'vitadreamz' },
+          { name: { equals: 'VitaDreamz', mode: 'insensitive' } },
+        ],
+      },
+      select: { orgId: true, name: true },
+    });
+
+    if (!vitaDreamz) {
+      console.error('❌ VitaDreamz organization not found. Please create it first at /admin/brands/new');
+      process.exit(1);
+    }
+
     // Get the last 35 displays ordered by creation date
     const displays = await prisma.display.findMany({
       orderBy: { createdAt: 'desc' },
@@ -20,12 +37,12 @@ async function sellDisplaysToVitaDreamz() {
       },
       data: {
         status: 'sold',
-        assignedOrgId: 'ORG-VITADREAMZ'
+        assignedOrgId: vitaDreamz.orgId
       }
     });
 
     console.log(`✅ Successfully updated ${result.count} displays to 'sold' status`);
-    console.log(`✅ Assigned to VitaDreamz (ORG-VITADREAMZ)`);
+    console.log(`✅ Assigned to ${vitaDreamz.name} (${vitaDreamz.orgId})`);
     
     // List the display IDs
     console.log('\nUpdated displays:');

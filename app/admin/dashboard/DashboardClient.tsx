@@ -28,7 +28,7 @@ type DashboardData = {
 };
 
 export function DashboardClient({ data }: { data: DashboardData }) {
-  const [activeTab, setActiveTab] = useState<'displays' | 'stores' | 'customers' | 'inventory'>('displays');
+  const [activeTab, setActiveTab] = useState<'displays' | 'stores' | 'customers' | 'inventory' | 'settings'>('displays');
   const [searchQuery, setSearchQuery] = useState('');
   const [displayFilters, setDisplayFilters] = useState({ status: 'all', brand: 'all' });
   const [storeFilters, setStoreFilters] = useState({ status: 'all', brand: 'all' });
@@ -46,6 +46,10 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [resetDisplayOnDelete, setResetDisplayOnDelete] = useState(false);
   const [storeForm, setStoreForm] = useState<any>({});
+  
+  // Database reset states
+  const [showResetDatabaseConfirm, setShowResetDatabaseConfirm] = useState(false);
+  const [resettingDatabase, setResettingDatabase] = useState(false);
 
   // Format relative time
   const formatRelativeTime = (date: Date) => {
@@ -173,6 +177,27 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     }
   };
 
+  const resetDatabase = async () => {
+    setResettingDatabase(true);
+    try {
+      const res = await fetch('/api/admin/reset-database', {
+        method: 'POST',
+      });
+      const result = await res.json();
+      if (!res.ok || !result?.success) {
+        throw new Error(result?.error || 'Failed to reset database');
+      }
+      alert(`Database reset successfully!\n\nDeleted:\n- ${result.stats.customersDeleted} customers\n- ${result.stats.staffDeleted} staff members\n- ${result.stats.storesDeleted} stores\n\nAll displays reset to 'sold' status.`);
+      setShowResetDatabaseConfirm(false);
+      window.location.reload();
+    } catch (e: any) {
+      console.error(e);
+      alert(e.message || 'Reset failed');
+    } finally {
+      setResettingDatabase(false);
+    }
+  };
+
   // Filter displays
   const filteredDisplays = data.displays.filter(d => {
     if (displayFilters.status !== 'all' && d.status !== displayFilters.status) return false;
@@ -217,8 +242,18 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-4">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Super Admin Dashboard</h1>
-        <p className="text-sm md:text-base text-gray-600 mt-1">Command center for QRDisplay</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Super Admin Dashboard</h1>
+            <p className="text-sm md:text-base text-gray-600 mt-1">Command center for QRDisplay</p>
+          </div>
+          <button
+            onClick={() => setShowResetDatabaseConfirm(true)}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium"
+          >
+            🗑️ Reset Database
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -336,6 +371,16 @@ export function DashboardClient({ data }: { data: DashboardData }) {
             }`}
           >
             🏭 Inventory
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`px-6 py-3 text-base font-medium transition-colors ${
+              activeTab === 'settings'
+                ? 'text-purple-600 border-b-2 border-purple-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            ⚙️ Settings
           </button>
         </div>
       </div>
@@ -511,6 +556,14 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                         {totalCustomers} ({redeemedCount} redeemed) • {salesCount} sales
                       </div>
                       <div className="flex gap-2 mt-2">
+                        <a
+                          href={`/store/login/${store.storeId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                          Dashboard
+                        </a>
                         <button
                           onClick={() => openEditStore(store)}
                           className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
@@ -589,6 +642,14 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                           <td className="px-4 py-3 text-sm">{store.organization?.name}</td>
                           <td className="px-4 py-3">
                             <div className="flex gap-2">
+                              <a
+                                href={`/store/login/${store.storeId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 inline-block"
+                              >
+                                Dashboard
+                              </a>
                               <button
                                 onClick={() => openEditStore(store)}
                                 className="px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
@@ -711,6 +772,47 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         {activeTab === 'inventory' && (
           <InventoryTab displays={filteredDisplays} organizations={data.organizations} />
         )}
+
+        {/* Settings Tab */}
+        {activeTab === 'settings' && (
+          <div className="max-w-4xl">
+            <h2 className="text-2xl font-bold mb-6">Admin Settings</h2>
+            
+            {/* Danger Zone */}
+            <div className="bg-white rounded-lg shadow-sm border-2 border-red-200 p-6">
+              <h3 className="text-lg font-bold text-red-600 mb-2">⚠️ Danger Zone</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Destructive actions that cannot be undone. Use with extreme caution.
+              </p>
+              
+              <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h4 className="font-semibold text-red-900 mb-1">Reset Production Database</h4>
+                    <p className="text-sm text-red-700 mb-2">
+                      This will permanently delete:
+                    </p>
+                    <ul className="text-sm text-red-700 space-y-1 mb-3 ml-4">
+                      <li>• All customers and their sample requests</li>
+                      <li>• All staff members</li>
+                      <li>• All stores and their data</li>
+                      <li>• Reset all displays to "sold" status</li>
+                    </ul>
+                    <p className="text-sm font-semibold text-red-900">
+                      ✅ This will keep: Organizations (VitaDreamz, QR Display) and Display QR codes
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowResetDatabaseConfirm(true)}
+                  className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+                >
+                  Reset Database
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Recent Activity Feed */}
@@ -767,7 +869,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
 
       {/* Mobile Bottom Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-area-inset-bottom">
-        <div className="grid grid-cols-4">
+        <div className="grid grid-cols-5">
           <button
             onClick={() => setActiveTab('displays')}
             className={`flex flex-col items-center justify-center h-14 space-y-1 ${
@@ -803,6 +905,15 @@ export function DashboardClient({ data }: { data: DashboardData }) {
           >
             <span className="text-xl">🏭</span>
             <span className="text-xs font-medium">Inventory</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`flex flex-col items-center justify-center h-14 space-y-1 ${
+              activeTab === 'settings' ? 'bg-purple-600 text-white' : 'text-gray-600'
+            }`}
+          >
+            <span className="text-xl">⚙️</span>
+            <span className="text-xs font-medium">Settings</span>
           </button>
         </div>
       </div>
@@ -1085,6 +1196,46 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                 className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700"
               >
                 Delete Store
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Database Confirmation Dialog */}
+      {showResetDatabaseConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowResetDatabaseConfirm(false)} />
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+            <h3 className="text-lg font-semibold mb-3 text-red-600">⚠️ Reset Production Database?</h3>
+            <p className="text-gray-700 mb-4 font-semibold">
+              This will PERMANENTLY delete ALL production data:
+            </p>
+            <ul className="list-disc list-inside text-sm text-gray-700 mb-4 space-y-1 bg-red-50 p-3 rounded border border-red-200">
+              <li>All customers and sample requests</li>
+              <li>All staff members</li>
+              <li>All stores</li>
+              <li>All displays will be reset to "sold" status</li>
+            </ul>
+            <p className="text-green-700 font-semibold text-sm mb-2">✅ Will be preserved:</p>
+            <ul className="list-disc list-inside text-sm text-gray-700 mb-4 space-y-1 bg-green-50 p-3 rounded border border-green-200">
+              <li>Organizations (VitaDreamz, QR Display)</li>
+              <li>All display QR codes (QRD-001 to QRD-093)</li>
+            </ul>
+            <p className="text-red-600 font-bold text-sm mb-4">⚠️ THIS ACTION CANNOT BE UNDONE!</p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowResetDatabaseConfirm(false)}
+                className="px-4 py-2 rounded border border-gray-300 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={resetDatabase}
+                disabled={resettingDatabase}
+                className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 disabled:bg-gray-400 font-semibold"
+              >
+                {resettingDatabase ? 'Resetting...' : 'Yes, Reset Database'}
               </button>
             </div>
           </div>

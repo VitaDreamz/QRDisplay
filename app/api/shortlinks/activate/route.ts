@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { sendBrandSampleRedemptionEmail } from '@/lib/email';
 
 const TTL_MS = 72 * 60 * 60 * 1000; // 72 hours
 
@@ -51,6 +52,58 @@ export async function POST(req: NextRequest) {
       where: { slug },
       data: { usedAt: new Date(), redeemed: true, redeemedAt: new Date() },
     });
+
+    // Send IMMEDIATE customer SMS with promo link (fire-and-forget)
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+      const promoLink = customer.promoSlug ? `${baseUrl}/p/${customer.promoSlug}` : '';
+      
+      if (customer.phone && promoLink) {
+        const twilio = require('twilio');
+        const client = twilio(
+          process.env.TWILIO_ACCOUNT_SID,
+          process.env.TWILIO_AUTH_TOKEN
+        );
+
+        const immediateMsg = `You're all set! If you love your ${customer.sampleChoice}, ${store.storeName} is offering ${store.promoOffer} when you come back! ${promoLink}`;
+
+        await client.messages.create({
+          to: customer.phone,
+          from: process.env.TWILIO_PHONE_NUMBER,
+          body: immediateMsg,
+        });
+        console.log('✅ Immediate promo SMS sent to:', customer.phone);
+      }
+    } catch (smsErr) {
+      console.error('❌ Immediate SMS send failed:', smsErr);
+      // Do not fail the request if SMS fails
+    }
+
+    // Send brand notification email (fire-and-forget)
+    try {
+      const org = await prisma.organization.findUnique({
+        where: { orgId: customer.orgId }
+      });
+      
+      if (org?.supportEmail) {
+        await sendBrandSampleRedemptionEmail({
+          brandEmail: org.supportEmail,
+          customer: {
+            firstName: customer.firstName,
+            lastName: customer.lastName,
+            memberId: customer.memberId,
+            sampleChoice: customer.sampleChoice,
+          },
+          store: {
+            storeName: store.storeName,
+          },
+          redeemedAt: updated.redeemedAt || new Date(),
+        });
+      }
+    } catch (emailErr) {
+      console.error('❌ Brand notification email failed:', emailErr);
+      // Do not fail the request if email fails
+    }
 
     return NextResponse.json({
       ok: true,

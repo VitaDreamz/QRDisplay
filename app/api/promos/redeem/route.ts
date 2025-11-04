@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { sendBrandPromoRedemptionEmail } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
   try {
@@ -89,6 +90,31 @@ export async function POST(request: NextRequest) {
         redeemed: true
       }
     });
+
+    // Send brand notification email (fire-and-forget)
+    try {
+      const org = await prisma.organization.findUnique({
+        where: { orgId: store.orgId }
+      });
+      
+      if (org?.supportEmail) {
+        await sendBrandPromoRedemptionEmail({
+          brandEmail: org.supportEmail,
+          customer: {
+            firstName: customer.firstName,
+            lastName: customer.lastName,
+            memberId: customer.memberId,
+          },
+          store: {
+            storeName: store.storeName,
+          },
+          redeemedAt: new Date(),
+        });
+      }
+    } catch (emailErr) {
+      console.error('❌ Brand promo notification email failed:', emailErr);
+      // Do not fail the request if email fails
+    }
 
     return NextResponse.json({
       success: true,

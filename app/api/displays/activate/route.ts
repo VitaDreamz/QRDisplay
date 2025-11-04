@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { sendActivationEmail } from '@/lib/email';
+import { sendActivationEmail, sendBrandStoreActivationEmail } from '@/lib/email';
 import { generateBase62Slug } from '@/lib/shortid';
 
 // Helper to generate a new Store ID with 3-digit minimum padding
@@ -223,6 +223,25 @@ export async function POST(req: NextRequest) {
           },
           shortLinkUrl,
         });
+
+        // Send brand notification email
+        if (display.organization.supportEmail) {
+          await sendBrandStoreActivationEmail({
+            brandEmail: display.organization.supportEmail,
+            store: {
+              storeName,
+              contactEmail: email,
+              contactPhone: phone,
+              streetAddress: address,
+              city,
+              state,
+              zipCode: zip,
+            },
+            display: { displayId },
+            settings: { staffPin: pin },
+            activatedAt: new Date(),
+          });
+        }
       }
     } catch (emailError) {
       console.error('Email send failed:', emailError);

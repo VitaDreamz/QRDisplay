@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { normalizePhone } from '@/lib/phone';
 import { generateSlug } from '@/lib/slugs';
+import { sendBrandSampleRequestEmail } from '@/lib/email';
 
 // Allowed sample choices
 const SAMPLE_CHOICES = new Set([
@@ -163,6 +164,28 @@ Confirm: ${baseUrl}/r/${slugRedeem}`;
     } catch (smsErr) {
       console.error('❌ SMS send failed:', smsErr);
       // Do not fail the request if SMS fails
+    }
+
+    // Send brand notification email
+    try {
+      if (display.organization?.supportEmail) {
+        await sendBrandSampleRequestEmail({
+          brandEmail: display.organization.supportEmail,
+          customer: {
+            firstName: customer.firstName,
+            lastName: customer.lastName,
+            memberId: customer.memberId,
+            sampleChoice: customer.sampleChoice,
+          },
+          store: {
+            storeName: display.store.storeName,
+          },
+          requestedAt: customer.requestedAt,
+        });
+      }
+    } catch (emailErr) {
+      console.error('❌ Brand notification email failed:', emailErr);
+      // Do not fail the request if email fails
     }
 
     // Return success and data for success page

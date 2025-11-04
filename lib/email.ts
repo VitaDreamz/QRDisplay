@@ -190,3 +190,275 @@ export async function sendActivationEmail(data: {
     return { success: false, error };
   }
 }
+
+// Brand Notification: Store Activation
+export async function sendBrandStoreActivationEmail(data: {
+  brandEmail: string;
+  store: {
+    storeName: string;
+    contactEmail: string;
+    contactPhone: string;
+    streetAddress: string;
+    city: string;
+    state: string;
+    zipCode: string;
+  };
+  display: {
+    displayId: string;
+  };
+  settings: {
+    staffPin: string;
+  };
+  activatedAt: Date;
+}) {
+  const { brandEmail, store, display, settings, activatedAt } = data;
+  
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #6f42c1;">🏪 New Store Activated</h2>
+          
+          <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+            <tr style="background: #f8f9fa;">
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">Store Name</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6;">${store.storeName}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">Email</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6;">${store.contactEmail}</td>
+            </tr>
+            <tr style="background: #f8f9fa;">
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">Phone</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6;">${store.contactPhone}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">Address</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6;">
+                ${store.streetAddress}<br>
+                ${store.city}, ${store.state} ${store.zipCode}
+              </td>
+            </tr>
+            <tr style="background: #f8f9fa;">
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">Display ID</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6;">${display.displayId}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">Staff PIN</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6;">${settings.staffPin}</td>
+            </tr>
+            <tr style="background: #f8f9fa;">
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">Activated</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6;">${activatedAt.toLocaleString()}</td>
+            </tr>
+          </table>
+        </div>
+      </body>
+    </html>
+  `;
+
+  try {
+    await resend.emails.send({
+      from: 'QRDisplay <noreply@qrdisplay.com>',
+      to: brandEmail,
+      subject: `🏪 New Store Activated - ${store.storeName}`,
+      html
+    });
+    console.log('✅ Brand store activation email sent to:', brandEmail);
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Brand email send failed:', error);
+    return { success: false, error };
+  }
+}
+
+// Brand Notification: Sample Request
+export async function sendBrandSampleRequestEmail(data: {
+  brandEmail: string;
+  customer: {
+    firstName: string;
+    lastName: string;
+    memberId: string;
+    sampleChoice: string;
+  };
+  store: {
+    storeName: string;
+  };
+  requestedAt: Date;
+}) {
+  const { brandEmail, customer, store, requestedAt } = data;
+  
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #6f42c1;">✨ New Sample Request</h2>
+          
+          <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+            <tr style="background: #f8f9fa;">
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">Customer</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6;">${customer.firstName} ${customer.lastName}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">Member ID</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6;">${customer.memberId}</td>
+            </tr>
+            <tr style="background: #f8f9fa;">
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">Sample Choice</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6;">${customer.sampleChoice}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">Store</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6;">${store.storeName}</td>
+            </tr>
+            <tr style="background: #f8f9fa;">
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">Requested</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6;">${requestedAt.toLocaleString()}</td>
+            </tr>
+          </table>
+        </div>
+      </body>
+    </html>
+  `;
+
+  try {
+    await resend.emails.send({
+      from: 'QRDisplay <noreply@qrdisplay.com>',
+      to: brandEmail,
+      subject: `✨ New Sample Request - ${store.storeName}`,
+      html
+    });
+    console.log('✅ Brand sample request email sent to:', brandEmail);
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Brand email send failed:', error);
+    return { success: false, error };
+  }
+}
+
+// Brand Notification: Sample Redemption
+export async function sendBrandSampleRedemptionEmail(data: {
+  brandEmail: string;
+  customer: {
+    firstName: string;
+    lastName: string;
+    memberId: string;
+    sampleChoice: string;
+  };
+  store: {
+    storeName: string;
+  };
+  redeemedAt: Date;
+}) {
+  const { brandEmail, customer, store, redeemedAt } = data;
+  
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #6f42c1;">✅ Sample Redeemed</h2>
+          
+          <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+            <tr style="background: #f8f9fa;">
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">Customer</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6;">${customer.firstName} ${customer.lastName}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">Member ID</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6;">${customer.memberId}</td>
+            </tr>
+            <tr style="background: #f8f9fa;">
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">Sample Choice</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6;">${customer.sampleChoice}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">Store</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6;">${store.storeName}</td>
+            </tr>
+            <tr style="background: #f8f9fa;">
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">Redeemed</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6;">${redeemedAt.toLocaleString()}</td>
+            </tr>
+          </table>
+        </div>
+      </body>
+    </html>
+  `;
+
+  try {
+    await resend.emails.send({
+      from: 'QRDisplay <noreply@qrdisplay.com>',
+      to: brandEmail,
+      subject: `✅ Sample Redeemed - ${store.storeName}`,
+      html
+    });
+    console.log('✅ Brand sample redemption email sent to:', brandEmail);
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Brand email send failed:', error);
+    return { success: false, error };
+  }
+}
+
+// Brand Notification: Promo Redemption
+export async function sendBrandPromoRedemptionEmail(data: {
+  brandEmail: string;
+  customer: {
+    firstName: string;
+    lastName: string;
+    memberId: string;
+  };
+  store: {
+    storeName: string;
+  };
+  redeemedAt: Date;
+}) {
+  const { brandEmail, customer, store, redeemedAt } = data;
+  
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #6f42c1;">🎉 Promo Redeemed</h2>
+          
+          <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+            <tr style="background: #f8f9fa;">
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">Customer</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6;">${customer.firstName} ${customer.lastName}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">Member ID</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6;">${customer.memberId}</td>
+            </tr>
+            <tr style="background: #f8f9fa;">
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">Store</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6;">${store.storeName}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: bold;">Redeemed</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6;">${redeemedAt.toLocaleString()}</td>
+            </tr>
+          </table>
+        </div>
+      </body>
+    </html>
+  `;
+
+  try {
+    await resend.emails.send({
+      from: 'QRDisplay <noreply@qrdisplay.com>',
+      to: brandEmail,
+      subject: `🎉 Promo Redeemed - ${store.storeName}`,
+      html
+    });
+    console.log('✅ Brand promo redemption email sent to:', brandEmail);
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Brand email send failed:', error);
+    return { success: false, error };
+  }
+}

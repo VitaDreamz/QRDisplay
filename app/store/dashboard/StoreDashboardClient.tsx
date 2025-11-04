@@ -40,9 +40,15 @@ type DashboardData = {
   customers: Customer[];
   displays: any[];
   organization: any;
+  role: 'owner' | 'staff';
+  staffMember?: {
+    staffId: string;
+    firstName: string;
+    lastName: string;
+  } | null;
 };
 
-export default function StoreDashboardClient({ initialData, userId }: { initialData: DashboardData; userId: string }) {
+export default function StoreDashboardClient({ initialData, userId, role }: { initialData: DashboardData; userId: string; role: 'owner' | 'staff' }) {
   const [data, setData] = useState(initialData);
   const [activeTab, setActiveTab] = useState<'overview' | 'customers' | 'staff' | 'settings'>('overview');
   const [customerFilter, setCustomerFilter] = useState<'all' | 'pending' | 'redeemed' | 'promo-used'>('all');
@@ -491,7 +497,7 @@ export default function StoreDashboardClient({ initialData, userId }: { initialD
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            📊 Overview
+            📊 {role === 'staff' ? 'My Stats' : 'Overview'}
           </button>
           <button
             onClick={() => setActiveTab('customers')}
@@ -503,26 +509,30 @@ export default function StoreDashboardClient({ initialData, userId }: { initialD
           >
             👥 Customers
           </button>
-          <button
-            onClick={() => setActiveTab('staff')}
-            className={`px-6 py-3 text-base font-medium transition-colors ${
-              activeTab === 'staff'
-                ? 'text-purple-600 border-b-2 border-purple-600'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            🏆 Staff
-          </button>
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`px-6 py-3 text-base font-medium transition-colors ${
-              activeTab === 'settings'
-                ? 'text-purple-600 border-b-2 border-purple-600'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            ⚙️ Settings
-          </button>
+          {role === 'owner' && (
+            <>
+              <button
+                onClick={() => setActiveTab('staff')}
+                className={`px-6 py-3 text-base font-medium transition-colors ${
+                  activeTab === 'staff'
+                    ? 'text-purple-600 border-b-2 border-purple-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                🏆 Staff
+              </button>
+              <button
+                onClick={() => setActiveTab('settings')}
+                className={`px-6 py-3 text-base font-medium transition-colors ${
+                  activeTab === 'settings'
+                    ? 'text-purple-600 border-b-2 border-purple-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                ⚙️ Settings
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -531,24 +541,26 @@ export default function StoreDashboardClient({ initialData, userId }: { initialD
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <>
-            {/* Quick Actions */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <button
-                  onClick={() => setSendingBlast(true)}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
-                >
-                  📢 Send Message to Customers
-                </button>
-                <button
-                  onClick={() => setActiveTab('customers')}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-900 rounded-lg hover:bg-gray-200 font-medium"
-                >
-                  👥 View All Customers
-                </button>
+            {/* Quick Actions (Owner Only) */}
+            {role === 'owner' && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setSendingBlast(true)}
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
+                  >
+                    📢 Send Message to Customers
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('customers')}
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-900 rounded-lg hover:bg-gray-200 font-medium"
+                  >
+                    👥 View All Customers
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Recent Customers */}
             <div className="bg-white rounded-lg shadow">
@@ -679,8 +691,8 @@ export default function StoreDashboardClient({ initialData, userId }: { initialD
           </div>
         )}
 
-        {/* Staff Tab */}
-        {activeTab === 'staff' && (
+        {/* Staff Tab (Owner Only) */}
+        {activeTab === 'staff' && role === 'owner' && (
           <>
             {/* Store Contact Information */}
             <div className="bg-white rounded-lg shadow p-6">
@@ -852,8 +864,8 @@ export default function StoreDashboardClient({ initialData, userId }: { initialD
           </>
         )}
 
-        {/* Settings Tab */}
-        {activeTab === 'settings' && (
+        {/* Settings Tab (Owner Only) */}
+        {activeTab === 'settings' && role === 'owner' && (
           <>
             {/* Store Settings */}
             <div className="bg-white rounded-lg shadow p-6">
@@ -961,7 +973,7 @@ export default function StoreDashboardClient({ initialData, userId }: { initialD
 
       {/* Mobile Bottom Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-area-inset-bottom">
-        <div className="grid grid-cols-4">
+        <div className={`grid ${role === 'owner' ? 'grid-cols-4' : 'grid-cols-2'}`}>
           <button
             onClick={() => setActiveTab('overview')}
             className={`flex flex-col items-center justify-center h-14 space-y-1 ${
@@ -969,7 +981,7 @@ export default function StoreDashboardClient({ initialData, userId }: { initialD
             }`}
           >
             <span className="text-xl">📊</span>
-            <span className="text-xs font-medium">Overview</span>
+            <span className="text-xs font-medium">{role === 'staff' ? 'My Stats' : 'Overview'}</span>
           </button>
           <button
             onClick={() => setActiveTab('customers')}
@@ -980,24 +992,28 @@ export default function StoreDashboardClient({ initialData, userId }: { initialD
             <span className="text-xl">👥</span>
             <span className="text-xs font-medium">Customers</span>
           </button>
-          <button
-            onClick={() => setActiveTab('staff')}
-            className={`flex flex-col items-center justify-center h-14 space-y-1 ${
-              activeTab === 'staff' ? 'bg-purple-600 text-white' : 'text-gray-600'
-            }`}
-          >
-            <span className="text-xl">🏆</span>
-            <span className="text-xs font-medium">Staff</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`flex flex-col items-center justify-center h-14 space-y-1 ${
-              activeTab === 'settings' ? 'bg-purple-600 text-white' : 'text-gray-600'
-            }`}
-          >
-            <span className="text-xl">⚙️</span>
-            <span className="text-xs font-medium">Settings</span>
-          </button>
+          {role === 'owner' && (
+            <>
+              <button
+                onClick={() => setActiveTab('staff')}
+                className={`flex flex-col items-center justify-center h-14 space-y-1 ${
+                  activeTab === 'staff' ? 'bg-purple-600 text-white' : 'text-gray-600'
+                }`}
+              >
+                <span className="text-xl">🏆</span>
+                <span className="text-xs font-medium">Staff</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('settings')}
+                className={`flex flex-col items-center justify-center h-14 space-y-1 ${
+                  activeTab === 'settings' ? 'bg-purple-600 text-white' : 'text-gray-600'
+                }`}
+              >
+                <span className="text-xl">⚙️</span>
+                <span className="text-xs font-medium">Settings</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 

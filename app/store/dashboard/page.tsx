@@ -4,22 +4,15 @@ import prisma from '@/lib/prisma';
 import StoreDashboardClient from './StoreDashboardClient';
 
 export default async function StoreDashboardPage() {
-  // Check for magic link session
+  // Check for PIN-based session
   const cookieStore = await cookies();
   const storeId = cookieStore.get('store-id')?.value;
-  const sessionToken = cookieStore.get('store-session')?.value;
+  const role = cookieStore.get('store-role')?.value as 'owner' | 'staff' | undefined;
+  const staffId = cookieStore.get('staff-id')?.value;
 
-  if (!storeId || !sessionToken) {
+  if (!storeId || !role) {
+    // Find the store to redirect to the right login page
     redirect('/store/login');
-  }
-
-  // Verify the session is still valid
-  const magicLink = await prisma.magicLink.findUnique({
-    where: { token: sessionToken }
-  });
-
-  if (!magicLink || !magicLink.used || magicLink.storeId !== storeId) {
-    redirect('/store/login?error=invalid');
   }
 
   // Fetch store data
@@ -28,7 +21,26 @@ export default async function StoreDashboardPage() {
   });
 
   if (!store) {
-    redirect('/store/login?error=notfound');
+    redirect(`/store/login/${storeId}?error=notfound`);
+  }
+
+  // If staff login, verify staff member exists and is active
+  let staffMember = null;
+  if (role === 'staff' && staffId) {
+    staffMember = await prisma.staff.findFirst({
+      where: {
+        staffId: staffId,
+        storeId: store.id
+      }
+    });
+
+    if (!staffMember || staffMember.status !== 'active') {
+      // Clear invalid staff session
+      cookieStore.delete('store-id');
+      cookieStore.delete('store-role');
+      cookieStore.delete('staff-id');
+      redirect(`/store/login/${storeId}?error=invalid`);
+    }
   }
   
   const customers = await prisma.customer.findMany({
@@ -90,8 +102,14 @@ export default async function StoreDashboardPage() {
       requestedAt: c.requestedAt
     })),
     displays: displays,
-    organization: organization
+    organization: organization,
+    role: role,
+    staffMember: staffMember ? {
+      staffId: staffMember.staffId,
+      firstName: staffMember.firstName,
+      lastName: staffMember.lastName
+    } : null
   };
 
-  return <StoreDashboardClient initialData={data} userId={storeId} />;
+  return <StoreDashboardClient initialData={data} userId={storeId} role={role} />;
 }

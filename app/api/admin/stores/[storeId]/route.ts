@@ -165,7 +165,9 @@ export async function PATCH(
           ...(staffPin !== undefined && { staffPin }),
           ...(promoOffer !== undefined && { promoOffer }),
           ...(followupDays !== undefined && { followupDays }),
-          ...(status !== undefined && { status })
+          ...(status !== undefined && { status }),
+          // Preserve availableSamples if not provided (don't reset to default)
+          ...(body.availableSamples !== undefined && { availableSamples: body.availableSamples })
         }
       });
     });

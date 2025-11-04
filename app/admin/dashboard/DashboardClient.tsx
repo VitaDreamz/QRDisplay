@@ -136,7 +136,9 @@ export function DashboardClient({ data }: { data: DashboardData }) {
       promoOffer: store.promoOffer || '20%-off 1st Purchase',
       followupDays: store.followupDays || [4, 12],
       status: store.status || 'active',
-      displayId: store.displays?.[0]?.displayId || ''
+      displayId: store.displays?.[0]?.displayId || '',
+      // IMPORTANT: Preserve availableSamples so they don't reset
+      availableSamples: store.availableSamples || []
     });
     
     // Fetch available displays from same organization

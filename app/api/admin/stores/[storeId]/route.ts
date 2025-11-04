@@ -74,32 +74,112 @@ export async function PATCH(
       staffPin,
       promoOffer,
       followupDays,
-      status
+      status,
+      displayId
     } = body;
 
-    const store = await prisma.store.update({
+    // Get current store data to check for display changes
+    const currentStore = await prisma.store.findUnique({
       where: { storeId },
-      data: {
-        ...(storeName !== undefined && { storeName }),
-        ...(adminName !== undefined && { adminName }),
-        ...(adminEmail !== undefined && { adminEmail }),
-        ...(adminPhone !== undefined && { adminPhone }),
-        ...(streetAddress !== undefined && { streetAddress }),
-        ...(city !== undefined && { city }),
-        ...(state !== undefined && { state }),
-        ...(zipCode !== undefined && { zipCode }),
-        ...(staffPin !== undefined && { staffPin }),
-        ...(promoOffer !== undefined && { promoOffer }),
-        ...(followupDays !== undefined && { followupDays }),
-        ...(status !== undefined && { status })
-      },
+      include: { displays: true }
+    });
+
+    if (!currentStore) {
+      return NextResponse.json(
+        { error: 'Store not found' },
+        { status: 404 }
+      );
+    }
+
+    const oldDisplayId = currentStore.displays?.[0]?.displayId || null;
+    const newDisplayId = displayId || null;
+
+    // Use transaction to handle display reassignment atomically
+    await prisma.$transaction(async (tx) => {
+      // If display changed, update display connections
+      if (oldDisplayId !== newDisplayId) {
+        
+        // Clear old display connection
+        if (oldDisplayId) {
+          await tx.display.update({
+            where: { displayId: oldDisplayId },
+            data: {
+              storeId: null,
+              status: 'sold',
+              activatedAt: null
+            }
+          });
+        }
+        
+        // Set new display connection
+        if (newDisplayId) {
+          // Check if new display is already connected to another store
+          const existingDisplay = await tx.display.findUnique({
+            where: { displayId: newDisplayId },
+            include: { 
+              store: { 
+                select: { 
+                  storeId: true, 
+                  storeName: true 
+                } 
+              } 
+            }
+          });
+          
+          if (existingDisplay?.storeId && existingDisplay.storeId !== currentStore.storeId) {
+            // Disconnect from old store first
+            await tx.display.update({
+              where: { displayId: newDisplayId },
+              data: {
+                storeId: null,
+                status: 'sold',
+                activatedAt: null
+              }
+            });
+          }
+          
+          // Connect to new store and activate
+          await tx.display.update({
+            where: { displayId: newDisplayId },
+            data: {
+              storeId: currentStore.storeId,
+              status: 'active',
+              activatedAt: new Date()
+            }
+          });
+        }
+      }
+
+      // Update store with all fields
+      await tx.store.update({
+        where: { storeId },
+        data: {
+          ...(storeName !== undefined && { storeName }),
+          ...(adminName !== undefined && { adminName }),
+          ...(adminEmail !== undefined && { adminEmail }),
+          ...(adminPhone !== undefined && { adminPhone }),
+          ...(streetAddress !== undefined && { streetAddress }),
+          ...(city !== undefined && { city }),
+          ...(state !== undefined && { state }),
+          ...(zipCode !== undefined && { zipCode }),
+          ...(staffPin !== undefined && { staffPin }),
+          ...(promoOffer !== undefined && { promoOffer }),
+          ...(followupDays !== undefined && { followupDays }),
+          ...(status !== undefined && { status })
+        }
+      });
+    });
+
+    // Fetch updated store with relations
+    const updatedStore = await prisma.store.findUnique({
+      where: { storeId },
       include: {
         organization: true,
         displays: true
       }
     });
 
-    return NextResponse.json(store);
+    return NextResponse.json(updatedStore);
   } catch (error) {
     console.error('Error updating store:', error);
     return NextResponse.json(

@@ -32,45 +32,75 @@ export async function PATCH(req: NextRequest) {
     const normalizeStatus = (v: string) => (v === 'available' ? 'inventory' : v);
 
     let data: any = {};
+    
     if (action === 'status') {
       if (!rawValue) return NextResponse.json({ error: 'Missing status value' }, { status: 400 });
       const value = normalizeStatus(rawValue);
       if (!['inventory', 'sold', 'active', 'inactive'].includes(value)) {
         return NextResponse.json({ error: 'Invalid status value' }, { status: 400 });
       }
-      data.status = value;
-      // On making inventory/sold, clear any store assignment + activation
-      if (value === 'inventory' || value === 'sold') {
-        data.storeId = null;
-        data.activatedAt = null;
+      
+      // ONLY update status-related fields based on specific status value
+      if (value === 'inventory') {
+        // Available = not sold to anyone (full reset to inventory)
+        data = {
+          status: 'inventory',
+          storeId: null,
+          assignedOrgId: null,
+          activatedAt: null
+        };
+      } else if (value === 'sold') {
+        // Sold = assigned to org but not activated
+        // ONLY clear store/activation, keep organization assignment!
+        data = {
+          status: 'sold',
+          storeId: null,
+          activatedAt: null
+          // assignedOrgId: UNCHANGED - don't touch it!
+        };
+      } else if (value === 'active') {
+        // Just mark as active, don't change anything else
+        data = {
+          status: 'active'
+        };
+      } else if (value === 'inactive') {
+        // Just mark as inactive, don't change anything else
+        data = {
+          status: 'inactive'
+        };
       }
+      
     } else if (action === 'organization') {
-      // Assign or unassign to an org
+      // ONLY update organization field
       if (!rawValue) return NextResponse.json({ error: 'Missing organization value' }, { status: 400 });
       if (rawValue === 'none') {
+        // Unassigning = make available (clear everything)
         data = {
           assignedOrgId: null,
           status: 'inventory',
           storeId: null,
-          activatedAt: null,
+          activatedAt: null
         };
       } else {
         // Ensure org exists
         const org = await prisma.organization.findUnique({ where: { orgId: rawValue } });
         if (!org) return NextResponse.json({ error: 'Organization not found' }, { status: 404 });
+        
+        // Assigning to org = ONLY change org, preserve current state!
         data = {
-          assignedOrgId: rawValue,
-          status: 'sold', // Sold but not activated
-          storeId: null,
-          activatedAt: null,
+          assignedOrgId: rawValue
+          // Don't touch: status, storeId, activatedAt
+          // Let display keep its current activation state
         };
       }
+      
     } else if (action === 'reset') {
-      // Reset displays: keep assignedOrgId, clear store/activation, set to sold
+      // Reset = clear store/activation but KEEP organization assignment
       data = {
         storeId: null,
         activatedAt: null,
-        status: 'sold',
+        status: 'sold'
+        // assignedOrgId: UNCHANGED - display stays assigned to org
       };
     }
 
@@ -79,7 +109,11 @@ export async function PATCH(req: NextRequest) {
       data,
     });
 
-    return NextResponse.json({ success: true, updated: result.count });
+    return NextResponse.json({ 
+      success: true, 
+      updated: result.count,
+      message: `Successfully updated ${result.count} display${result.count !== 1 ? 's' : ''}`
+    });
   } catch (error: any) {
     console.error('Bulk update error:', error);
     return NextResponse.json({ error: 'Bulk update failed', details: error?.message || 'Unknown error' }, { status: 500 });

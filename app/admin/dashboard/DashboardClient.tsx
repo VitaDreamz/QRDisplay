@@ -46,6 +46,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [resetDisplayOnDelete, setResetDisplayOnDelete] = useState(false);
   const [storeForm, setStoreForm] = useState<any>({});
+  const [availableDisplays, setAvailableDisplays] = useState<any[]>([]);
   
   // Database reset states
   const [showResetDatabaseConfirm, setShowResetDatabaseConfirm] = useState(false);
@@ -120,7 +121,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   };
 
   // Store management functions
-  const openEditStore = (store: any) => {
+  const openEditStore = async (store: any) => {
     setEditingStore(store);
     setStoreForm({
       storeName: store.storeName || '',
@@ -134,8 +135,21 @@ export function DashboardClient({ data }: { data: DashboardData }) {
       staffPin: store.staffPin || '',
       promoOffer: store.promoOffer || '20%-off 1st Purchase',
       followupDays: store.followupDays || [4, 12],
-      status: store.status || 'active'
+      status: store.status || 'active',
+      displayId: store.displays?.[0]?.displayId || ''
     });
+    
+    // Fetch available displays from same organization
+    if (store.orgId) {
+      try {
+        const res = await fetch(`/api/admin/displays?organizationId=${store.orgId}`);
+        const data = await res.json();
+        setAvailableDisplays(data.displays || []);
+      } catch (err) {
+        console.error('Failed to load displays:', err);
+        setAvailableDisplays([]);
+      }
+    }
   };
 
   const saveStoreEdit = async () => {
@@ -1110,6 +1124,35 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                   className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Display ID</label>
+                <select
+                  value={storeForm.displayId || ''}
+                  onChange={(e) => setStoreForm({ ...storeForm, displayId: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500 text-sm"
+                >
+                  <option value="">-- No Display --</option>
+                  {availableDisplays.map(display => (
+                    <option key={display.displayId} value={display.displayId}>
+                      {display.displayId}
+                      {display.storeId && display.storeId !== editingStore?.storeId ? 
+                        ` (Currently at ${display.store?.storeName})` : 
+                        ''
+                      }
+                    </option>
+                  ))}
+                </select>
+                <span className="text-xs text-gray-500 mt-1 block">
+                  Assign or change the QR display for this store
+                </span>
+              </div>
+              {editingStore?.displays?.[0]?.displayId && (
+                <div className="md:col-span-2 bg-blue-50 border border-blue-200 rounded p-3">
+                  <p className="text-sm text-blue-800">
+                    📱 Currently using: <strong>{editingStore.displays[0].displayId}</strong>
+                  </p>
+                </div>
+              )}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium mb-1">Promo Offer</label>
                 <input

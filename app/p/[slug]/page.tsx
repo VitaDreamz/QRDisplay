@@ -8,7 +8,7 @@ type StoreInfo = {
   city: string | null;
   state: string | null;
   zipCode: string | null;
-  contactPhone: string | null;
+  adminPhone: string | null;
 };
 
 export default function PromoRedemptionPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -172,12 +172,12 @@ export default function PromoRedemptionPage({ params }: { params: Promise<{ slug
               </div>
             </div>
             
-            {storeInfo.contactPhone && (
+            {storeInfo.adminPhone && (
               <a 
-                href={`tel:${storeInfo.contactPhone}`}
+                href={`tel:${storeInfo.adminPhone}`}
                 className="flex items-center gap-2 text-purple-600 hover:text-purple-700 font-medium text-lg min-h-[44px]"
               >
-                📞 {formatPhoneForDisplay(storeInfo.contactPhone)}
+                📞 {formatPhoneForDisplay(storeInfo.adminPhone)}
               </a>
             )}
           </div>

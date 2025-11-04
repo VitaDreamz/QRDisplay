@@ -149,14 +149,14 @@ Reply STOP to opt out.`;
         body: customerMsg,
       });
 
-      // Store alert SMS (if store has contact phone)
-      if (display.store.contactPhone) {
+      // Store alert SMS (if store has admin phone)
+      if (display.store.adminPhone) {
   const storeMsg = `VitaDreamz Sample: ${sampleChoice} for ${first} ${lastInitial}. 
 
 Member: ${last4}
 Confirm: ${baseUrl}/r/${slugRedeem}`;
         await client.messages.create({
-          to: display.store.contactPhone,
+          to: display.store.adminPhone,
           from: process.env.TWILIO_PHONE_NUMBER,
           body: storeMsg,
         });

@@ -53,7 +53,7 @@ export async function GET(
         city: true,
         state: true,
         zipCode: true,
-        contactPhone: true,
+        adminPhone: true,
       }
     });
 
@@ -72,7 +72,7 @@ export async function GET(
         city: store.city,
         state: store.state,
         zipCode: store.zipCode,
-        contactPhone: store.contactPhone,
+        adminPhone: store.adminPhone,
       }
     });
   } catch (err) {

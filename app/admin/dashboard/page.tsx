@@ -18,11 +18,18 @@ export default async function AdminDashboardPage() {
       prisma.store.findMany({
         include: { 
           organization: true,
+          displays: true,
           _count: { 
             select: { 
               customers: true, 
               displays: true 
             } 
+          },
+          customers: {
+            select: {
+              id: true,
+              redeemed: true
+            }
           }
         },
         orderBy: { activatedAt: 'desc' },

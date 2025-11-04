@@ -38,6 +38,14 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   const [displayForm, setDisplayForm] = useState<{ status: string; assignedOrgId: string | '' }>({ status: 'inventory', assignedOrgId: '' });
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetting, setResetting] = useState(false);
+  
+  // Store management states
+  const [editingStore, setEditingStore] = useState<any | null>(null);
+  const [savingStore, setSavingStore] = useState(false);
+  const [deletingStore, setDeletingStore] = useState<any | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [resetDisplayOnDelete, setResetDisplayOnDelete] = useState(false);
+  const [storeForm, setStoreForm] = useState<any>({});
 
   // Format relative time
   const formatRelativeTime = (date: Date) => {
@@ -107,6 +115,64 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     }
   };
 
+  // Store management functions
+  const openEditStore = (store: any) => {
+    setEditingStore(store);
+    setStoreForm({
+      storeName: store.storeName || '',
+      contactName: store.contactName || '',
+      contactEmail: store.contactEmail || '',
+      contactPhone: store.contactPhone || '',
+      streetAddress: store.streetAddress || '',
+      city: store.city || '',
+      state: store.state || '',
+      zipCode: store.zipCode || '',
+      staffPin: store.staffPin || '',
+      promoOffer: store.promoOffer || '20%-off 1st Purchase',
+      followupDays: store.followupDays || [4, 12],
+      status: store.status || 'active'
+    });
+  };
+
+  const saveStoreEdit = async () => {
+    if (!editingStore) return;
+    setSavingStore(true);
+    try {
+      const res = await fetch(`/api/admin/stores/${editingStore.storeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(storeForm)
+      });
+      if (!res.ok) throw new Error('Failed to update store');
+      alert('Store updated successfully');
+      setEditingStore(null);
+      window.location.reload();
+    } catch (e: any) {
+      console.error(e);
+      alert(e.message || 'Update failed');
+    } finally {
+      setSavingStore(false);
+    }
+  };
+
+  const deleteStore = async () => {
+    if (!deletingStore) return;
+    try {
+      const res = await fetch(
+        `/api/admin/stores/${deletingStore.storeId}?resetDisplay=${resetDisplayOnDelete}`,
+        { method: 'DELETE' }
+      );
+      if (!res.ok) throw new Error('Failed to delete store');
+      alert('Store deleted successfully');
+      setShowDeleteConfirm(false);
+      setDeletingStore(null);
+      window.location.reload();
+    } catch (e: any) {
+      console.error(e);
+      alert(e.message || 'Delete failed');
+    }
+  };
+
   // Filter displays
   const filteredDisplays = data.displays.filter(d => {
     if (displayFilters.status !== 'all' && d.status !== displayFilters.status) return false;
@@ -119,7 +185,16 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   const filteredStores = data.stores.filter(s => {
     if (storeFilters.status !== 'all' && s.status !== storeFilters.status) return false;
     if (storeFilters.brand !== 'all' && s.orgId !== storeFilters.brand) return false;
-    if (searchQuery && !s.storeName.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesName = s.storeName.toLowerCase().includes(query);
+      const matchesId = s.storeId.toLowerCase().includes(query);
+      const matchesContact = s.contactName?.toLowerCase().includes(query);
+      const matchesEmail = s.contactEmail?.toLowerCase().includes(query);
+      const matchesPhone = s.contactPhone?.includes(query);
+      const matchesCity = s.city?.toLowerCase().includes(query);
+      if (!matchesName && !matchesId && !matchesContact && !matchesEmail && !matchesPhone && !matchesCity) return false;
+    }
     return true;
   });
 
@@ -406,8 +481,11 @@ export function DashboardClient({ data }: { data: DashboardData }) {
             {/* Mobile Cards */}
             <div className="md:hidden space-y-3">
               {filteredStores.map((store) => {
-                const sampleCount = store._count?.customers || 0;
-                const redeemedCount = data.customers.filter(c => c.storeId === store.storeId && c.redeemed).length;
+                const totalCustomers = store._count?.customers || 0;
+                const redeemedCount = store.customers?.filter((c: any) => c.redeemed).length || 0;
+                const salesCount = data.customers.filter(c => c.storeId === store.storeId && c.promoRedeemed).length;
+                const displayId = store.displays?.[0]?.displayId;
+                
                 return (
                   <div key={store.id} className="bg-white rounded-lg p-4 shadow-sm">
                     <div className="font-semibold text-base mb-1">{store.storeName}</div>
@@ -417,15 +495,38 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                         <span>•</span>
                         <span>{store.organization?.name}</span>
                       </div>
-                      {store.contactName && store.contactPhone && (
-                        <div>{store.contactName} • {store.contactPhone}</div>
+                      {store.contactName && (
+                        <div className="text-xs">
+                          {store.contactName}
+                          {store.contactPhone && ` • ${store.contactPhone}`}
+                          {store.contactEmail && (
+                            <div>{store.contactEmail}</div>
+                          )}
+                        </div>
+                      )}
+                      {(store.city || store.state) && (
+                        <div className="text-xs">{store.city}{store.city && store.state && ', '}{store.state}</div>
                       )}
                       <div className="font-medium text-gray-900">
-                        {sampleCount} samples ({redeemedCount} redeemed)
+                        {totalCustomers} ({redeemedCount} redeemed) • {salesCount} sales
                       </div>
-                      {store.activatedAt && (
-                        <div className="text-xs">Activated {formatRelativeTime(store.activatedAt)}</div>
-                      )}
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() => openEditStore(store)}
+                          className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => {
+                            setDeletingStore(store);
+                            setShowDeleteConfirm(true);
+                          }}
+                          className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -440,32 +541,70 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                     <tr>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Store ID</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Store Name</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Brand</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Contact</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">City, State</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Samples</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Activated</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Sales</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Display ID</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Brand</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {filteredStores.map((store) => {
-                      const sampleCount = store._count?.customers || 0;
-                      const redeemedCount = data.customers.filter(c => c.storeId === store.storeId && c.redeemed).length;
+                      const totalCustomers = store._count?.customers || 0;
+                      const redeemedCount = store.customers?.filter((c: any) => c.redeemed).length || 0;
+                      const salesCount = data.customers.filter(c => c.storeId === store.storeId && c.promoRedeemed).length;
+                      const displayId = store.displays?.[0]?.displayId;
+                      
                       return (
                         <tr key={store.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 font-mono text-sm">{store.storeId}</td>
+                          <td className="px-4 py-3 font-mono text-xs">{store.storeId}</td>
                           <td className="px-4 py-3 text-sm font-medium">{store.storeName}</td>
-                          <td className="px-4 py-3 text-sm">{store.organization?.name}</td>
+                          <td className="px-4 py-3 text-xs">
+                            {store.contactName && (
+                              <div className="space-y-0.5">
+                                <div>{store.contactName}</div>
+                                {store.contactPhone && <div>{store.contactPhone}</div>}
+                                {store.contactEmail && <div className="text-gray-500">{store.contactEmail}</div>}
+                              </div>
+                            )}
+                            {!store.contactName && '—'}
+                          </td>
                           <td className="px-4 py-3 text-sm">
-                            {store.contactName && store.contactPhone 
-                              ? `${store.contactName} • ${store.contactPhone}`
-                              : '—'
+                            {store.city && store.state 
+                              ? `${store.city}, ${store.state}`
+                              : store.city || store.state || store.streetAddress || '—'
                             }
                           </td>
                           <td className="px-4 py-3 text-sm">
-                            {sampleCount} <span className="text-gray-500">({redeemedCount} redeemed)</span>
+                            {totalCustomers} <span className="text-gray-500">({redeemedCount} redeemed)</span>
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
-                            {store.activatedAt ? formatRelativeTime(store.activatedAt) : '—'}
+                          <td className="px-4 py-3 text-sm font-medium">
+                            {salesCount}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-xs">
+                            {displayId || '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm">{store.organization?.name}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => openEditStore(store)}
+                                className="px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setDeletingStore(store);
+                                  setShowDeleteConfirm(true);
+                                }}
+                                className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                              >
+                                Delete
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -765,6 +904,187 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                 className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 disabled:bg-gray-400"
               >
                 {resetting ? 'Resetting...' : 'Reset Activation'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Store Edit Modal */}
+      {editingStore && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setEditingStore(null)} />
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 my-8 p-6">
+            <h3 className="text-lg font-semibold mb-4">Edit {editingStore.storeId}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto">
+              <div>
+                <label className="block text-sm font-medium mb-1">Store Name</label>
+                <input
+                  type="text"
+                  value={storeForm.storeName}
+                  onChange={(e) => setStoreForm({ ...storeForm, storeName: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Contact Name</label>
+                <input
+                  type="text"
+                  value={storeForm.contactName}
+                  onChange={(e) => setStoreForm({ ...storeForm, contactName: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Email</label>
+                <input
+                  type="email"
+                  value={storeForm.contactEmail}
+                  onChange={(e) => setStoreForm({ ...storeForm, contactEmail: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Phone</label>
+                <input
+                  type="tel"
+                  value={storeForm.contactPhone}
+                  onChange={(e) => setStoreForm({ ...storeForm, contactPhone: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium mb-1">Street Address</label>
+                <input
+                  type="text"
+                  value={storeForm.streetAddress}
+                  onChange={(e) => setStoreForm({ ...storeForm, streetAddress: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">City</label>
+                <input
+                  type="text"
+                  value={storeForm.city}
+                  onChange={(e) => setStoreForm({ ...storeForm, city: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">State</label>
+                <input
+                  type="text"
+                  value={storeForm.state}
+                  onChange={(e) => setStoreForm({ ...storeForm, state: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                  placeholder="CA"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">ZIP Code</label>
+                <input
+                  type="text"
+                  value={storeForm.zipCode}
+                  onChange={(e) => setStoreForm({ ...storeForm, zipCode: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Staff PIN</label>
+                <input
+                  type="text"
+                  value={storeForm.staffPin}
+                  onChange={(e) => setStoreForm({ ...storeForm, staffPin: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium mb-1">Promo Offer</label>
+                <input
+                  type="text"
+                  value={storeForm.promoOffer}
+                  onChange={(e) => setStoreForm({ ...storeForm, promoOffer: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Status</label>
+                <select
+                  value={storeForm.status}
+                  onChange={(e) => setStoreForm({ ...storeForm, status: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                onClick={() => setEditingStore(null)}
+                className="px-4 py-2 rounded border border-gray-300 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveStoreEdit}
+                disabled={savingStore}
+                className="px-4 py-2 rounded bg-purple-600 text-white hover:bg-purple-700 disabled:bg-gray-400"
+              >
+                {savingStore ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Store Delete Confirmation Dialog */}
+      {showDeleteConfirm && deletingStore && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowDeleteConfirm(false)} />
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+            <h3 className="text-lg font-semibold mb-3 text-red-600">Delete Store?</h3>
+            <p className="text-gray-700 mb-4">
+              Delete <strong>{deletingStore.storeName}</strong> ({deletingStore.storeId})? 
+              This will permanently delete:
+            </p>
+            <ul className="list-disc list-inside text-sm text-gray-700 mb-4 space-y-1">
+              <li>{deletingStore._count?.customers || 0} customer records</li>
+              <li>All sample request data</li>
+              <li>All redemption history</li>
+              <li>All associated shortlinks</li>
+            </ul>
+            <p className="text-red-600 font-semibold text-sm mb-4">⚠️ This action cannot be undone!</p>
+            {deletingStore.displays?.length > 0 && (
+              <label className="flex items-center gap-2 mb-4 p-3 bg-gray-50 rounded">
+                <input
+                  type="checkbox"
+                  checked={resetDisplayOnDelete}
+                  onChange={(e) => setResetDisplayOnDelete(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm">
+                  Also reset display <strong>{deletingStore.displays[0].displayId}</strong> 
+                  (clears store, sets to 'sold')
+                </span>
+              </label>
+            )}
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setResetDisplayOnDelete(false);
+                }}
+                className="px-4 py-2 rounded border border-gray-300 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteStore}
+                className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700"
+              >
+                Delete Store
               </button>
             </div>
           </div>

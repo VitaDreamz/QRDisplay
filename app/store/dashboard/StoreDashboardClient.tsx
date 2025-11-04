@@ -1270,9 +1270,10 @@ export default function StoreDashboardClient({ initialData, userId }: { initialD
 
       {/* Edit Store Contact Modal */}
       {editingStoreContact && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full my-8">
-            <h3 className="text-xl font-bold mb-4">Edit Store Contact Information</h3>
+        <div className="fixed inset-0 z-50 bg-black/50 overflow-y-auto">
+          <div className="min-h-screen flex items-center justify-center p-4 py-8">
+            <div className="bg-white rounded-lg p-6 max-w-2xl w-full my-8">
+              <h3 className="text-xl font-bold mb-4">Edit Store Contact Information</h3>
             
             <form onSubmit={saveStoreContact}>
               <div className="grid md:grid-cols-2 gap-4 mb-6">
@@ -1358,15 +1359,17 @@ export default function StoreDashboardClient({ initialData, userId }: { initialD
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}
 
       {/* Add/Edit Staff Modal */}
       {showStaffModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full my-8">
-            <h3 className="text-xl font-bold mb-4">{editingStaff ? 'Edit Staff Member' : 'Add Staff Member'}</h3>
+        <div className="fixed inset-0 z-50 bg-black/50 overflow-y-auto">
+          <div className="min-h-screen flex items-center justify-center p-4 py-8">
+            <div className="bg-white rounded-lg p-6 max-w-2xl w-full my-8">
+              <h3 className="text-xl font-bold mb-4">{editingStaff ? 'Edit Staff Member' : 'Add Staff Member'}</h3>
             
             <form onSubmit={saveStaff}>
               <div className="space-y-4 mb-6">
@@ -1533,6 +1536,7 @@ export default function StoreDashboardClient({ initialData, userId }: { initialD
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}

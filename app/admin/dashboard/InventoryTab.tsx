@@ -26,10 +26,13 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
   const [form, setForm] = useState<{ status: string; assignedOrgId: string | '' }>({ status: 'inventory', assignedOrgId: '' });
   const [orgFilter, setOrgFilter] = useState<string>('all');
   const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [bulkAction, setBulkAction] = useState<{ type: 'status' | 'organization' | 'reset'; value: string } | null>(null);
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+  const [bulkUpdating, setBulkUpdating] = useState(false);
 
-  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>, rows: Display[]) => {
     if (e.target.checked) {
-      setSelected(displays.filter(d => d.status === 'inventory').map(d => d.displayId));
+      setSelected(rows.map(d => d.displayId));
     } else {
       setSelected([]);
     }
@@ -162,6 +165,35 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
     ? displays
     : displays.filter(d => d.assignedOrgId === orgFilter);
 
+  const selectedDisplays = new Set(selected);
+  const selectedRows = filteredDisplays.filter(d => selectedDisplays.has(d.displayId));
+  const hasActivatedDisplays = selectedRows.some(d => d.status === 'active');
+
+  const handleBulkUpdate = async () => {
+    if (!bulkAction || selected.length === 0) return;
+    setBulkUpdating(true);
+    try {
+      const res = await fetch('/api/admin/displays/bulk', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          displayIds: selected,
+          action: bulkAction.type,
+          value: bulkAction.value,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Bulk update failed');
+      // Refresh listing
+      window.location.reload();
+    } catch (err) {
+      console.error('Bulk update failed:', err);
+      alert('Bulk update failed');
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
+
   return (
     <div>
       {/* Batch Creator */}
@@ -226,6 +258,72 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
         </details>
       </div>
 
+      {/* Bulk Actions (selection) */}
+      {selected.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <span className="font-medium text-blue-900">
+              {selected.length} display{selected.length !== 1 ? 's' : ''} selected
+            </span>
+            <button
+              onClick={() => setSelected([])}
+              className="text-sm text-blue-600 hover:text-blue-700"
+            >
+              Clear selection
+            </button>
+          </div>
+          <div className="flex items-center gap-3">
+            {/* Change Status */}
+            <select
+              defaultValue=""
+              onChange={(e) => {
+                if (e.target.value) {
+                  setBulkAction({ type: 'status', value: e.target.value });
+                  setShowBulkConfirm(true);
+                  e.currentTarget.value = '';
+                }
+              }}
+              className="rounded-md border-gray-300 text-sm"
+            >
+              <option value="">Change Status...</option>
+              <option value="inventory">Available</option>
+              <option value="sold">Sold</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+
+            {/* Change Organization */}
+            <select
+              defaultValue=""
+              onChange={(e) => {
+                if (e.target.value) {
+                  setBulkAction({ type: 'organization', value: e.target.value });
+                  setShowBulkConfirm(true);
+                  e.currentTarget.value = '';
+                }
+              }}
+              className="rounded-md border-gray-300 text-sm"
+            >
+              <option value="">Assign to Organization...</option>
+              {organizations.map(org => (
+                <option key={org.orgId} value={org.orgId}>{org.name}</option>
+              ))}
+              <option value="none">Unassign (Make Available)</option>
+            </select>
+
+            {/* Reset Displays */}
+            {hasActivatedDisplays && (
+              <button
+                onClick={() => { setBulkAction({ type: 'reset', value: 'reset' }); setShowBulkConfirm(true); }}
+                className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 text-sm font-medium"
+              >
+                Reset Displays
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Displays Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="p-4 border-b flex items-center justify-between">
@@ -285,8 +383,8 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
                 <th className="px-4 py-3 text-left">
                   <input
                     type="checkbox"
-                    onChange={handleSelectAll}
-                    checked={selected.length > 0 && selected.length === displays.filter(d => d.status === 'inventory').length}
+                    onChange={(e) => handleSelectAll(e, filteredDisplays)}
+                    checked={selected.length > 0 && selected.length === filteredDisplays.length}
                   />
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold">Display ID</th>
@@ -305,7 +403,6 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
                       type="checkbox"
                       checked={selected.includes(display.displayId)}
                       onChange={() => handleSelect(display.displayId)}
-                      disabled={display.status !== 'inventory'}
                     />
                   </td>
                   <td className="px-4 py-3 font-mono font-semibold">{display.displayId}</td>
@@ -347,32 +444,62 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
         </div>
       </div>
 
-      {/* Bulk Actions Bar */}
-      {selected.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-purple-600 text-white p-4 shadow-lg z-50">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <span className="font-medium">
-              {selected.length} display{selected.length > 1 ? 's' : ''} selected
-            </span>
-            <div className="flex gap-2">
+      {/* Confirm Bulk Modal */}
+      {showBulkConfirm && bulkAction && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-xl font-semibold mb-4">Confirm Bulk Action</h3>
+            <p className="text-gray-700 mb-4">
+              {bulkAction.type === 'status' && (
+                <>Change status to <strong>{bulkAction.value}</strong> for <strong>{selected.length}</strong> display{selected.length !== 1 ? 's' : ''}?</>
+              )}
+              {bulkAction.type === 'organization' && (
+                <>
+                  {bulkAction.value === 'none'
+                    ? `Unassign ${selected.length} display${selected.length !== 1 ? 's' : ''} (make available)?`
+                    : `Assign ${selected.length} display${selected.length !== 1 ? 's' : ''} to ${organizations.find(o => o.orgId === bulkAction.value)?.name}?`}
+                </>
+              )}
+              {bulkAction.type === 'reset' && (
+                <>
+                  Reset <strong>{selected.length}</strong> display{selected.length !== 1 ? 's' : ''}?
+                  <div className="mt-3 text-sm">
+                    This will:
+                    <ul className="list-disc ml-5 mt-2 space-y-1">
+                      <li>Clear store associations</li>
+                      <li>Set status to "Sold (Not Activated)"</li>
+                      <li>Keep organization assignment</li>
+                      <li>Make displays available for reactivation</li>
+                    </ul>
+                  </div>
+                </>
+              )}
+            </p>
+            <div className={`border rounded p-3 mb-6 ${
+              bulkAction.type === 'reset' ? 'bg-orange-50 border-orange-200' : 'bg-yellow-50 border-yellow-200'
+            }`}>
+              <p className={`text-sm ${
+                bulkAction.type === 'reset' ? 'text-orange-800' : 'text-yellow-800'
+              }`}>
+                ⚠️ This will update all selected displays immediately.
+                {bulkAction.type === 'reset' && ' Store data will remain for audit purposes.'}
+              </p>
+            </div>
+            <div className="flex gap-3">
               <button
-                onClick={() => printLabels(selected)}
-                className="bg-white text-purple-600 px-4 py-2 rounded font-medium hover:bg-gray-100"
+                onClick={() => { setShowBulkConfirm(false); setBulkAction(null); }}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
               >
-                📄 Print Labels
+                Cancel
               </button>
               <button
-                onClick={markSelectedAsSold}
-                disabled={bulkProcessing}
-                className="bg-white text-purple-600 px-4 py-2 rounded font-medium hover:bg-gray-100 disabled:opacity-50"
+                onClick={handleBulkUpdate}
+                disabled={bulkUpdating}
+                className={`flex-1 px-4 py-2 rounded-md text-white ${
+                  bulkAction.type === 'reset' ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'
+                } disabled:opacity-60`}
               >
-                {bulkProcessing ? '⏳ Processing...' : '✓ Mark as Sold'}
-              </button>
-              <button
-                onClick={() => setSelected([])}
-                className="bg-purple-700 px-4 py-2 rounded hover:bg-purple-800"
-              >
-                Clear
+                {bulkUpdating ? 'Working...' : 'Confirm'}
               </button>
             </div>
           </div>

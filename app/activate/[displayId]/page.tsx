@@ -27,7 +27,7 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
   const [state, setState] = useState('');
   const [zip, setZip] = useState('');
   const [timezone, setTimezone] = useState('America/New_York');
-  const [promoOffer, setPromoOffer] = useState('20% Off 1st In-Store Purchase');
+  const [promoPercentage, setPromoPercentage] = useState('20');
   const [followupDays, setFollowupDays] = useState({
     day2: false,
     day4: true,
@@ -124,6 +124,7 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
     }
 
     try {
+      const promoOffer = `${promoPercentage}% Off In-Store Purchase`;
       const response = await fetch('/api/displays/activate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -482,20 +483,24 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
                 </div>
 
                 <div>
-                  <label htmlFor="promoOffer" className="block text-sm font-medium text-gray-700 mb-1">
-                    Promotional Offer
+                  <label htmlFor="promoPercentage" className="block text-sm font-medium text-gray-700 mb-1">
+                    Discount Percentage *
                   </label>
                   <select
-                    id="promoOffer"
-                    value={promoOffer}
-                    onChange={(e) => setPromoOffer(e.target.value)}
+                    id="promoPercentage"
+                    value={promoPercentage}
+                    onChange={(e) => setPromoPercentage(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option value="20% Off 1st In-Store Purchase">20% Off 1st In-Store Purchase</option>
-                    <option value="10% Off 1st In-Store Purchase">10% Off 1st In-Store Purchase</option>
-                    <option value="Buy 1 Get 1 Free 1st Purchase">Buy 1 Get 1 Free 1st Purchase</option>
-                    <option value="No Promo">No Promo</option>
+                    <option value="10">10% Off In-Store Purchase</option>
+                    <option value="15">15% Off In-Store Purchase</option>
+                    <option value="20">20% Off In-Store Purchase</option>
+                    <option value="25">25% Off In-Store Purchase</option>
+                    <option value="30">30% Off In-Store Purchase</option>
                   </select>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Choose the discount percentage customers receive on their first in-store purchase
+                  </p>
                 </div>
 
                 <div>

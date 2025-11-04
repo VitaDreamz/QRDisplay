@@ -73,7 +73,11 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
   const [storeContactForm, setStoreContactForm] = useState<any>({});
   
   // Forms
-  const [promoForm, setPromoForm] = useState(data.store.promoOffer);
+  const [promoForm, setPromoForm] = useState(() => {
+    // Extract percentage from existing promo offer (e.g., "20% Off 1st In-Store Purchase" -> "20")
+    const match = data.store.promoOffer.match(/(\d+)%/);
+    return match ? match[1] : '20';
+  });
   const [followupForm, setFollowupForm] = useState<number[]>(data.store.followupDays);
   const [contactForm, setContactForm] = useState({
     contactName: data.store.contactName || '',
@@ -154,14 +158,15 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
     e.preventDefault();
     setSaving(true);
     try {
+      const promoOfferText = `${promoForm}% Off In-Store Purchase`;
       const res = await fetch('/api/store/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, promoOffer: promoForm })
+        body: JSON.stringify({ userId, promoOffer: promoOfferText })
       });
       const result = await res.json();
       if (result.success) {
-        setData({ ...data, store: { ...data.store, promoOffer: promoForm } });
+        setData({ ...data, store: { ...data.store, promoOffer: promoOfferText } });
         setEditingPromo(false);
         alert('Promo offer updated!');
       } else {
@@ -600,12 +605,21 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
               <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl shadow p-6">
                 <div className="flex items-start justify-between">
                   <div>
-                    <div className="text-sm opacity-90 mb-1">Current Promo Offer</div>
-                    <div className="text-2xl md:text-3xl font-bold">{data.store.promoOffer || 'No promo set'}</div>
-                    <div className="text-xs opacity-90 mt-1">Edit to update what customers see in messages</div>
+                    <div className="text-sm opacity-90 mb-2">Current Promo Offer</div>
+                    <div className="flex items-baseline gap-2">
+                      <div className="text-4xl md:text-5xl font-bold">
+                        {data.store.promoOffer.match(/(\d+)%/)?.[1] || '20'}% OFF
+                      </div>
+                    </div>
+                    <div className="text-base opacity-90 mt-1">In-Store Purchase</div>
+                    <div className="text-xs opacity-75 mt-2">Edit to update the deal you offer to customers</div>
                   </div>
                   <button
-                    onClick={() => { setPromoForm(data.store.promoOffer); setEditingPromo(true); }}
+                    onClick={() => { 
+                      const match = data.store.promoOffer.match(/(\d+)%/);
+                      setPromoForm(match ? match[1] : '20');
+                      setEditingPromo(true); 
+                    }}
                     className="px-3 py-2 bg-white/15 hover:bg-white/25 rounded-md text-sm font-medium"
                   >Edit</button>
                 </div>
@@ -1108,16 +1122,21 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
             <h3 className="text-xl font-bold mb-4">Edit Promo Offer</h3>
             
             <form onSubmit={savePromo}>
-              <label className="block text-sm font-medium mb-2">Promo Offer</label>
-              <input
+              <label className="block text-sm font-medium mb-2">Discount Percentage</label>
+              <select
                 value={promoForm}
                 onChange={(e) => setPromoForm(e.target.value)}
-                placeholder="20% Off First Purchase"
                 className="w-full px-3 py-2 border rounded mb-4 focus:ring-2 focus:ring-purple-500"
-              />
+              >
+                <option value="10">10% Off In-Store Purchase</option>
+                <option value="15">15% Off In-Store Purchase</option>
+                <option value="20">20% Off In-Store Purchase</option>
+                <option value="25">25% Off In-Store Purchase</option>
+                <option value="30">30% Off In-Store Purchase</option>
+              </select>
               
               <p className="text-sm text-gray-600 mb-4">
-                This offer will appear in follow-up messages and promo redemption pages.
+                This discount will appear in follow-up messages and promo redemption pages.
               </p>
               
               <div className="flex gap-2">

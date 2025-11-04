@@ -169,7 +169,7 @@ export async function POST(req: NextRequest) {
         state,
         zipCode: zip,
         timezone,
-        promoOffer: promoOffer || '20% Off 1st In-Store Purchase',
+        promoOffer: promoOffer || '20% Off In-Store Purchase',
         followupDays,
         staffPin: pin,
         orgId: orgId,

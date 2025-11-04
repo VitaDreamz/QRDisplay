@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 
 export default function StoreLoginPage({ params }: { params: Promise<{ storeId: string }> }) {
   const [storeId, setStoreId] = useState<string>('');
+  const [storeName, setStoreName] = useState<string>('');
+  const [orgName, setOrgName] = useState<string>('');
   const [loginType, setLoginType] = useState<'owner' | 'staff'>('owner');
   const [pin, setPin] = useState('');
   const [staffId, setStaffId] = useState('');
@@ -13,7 +15,17 @@ export default function StoreLoginPage({ params }: { params: Promise<{ storeId: 
   const router = useRouter();
 
   useEffect(() => {
-    params.then(p => setStoreId(p.storeId));
+    params.then(async (p) => {
+      setStoreId(p.storeId);
+      try {
+        const res = await fetch(`/api/store/public?storeId=${encodeURIComponent(p.storeId)}`, { cache: 'no-store' });
+        const json = await res.json();
+        if (json?.ok) {
+          setStoreName(json.storeName || '');
+          setOrgName(json.organizationName || '');
+        }
+      } catch {}
+    });
   }, [params]);
 
   async function handleLogin(e: React.FormEvent) {
@@ -63,8 +75,13 @@ export default function StoreLoginPage({ params }: { params: Promise<{ storeId: 
         {/* Header */}
         <div className="text-center mb-8">
           <div className="text-4xl mb-3">🏪</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">QRDisplay Store Login</h1>
-          <div className="inline-block bg-purple-100 text-purple-700 px-4 py-2 rounded-full font-mono font-semibold">
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">
+            {storeName ? `${storeName} Dashboard Login` : 'Store Dashboard Login'}
+          </h1>
+          {orgName && (
+            <p className="text-sm text-gray-600 mb-3">Powered by <span className="font-medium">{orgName}</span></p>
+          )}
+          <div className="inline-block bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-mono text-sm font-semibold">
             {storeId}
           </div>
         </div>

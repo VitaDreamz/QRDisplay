@@ -1,5 +1,18 @@
 # 🔐 Magic Link Authentication System
 
+> [!IMPORTANT]
+> Deprecated: Magic Link Authentication System
+>
+> Magic links are no longer supported. Store dashboard access now uses permanent Store ID + PIN.
+>
+> To log in:
+> - Go to /store/login and enter your Store ID to continue
+> - Or go directly to /store/login/{StoreID} and enter your Owner or Staff PIN
+>
+> Need help finding your Store ID or PIN? Check your activation email/SMS, your display sticker, or contact your brand rep.
+
+---
+
 ## Overview
 
 The magic link authentication system provides passwordless login for store dashboard access. Store owners can securely access their dashboard by receiving a magic link via both email and SMS.

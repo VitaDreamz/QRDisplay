@@ -82,12 +82,11 @@ export async function POST(request: NextRequest) {
 
     // STAFF LOGIN
     if (loginType === 'staff') {
-      // Find staff member by store and PIN
+      // Find staff member by store and PIN (regardless of status/verification first)
       const staffMember = await prisma.staff.findFirst({
         where: {
           storeId: store.id,
-          staffPin: pin,
-          status: 'active'
+          staffPin: pin
         },
         select: {
           id: true,
@@ -95,7 +94,8 @@ export async function POST(request: NextRequest) {
           firstName: true,
           lastName: true,
           staffPin: true,
-          status: true
+          status: true,
+          verified: true
         }
       });
 
@@ -106,7 +106,17 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Staff already filtered as active and PIN matched
+      if (!staffMember.verified) {
+        return NextResponse.json({
+          error: 'Please verify your account first. Check your phone for the verification link.'
+        }, { status: 403 });
+      }
+
+      if (staffMember.status !== 'active') {
+        return NextResponse.json({
+          error: 'Your account is not active. Contact your manager.'
+        }, { status: 403 });
+      }
 
       // Create session
       const response = NextResponse.json({

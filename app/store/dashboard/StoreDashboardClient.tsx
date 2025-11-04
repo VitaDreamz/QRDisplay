@@ -392,12 +392,11 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
       email: '',
       phone: '',
       type: 'Sales',
-      staffPin: '',
       onCallDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
       onCallHoursStart: '09:00',
       onCallHoursStop: '17:00',
       hireDate: new Date().toISOString().split('T')[0],
-      status: 'active',
+      status: 'pending',
       notes: ''
     });
     setShowStaffModal(true);
@@ -411,7 +410,6 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
       email: staffMember.email || '',
       phone: staffMember.phone,
       type: staffMember.type,
-      staffPin: staffMember.staffPin,
       onCallDays: staffMember.onCallDays,
       onCallHoursStart: staffMember.onCallHoursStart,
       onCallHoursStop: staffMember.onCallHoursStop,
@@ -468,6 +466,20 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
       }
     } catch (err) {
       alert('Failed to delete staff');
+    }
+  };
+
+  const resendVerification = async (staffId: string) => {
+    try {
+      const res = await fetch(`/api/store/staff/${staffId}/resend-verification`, { method: 'POST' });
+      if (res.ok) {
+        alert('Verification link resent!');
+      } else {
+        const error = await res.json();
+        alert('Failed to resend: ' + (error.error || 'Unknown error'));
+      }
+    } catch (e) {
+      alert('Network error. Please try again.');
     }
   };
 
@@ -935,7 +947,14 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                               {getMedal(index)} {index + 1}
                             </td>
                             <td className="px-4 py-3">
-                              <div className="font-medium">{member.firstName} {member.lastName}</div>
+                              <div className="font-medium flex items-center gap-2">
+                                <span>{member.firstName} {member.lastName}</span>
+                                {member.verified ? (
+                                  <span className="text-green-700 bg-green-100 px-2 py-0.5 rounded text-[10px] font-semibold">Verified</span>
+                                ) : (
+                                  <span className="text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded text-[10px] font-semibold">Pending</span>
+                                )}
+                              </div>
                               <div className="text-xs text-gray-500">{member.phone}</div>
                             </td>
                             <td className="px-4 py-3 text-sm">{member.type}</td>
@@ -947,6 +966,14 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex gap-2">
+                                {!member.verified && (
+                                  <button
+                                    onClick={() => resendVerification(member.staffId)}
+                                    className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                                  >
+                                    Resend
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => openEditStaff(member)}
                                   className="px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
@@ -978,7 +1005,13 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                           <div className="flex items-center gap-2">
                             <span className="text-2xl">{getMedal(index)}</span>
                             <div>
-                              <div className="font-semibold">#{index + 1} {member.firstName} {member.lastName}</div>
+                              <div className="font-semibold flex items-center gap-2">#{index + 1} {member.firstName} {member.lastName}
+                                {member.verified ? (
+                                  <span className="text-green-700 bg-green-100 px-2 py-0.5 rounded text-[10px] font-semibold">Verified</span>
+                                ) : (
+                                  <span className="text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded text-[10px] font-semibold">Pending</span>
+                                )}
+                              </div>
                               <div className="text-sm text-gray-600">{member.type}</div>
                             </div>
                           </div>
@@ -998,6 +1031,14 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                           <div>{member.onCallHoursStart} - {member.onCallHoursStop}</div>
                         </div>
                         <div className="flex gap-2">
+                          {!member.verified && (
+                            <button
+                              onClick={() => resendVerification(member.staffId)}
+                              className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                            >
+                              Resend
+                            </button>
+                          )}
                           <button
                             onClick={() => openEditStaff(member)}
                             className="flex-1 px-3 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700"
@@ -1792,11 +1833,17 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                   <div>
                     <label className="block text-sm font-medium mb-2">Phone *</label>
                     <input
+                      type="tel"
                       required
+                      pattern="[0-9]{10}"
+                      placeholder="9496836147"
                       value={staffForm.phone}
                       onChange={(e) => setStaffForm({ ...staffForm, phone: e.target.value })}
                       className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
                     />
+                    <span className="text-xs text-gray-500 mt-1 block">
+                      Their PIN will be the last 4 digits of this number
+                    </span>
                   </div>
                 </div>
 
@@ -1814,18 +1861,6 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                       <option value="Cashier">Cashier</option>
                       <option value="Manager">Manager</option>
                     </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Staff PIN (4 digits) *</label>
-                    <input
-                      required
-                      maxLength={4}
-                      pattern="[0-9]{4}"
-                      value={staffForm.staffPin}
-                      onChange={(e) => setStaffForm({ ...staffForm, staffPin: e.target.value })}
-                      className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
-                      placeholder="1234"
-                    />
                   </div>
                 </div>
 

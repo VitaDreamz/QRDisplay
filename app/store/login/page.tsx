@@ -1,109 +1,43 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 function StoreLoginContent() {
   const [storeId, setStoreId] = useState('');
-  const [contact, setContact] = useState('');
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [error, setError] = useState('');
+  const [info, setInfo] = useState<string | null>(null);
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const errorParam = searchParams.get('error');
-    if (errorParam) {
-      const errorMessages: Record<string, string> = {
-        'invalid': 'Invalid or expired magic link. Please request a new one.',
-        'expired': 'Magic link expired. Links are valid for 15 minutes.',
-        'used': 'This magic link has already been used. Please request a new one.',
-        'server': 'Server error. Please try again.',
-        'notfound': 'Store not found. Please check your Store ID.'
-      };
-      setError(errorMessages[errorParam] || 'An error occurred. Please try again.');
+    const migrated = searchParams.get('migrated');
+    const legacyError = searchParams.get('error');
+    if (migrated === '1' || legacyError) {
+      setInfo('Magic links are no longer supported. Please use your permanent Store ID + PIN to log in.');
     }
   }, [searchParams]);
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleGo(e: React.FormEvent) {
     e.preventDefault();
-    setError('');
-    setSending(true);
-
-    try {
-      const res = await fetch('/api/store/auth/send-magic-link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ storeId, contact })
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        setError(data.error || 'Failed to send magic link');
-        setSending(false);
-        return;
-      }
-
-      setSent(true);
-    } catch (err) {
-      setError('Network error. Please try again.');
-      setSending(false);
-    }
-  }
-
-  if (sent) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-700 to-purple-500 px-4">
-        <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-3xl">✉️</span>
-          </div>
-          
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Magic Link Sent!</h1>
-          
-          <p className="text-gray-600 mb-6">
-            We've sent login links to your registered email and phone number.
-          </p>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
-            <p className="text-sm text-blue-800 mb-2">
-              <strong>Check your:</strong>
-            </p>
-            <ul className="text-sm text-blue-700 space-y-1">
-              <li>📧 Email inbox</li>
-              <li>📱 Text messages (SMS)</li>
-            </ul>
-          </div>
-
-          <p className="text-xs text-gray-500 mb-4">
-            The link will expire in 15 minutes.
-          </p>
-
-          <button
-            onClick={() => {
-              setSent(false);
-              setStoreId('');
-              setContact('');
-            }}
-            className="text-purple-600 hover:text-purple-700 font-medium text-sm"
-          >
-            ← Back to Login
-          </button>
-        </div>
-      </div>
-    );
+    if (!storeId) return;
+    router.push(`/store/login/${encodeURIComponent(storeId.trim().toUpperCase())}`);
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-700 to-purple-500 px-4">
       <div className="bg-white rounded-2xl p-8 max-w-md w-full">
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Store Login</h1>
-          <p className="text-gray-600">Access your store dashboard</p>
+          <p className="text-gray-600">Use your Store ID + PIN</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {info && (
+          <div className="mb-6 p-4 border border-amber-200 bg-amber-50 text-amber-900 rounded-lg text-sm">
+            {info}
+          </div>
+        )}
+
+        <form onSubmit={handleGo} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Store ID
@@ -117,46 +51,24 @@ function StoreLoginContent() {
               required
             />
             <p className="text-xs text-gray-500 mt-1">
-              Found on your display or activation email
+              Find this on your display sticker or activation email
             </p>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email or Phone
-            </label>
-            <input
-              type="text"
-              value={contact}
-              onChange={(e) => setContact(e.target.value)}
-              placeholder="email@example.com or (555) 123-4567"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-              required
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Enter the email or phone used during store activation
-            </p>
-          </div>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <p className="text-sm text-red-800">{error}</p>
-            </div>
-          )}
 
           <button
             type="submit"
-            disabled={sending}
-            className="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 active:scale-[0.98] transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 active:scale-[0.98] transition-all"
           >
-            {sending ? 'Sending...' : 'Send Magic Link'}
+            Continue to PIN Login
           </button>
         </form>
 
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <p className="text-xs text-gray-500 text-center">
-            You'll receive a secure login link via email and SMS
-          </p>
+        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-800 font-medium">Need help?</p>
+          <ul className="mt-2 text-xs text-blue-700 list-disc pl-5 space-y-1">
+            <li>Your manager or brand rep can provide your Store ID</li>
+            <li>Owner PIN and Staff PIN were set during activation</li>
+          </ul>
         </div>
       </div>
     </div>

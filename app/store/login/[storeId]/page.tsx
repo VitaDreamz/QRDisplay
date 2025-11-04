@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function StoreLoginPage({ params }: { params: Promise<{ storeId: string }> }) {
   const [storeId, setStoreId] = useState<string>('');
@@ -12,6 +12,9 @@ export default function StoreLoginPage({ params }: { params: Promise<{ storeId: 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const verified = searchParams?.get('verified');
+  const verifiedStaffId = searchParams?.get('staffId');
 
   useEffect(() => {
     params.then(async (p) => {
@@ -87,6 +90,15 @@ export default function StoreLoginPage({ params }: { params: Promise<{ storeId: 
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
             {error}
+          </div>
+        )}
+
+        {verified && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-green-800 font-medium">✅ Verification successful!</p>
+            {verifiedStaffId && (
+              <p className="text-sm text-green-700 mt-1">You can now login with Staff ID: {verifiedStaffId}</p>
+            )}
           </div>
         )}
 

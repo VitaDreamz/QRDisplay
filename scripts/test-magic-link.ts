@@ -1,17 +1,18 @@
 #!/usr/bin/env node
 
 /**
- * Test Magic Link Authentication Flow
- * 
- * This script tests the complete magic link authentication system:
- * 1. Store requests magic link
- * 2. Token is generated and stored in database
- * 3. Email and SMS are sent (simulated)
- * 4. Token can be verified
- * 5. Session is created
- * 
- * Usage:
- *   npx tsx scripts/test-magic-link.ts
+ * DEPRECATED: Magic Link Authentication Flow
+ * ------------------------------------------------------------
+ * Magic links are no longer supported. Store login now uses
+ * permanent Store ID + PIN only.
+ *
+ * This script is intentionally disabled to prevent accidental use.
+ */
+console.error('⛔ Magic links are deprecated. Use Store ID + PIN login.');
+process.exit(1);
+
+/**
+ * Previous implementation retained below for reference only.
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -19,7 +20,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🔐 Testing Magic Link Authentication System\n');
+  console.log('🔐 (Deprecated) Magic Link Authentication System Test\n');
 
   // Step 1: Find a test store
   console.log('📍 Step 1: Finding test store...');

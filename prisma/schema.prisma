@@ -255,7 +255,7 @@ model Staff {
   // Work Details
   type              String   // Sales, Marketing, Cashier, Manager
   staffPin          String   // 4-digit PIN for redemptions
-  status            String   @default("active") // active, inactive
+  status            String   @default("active") // active, inactive, pending
   hireDate          DateTime @default(now())
   
   // Schedule
@@ -267,6 +267,12 @@ model Staff {
   samplesRedeemed   Int      @default(0)
   salesGenerated    Int      @default(0)
   lastActive        DateTime?
+
+  // Verification
+  verified            Boolean   @default(false)
+  verificationToken   String?   @unique
+  verificationExpiry  DateTime?
+  verifiedAt          DateTime?
   
   // Metadata
   notes             String?

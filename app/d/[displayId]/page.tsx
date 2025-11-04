@@ -21,13 +21,13 @@ export default async function SmartDisplayRoute({
 
   // Smart routing based on status
   if (display.status === 'inventory' || display.status === 'sold') {
-    // Display not yet activated → Store activation flow
-    redirect(`/activate/${displayId}`);
+    // Display not yet activated → Store setup wizard flow
+    redirect(`/setup/${displayId}`);
   } else if (display.status === 'active') {
     // Display is active → Customer sample request flow
     redirect(`/sample/${displayId}`);
   } else {
-    // Unknown status → Default to activation
-    redirect(`/activate/${displayId}`);
+    // Unknown status → Default to setup wizard
+    redirect(`/setup/${displayId}`);
   }
 }

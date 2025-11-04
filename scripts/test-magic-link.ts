@@ -25,20 +25,20 @@ async function main() {
   console.log('📍 Step 1: Finding test store...');
   const store = await prisma.store.findFirst({
     where: {
-      contactEmail: { not: null },
-      contactPhone: { not: null }
+      adminEmail: { not: null },
+      adminPhone: { not: null }
     }
   });
 
   if (!store) {
     console.log('❌ No stores with email and phone found');
-    console.log('💡 Create a store first with contactEmail and contactPhone\n');
+    console.log('💡 Create a store first with adminEmail and adminPhone\n');
     return;
   }
 
   console.log(`✅ Found store: ${store.storeName} (${store.storeId})`);
-  console.log(`   Email: ${store.contactEmail}`);
-  console.log(`   Phone: ${store.contactPhone}\n`);
+  console.log(`   Email: ${store.adminEmail}`);
+  console.log(`   Phone: ${store.adminPhone}\n`);
 
   // Step 2: Generate magic link token
   console.log('📍 Step 2: Generating magic link token...');
@@ -70,7 +70,7 @@ async function main() {
   // Step 4: Simulate email content
   console.log('📍 Step 4: Email content (would be sent via Resend):');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log(`To: ${store.contactEmail}`);
+  console.log(`To: ${store.adminEmail}`);
   console.log(`Subject: Your Store Dashboard Login Link`);
   console.log(`\nHi ${store.storeName} team!\n`);
   console.log(`Click the link below to access your store dashboard:`);
@@ -81,7 +81,7 @@ async function main() {
   // Step 5: Simulate SMS content
   console.log('📍 Step 5: SMS content (would be sent via Twilio):');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log(`To: ${store.contactPhone}`);
+  console.log(`To: ${store.adminPhone}`);
   console.log(`\n${store.storeName}: Access your dashboard: ${magicUrl}`);
   console.log(`\nExpires in 15 min.`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
@@ -167,7 +167,7 @@ async function main() {
   console.log('🚀 Next Steps:');
   console.log('   1. Visit http://localhost:3001/store/login');
   console.log(`   2. Enter Store ID: ${store.storeId}`);
-  console.log(`   3. Enter Contact: ${store.contactEmail}`);
+  console.log(`   3. Enter Contact: ${store.adminEmail}`);
   console.log('   4. Check console for magic link (email/SMS not sent in dev)');
   console.log('   5. Click magic link to login\n');
 }

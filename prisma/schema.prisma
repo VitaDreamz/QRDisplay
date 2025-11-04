@@ -80,6 +80,14 @@ model Store {
   contactEmail String?
   contactPhone String?
   
+  // Owner and purchasing manager
+  ownerName         String?
+  ownerPhone        String?
+  ownerEmail        String?
+  purchasingManager String?
+  purchasingPhone   String?
+  purchasingEmail   String?
+  
   streetAddress String?
   city          String?
   state         String?
@@ -98,6 +106,7 @@ model Store {
   displays     Display[]
   customers    Customer[]
   users        User[]
+  staff        Staff[]
   promoRedemptions PromoRedemption[]
   
   @@map("stores")
@@ -204,6 +213,10 @@ model Customer {
   redeemedAt   DateTime?
   redeemedBy   String?
   
+  // Staff tracking
+  redeemedByStaffId      String?
+  promoRedeemedByStaffId String?
+  
   promoSlug        String?
   promoRedeemed    Boolean   @default(false)
   promoRedeemedAt  DateTime?
@@ -212,9 +225,53 @@ model Customer {
   
   organization Organization @relation(fields: [orgId], references: [orgId])
   store        Store        @relation(fields: [storeId], references: [storeId])
+  redeemedByStaff      Staff?  @relation("RedeemedByStaff", fields: [redeemedByStaffId], references: [id], onDelete: SetNull)
+  promoRedeemedByStaff Staff?  @relation("PromoRedeemedByStaff", fields: [promoRedeemedByStaffId], references: [id], onDelete: SetNull)
   promoRedemptions PromoRedemption[]
   
   @@map("customers")
+}
+
+// Staff Members
+model Staff {
+  id                String   @id @default(cuid())
+  staffId           String   @unique
+  storeId           String
+  
+  // Basic Info
+  firstName         String
+  lastName          String
+  email             String?
+  phone             String
+  profilePhoto      String?
+  
+  // Work Details
+  type              String   // Sales, Marketing, Cashier, Manager
+  staffPin          String   // 4-digit PIN for redemptions
+  status            String   @default("active") // active, inactive
+  hireDate          DateTime @default(now())
+  
+  // Schedule
+  onCallDays        String[] // ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+  onCallHoursStart  String   // "09:00"
+  onCallHoursStop   String   // "17:00"
+  
+  // Performance Metrics (cached for leaderboard performance)
+  samplesRedeemed   Int      @default(0)
+  salesGenerated    Int      @default(0)
+  lastActive        DateTime?
+  
+  // Metadata
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  store                Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customerRedemptions  Customer[] @relation("RedeemedByStaff")
+  promoRedemptions     Customer[] @relation("PromoRedeemedByStaff")
+  
+  @@map("staff")
 }
 
 // Shortlinks

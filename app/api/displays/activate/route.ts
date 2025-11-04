@@ -153,22 +153,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if display is already activated (has a storeId)
-    if (display.storeId) {
-      return NextResponse.json(
-        { error: 'Display has already been activated' },
-        { status: 400 }
-      );
+    // Check if display is already fully activated (has storeId AND status is active)
+    if (display.storeId && display.status === 'active') {
+      // Check if store actually exists in database
+      const existingStore = await prisma.store.findUnique({
+        where: { storeId: display.storeId },
+      });
+      
+      if (existingStore) {
+        return NextResponse.json(
+          { error: 'Display has already been activated' },
+          { status: 400 }
+        );
+      }
+      // If store doesn't exist but display has storeId, allow re-activation (failed previous attempt)
     }
 
   // Generate Store ID (SID-001, SID-002, etc.)
-  // Get count of existing stores to generate next ID
-  const storeCount = await prisma.store.count();
-  const storeId = generateStoreId(storeCount + 1);
+  // If display already has a storeId (from failed activation), use it; otherwise generate new one
+  let storeId = display.storeId;
+  
+  if (!storeId) {
+    const storeCount = await prisma.store.count();
+    storeId = generateStoreId(storeCount + 1);
+  }
 
-    // Create the store
-    const store = await prisma.store.create({
-      data: {
+    // Upsert the store (create if doesn't exist, update if it does)
+    // This handles cases where a previous activation partially succeeded
+    const store = await prisma.store.upsert({
+      where: { storeId },
+      create: {
         storeId,
         storeName,
         adminName,
@@ -183,6 +197,27 @@ export async function POST(req: NextRequest) {
         followupDays,
         staffPin: pin,
         orgId: orgId,
+        ownerName,
+        ownerPhone,
+        ownerEmail,
+        purchasingManager: purchasingSameAsOwner ? ownerName : purchasingManager,
+        purchasingPhone: purchasingSameAsOwner ? ownerPhone : purchasingPhone,
+        purchasingEmail: purchasingSameAsOwner ? ownerEmail : purchasingEmail,
+        availableSamples,
+      },
+      update: {
+        storeName,
+        adminName,
+        adminEmail,
+        adminPhone,
+        streetAddress: address,
+        city,
+        state,
+        zipCode: zip,
+        timezone,
+        promoOffer: promoOffer || '20% Off In-Store Purchase',
+        followupDays,
+        staffPin: pin,
         ownerName,
         ownerPhone,
         ownerEmail,

@@ -21,7 +21,14 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
   const [zip, setZip] = useState('');
   const [timezone, setTimezone] = useState('America/New_York');
   const [promoPercentage, setPromoPercentage] = useState('20');
-  const [followupDays, setFollowupDays] = useState({ day4: true, day12: true });
+  // Follow up timings per request: Day 4, 8, 12, 16, 20
+  const [followupDays, setFollowupDays] = useState({
+    day4: true,
+    day8: false,
+    day12: true,
+    day16: false,
+    day20: false,
+  });
   const [pin, setPin] = useState('');
   
   const [ownerName, setOwnerName] = useState('');
@@ -91,7 +98,19 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
       return;
     }
 
-    const selectedFollowupDays = [4, 12]; // Default to day 4 and 12
+    // Build selected follow-up days from UI
+    const selectedFollowupDays: number[] = [];
+    if (followupDays.day4) selectedFollowupDays.push(4);
+    if (followupDays.day8) selectedFollowupDays.push(8);
+    if (followupDays.day12) selectedFollowupDays.push(12);
+    if (followupDays.day16) selectedFollowupDays.push(16);
+    if (followupDays.day20) selectedFollowupDays.push(20);
+
+    if (selectedFollowupDays.length === 0) {
+      setError('Please select at least one follow-up day');
+      setLoading(false);
+      return;
+    }
 
     if (availableSamples.length === 0) {
       setError('Please select at least one sample product');
@@ -292,10 +311,120 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
             </div>
           </div>
 
-          {/* Staff PIN */}
+          {/* Program Administrator */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <h2 className="font-semibold text-lg mb-4">Staff PIN</h2>
-            
+            <h2 className="font-semibold text-lg mb-2">Program Administrator</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              This person will manage the system and receive updates on redemptions and promos.
+            </p>
+            <div className="space-y-4">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={adminSameAsOwner}
+                  onChange={(e) => setAdminSameAsOwner(e.target.checked)}
+                  className="h-4 w-4 text-purple-600 border-gray-300 rounded"
+                />
+                <span className="text-sm text-gray-700">Same as owner</span>
+              </label>
+
+              {!adminSameAsOwner && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Admin Name *</label>
+                    <input
+                      type="text"
+                      value={adminName}
+                      onChange={(e) => setAdminName(e.target.value)}
+                      required={!adminSameAsOwner}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                      placeholder="Jane Smith"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Admin Email *</label>
+                    <input
+                      type="email"
+                      value={adminEmail}
+                      onChange={(e) => setAdminEmail(e.target.value)}
+                      required={!adminSameAsOwner}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                      placeholder="admin@store.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Admin Phone *</label>
+                    <input
+                      type="tel"
+                      value={adminPhone}
+                      onChange={(e) => setAdminPhone(e.target.value)}
+                      required={!adminSameAsOwner}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                      placeholder="(555) 123-4567"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Purchasing Manager */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <h2 className="font-semibold text-lg mb-2">Purchasing Manager</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Person in charge of purchasing additional samples and larger product sizes.
+            </p>
+            <div className="space-y-4">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={purchasingSameAsOwner}
+                  onChange={(e) => setPurchasingSameAsOwner(e.target.checked)}
+                  className="h-4 w-4 text-purple-600 border-gray-300 rounded"
+                />
+                <span className="text-sm text-gray-700">Same as owner</span>
+              </label>
+
+              {!purchasingSameAsOwner && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Purchasing Manager Name</label>
+                    <input
+                      type="text"
+                      value={purchasingManager}
+                      onChange={(e) => setPurchasingManager(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                      placeholder="Bob Johnson"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Purchasing Manager Email</label>
+                    <input
+                      type="email"
+                      value={purchasingEmail}
+                      onChange={(e) => setPurchasingEmail(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                      placeholder="purchasing@store.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Purchasing Manager Phone</label>
+                    <input
+                      type="tel"
+                      value={purchasingPhone}
+                      onChange={(e) => setPurchasingPhone(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                      placeholder="(555) 987-6543"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Admin PIN */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <h2 className="font-semibold text-lg mb-4">Admin PIN</h2>
             <div>
               <label className="block text-sm font-medium mb-1">4-Digit PIN *</label>
               <input
@@ -308,7 +437,7 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
                 placeholder="1234"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Staff will use this PIN to redeem samples
+                This PIN is used to log in to your admin dashboard and verify redemptions. Make it easy to remember.
               </p>
             </div>
           </div>
@@ -341,6 +470,96 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
                   </div>
                 </label>
               ))}
+            </div>
+          </div>
+
+          {/* Display Settings */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+            <h2 className="font-semibold text-lg mb-4">Display Settings</h2>
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium mb-1">Timezone *</label>
+                <select
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="America/New_York">Eastern Time (ET)</option>
+                  <option value="America/Chicago">Central Time (CT)</option>
+                  <option value="America/Denver">Mountain Time (MT)</option>
+                  <option value="America/Phoenix">Arizona Time (AZ)</option>
+                  <option value="America/Los_Angeles">Pacific Time (PT)</option>
+                  <option value="America/Anchorage">Alaska Time (AK)</option>
+                  <option value="Pacific/Honolulu">Hawaii Time (HT)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Discount Percentage *</label>
+                <select
+                  value={promoPercentage}
+                  onChange={(e) => setPromoPercentage(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="10">10% Off In-Store Purchase</option>
+                  <option value="15">15% Off In-Store Purchase</option>
+                  <option value="20">20% Off In-Store Purchase</option>
+                  <option value="25">25% Off In-Store Purchase</option>
+                  <option value="30">30% Off In-Store Purchase</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Customer Follow-up Timing *</label>
+                <p className="text-sm text-gray-600 mb-2">Select the days after the initial sample is given to send follow-up texts with promo offers.</p>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={followupDays.day4}
+                      onChange={(e) => setFollowupDays({ ...followupDays, day4: e.target.checked })}
+                      className="h-4 w-4 text-purple-600 border-gray-300 rounded"
+                    />
+                    <span className="text-sm">Day 4</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={followupDays.day8}
+                      onChange={(e) => setFollowupDays({ ...followupDays, day8: e.target.checked })}
+                      className="h-4 w-4 text-purple-600 border-gray-300 rounded"
+                    />
+                    <span className="text-sm">Day 8</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={followupDays.day12}
+                      onChange={(e) => setFollowupDays({ ...followupDays, day12: e.target.checked })}
+                      className="h-4 w-4 text-purple-600 border-gray-300 rounded"
+                    />
+                    <span className="text-sm">Day 12</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={followupDays.day16}
+                      onChange={(e) => setFollowupDays({ ...followupDays, day16: e.target.checked })}
+                      className="h-4 w-4 text-purple-600 border-gray-300 rounded"
+                    />
+                    <span className="text-sm">Day 16</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={followupDays.day20}
+                      onChange={(e) => setFollowupDays({ ...followupDays, day20: e.target.checked })}
+                      className="h-4 w-4 text-purple-600 border-gray-300 rounded"
+                    />
+                    <span className="text-sm">Day 20</span>
+                  </label>
+                </div>
+              </div>
             </div>
           </div>
 

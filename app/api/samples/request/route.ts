@@ -3,14 +3,7 @@ import prisma from '@/lib/prisma';
 import { normalizePhone } from '@/lib/phone';
 import { generateSlug } from '@/lib/slugs';
 import { sendBrandSampleRequestEmail } from '@/lib/email';
-
-// Allowed sample choices
-const SAMPLE_CHOICES = new Set([
-  'Slumber Berry - Sleep Gummies (4ct)',
-  'Luna Berry - Sleep Gummies (4ct)',
-  'Bliss Berry - Relax Gummies (4ct)',
-  'Berry Chill - Relax Gummies (4ct)'
-]);
+import { SAMPLE_OPTIONS } from '@/lib/constants';
 
 async function generateMemberId(): Promise<string> {
   const count = await prisma.customer.count();
@@ -20,14 +13,16 @@ async function generateMemberId(): Promise<string> {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { displayId, firstName, lastName, phone, sampleChoice } = body || {};
+  const body = await req.json();
+  const { displayId, firstName, lastName, phone, sampleChoice } = body || {};
 
     if (!displayId || !firstName || !lastName || !phone || !sampleChoice) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    if (!SAMPLE_CHOICES.has(sampleChoice)) {
+    // Validate that submitted choice is one of our known sample values
+    const validSampleValues = new Set(SAMPLE_OPTIONS.map(s => s.value));
+    if (!validSampleValues.has(sampleChoice)) {
       return NextResponse.json({ error: 'Invalid sample choice' }, { status: 400 });
     }
 
@@ -50,6 +45,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Store is not active' }, { status: 400 });
     }
 
+    // Enforce store's available samples selection (legacy stores show all)
+    const storeAllowedValues = (display.store.availableSamples && display.store.availableSamples.length > 0)
+      ? new Set(display.store.availableSamples)
+      : validSampleValues; // legacy: all samples allowed
+    if (!storeAllowedValues.has(sampleChoice)) {
+      return NextResponse.json({ error: 'This sample is not offered at this store' }, { status: 400 });
+    }
+
+    // Map submitted value -> human-friendly label for storage/notifications
+    const chosen = SAMPLE_OPTIONS.find(s => s.value === sampleChoice);
+    const sampleLabel = chosen?.label || String(sampleChoice);
+
     // Normalize phone
     let normalizedPhone: string;
     try {
@@ -70,7 +77,7 @@ export async function POST(req: NextRequest) {
         firstName: String(firstName).trim(),
         lastName: String(lastName).trim(),
         phone: normalizedPhone,
-        sampleChoice,
+        sampleChoice: sampleLabel,
         activated: false,
         redeemed: false,
         requestedAt: new Date(),
@@ -138,7 +145,7 @@ export async function POST(req: NextRequest) {
       const last4 = customer.phone.replace(/\D/g, '').slice(-4);
 
   // Customer SMS with activation link
-  const customerMsg = `Hi ${first}! Show this text to staff at ${storeName} to claim your ${sampleChoice}.
+  const customerMsg = `Hi ${first}! Show this text to staff at ${storeName} to claim your ${sampleLabel}.
 
 Tap to activate: ${baseUrl}/a/${slugActivate}
 
@@ -151,7 +158,7 @@ Reply STOP to opt out.`;
 
       // Store alert SMS (if store has admin phone)
       if (display.store.adminPhone) {
-  const storeMsg = `VitaDreamz Sample: ${sampleChoice} for ${first} ${lastInitial}. 
+  const storeMsg = `VitaDreamz Sample: ${sampleLabel} for ${first} ${lastInitial}. 
 
 Member: ${last4}
 Confirm: ${baseUrl}/r/${slugRedeem}`;

@@ -36,6 +36,8 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   const [editingDisplay, setEditingDisplay] = useState<any | null>(null);
   const [savingDisplay, setSavingDisplay] = useState(false);
   const [displayForm, setDisplayForm] = useState<{ status: string; assignedOrgId: string | '' }>({ status: 'inventory', assignedOrgId: '' });
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   // Format relative time
   const formatRelativeTime = (date: Date) => {
@@ -79,6 +81,29 @@ export function DashboardClient({ data }: { data: DashboardData }) {
       alert('Update failed');
     } finally {
       setSavingDisplay(false);
+    }
+  };
+
+  const resetDisplayActivation = async () => {
+    if (!editingDisplay) return;
+    setResetting(true);
+    try {
+      const res = await fetch(`/api/admin/displays/${editingDisplay.displayId}/reset`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to reset display');
+      }
+      alert(`${editingDisplay.displayId} reset successfully`);
+      setShowResetConfirm(false);
+      setEditingDisplay(null);
+      window.location.reload();
+    } catch (e: any) {
+      console.error(e);
+      alert(e.message || 'Reset failed');
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -676,7 +701,25 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                   ))}
                 </select>
               </div>
+              {editingDisplay.storeId && editingDisplay.store && (
+                <div className="text-sm text-gray-600">
+                  <span className="font-medium">Current Store:</span> {editingDisplay.store.storeName}
+                </div>
+              )}
             </div>
+            
+            {/* Reset Activation Button */}
+            {editingDisplay.storeId && (
+              <div className="mt-6 mb-4">
+                <button
+                  onClick={() => setShowResetConfirm(true)}
+                  className="w-full px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 font-medium"
+                >
+                  Reset Activation
+                </button>
+              </div>
+            )}
+
             <div className="mt-6 flex justify-end gap-2">
               <button
                 onClick={() => setEditingDisplay(null)}
@@ -690,6 +733,38 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                 className="px-4 py-2 rounded bg-purple-600 text-white hover:bg-purple-700 disabled:bg-gray-400"
               >
                 {savingDisplay ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Confirmation Dialog */}
+      {showResetConfirm && editingDisplay && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowResetConfirm(false)} />
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+            <h3 className="text-lg font-semibold mb-3">Reset Activation?</h3>
+            <p className="text-gray-700 mb-4">
+              Reset activation for <strong>{editingDisplay.displayId}</strong>? 
+              This will clear <strong>{editingDisplay.store?.storeName}</strong> but keep 
+              the display assigned to <strong>{editingDisplay.organization?.name || 'the organization'}</strong>. 
+              The QR code can be reactivated at a different location.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                disabled={resetting}
+                className="px-4 py-2 rounded border border-gray-300 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={resetDisplayActivation}
+                disabled={resetting}
+                className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 disabled:bg-gray-400"
+              >
+                {resetting ? 'Resetting...' : 'Reset Activation'}
               </button>
             </div>
           </div>

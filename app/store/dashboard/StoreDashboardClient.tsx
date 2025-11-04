@@ -507,31 +507,33 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="px-4 md:px-6 py-3 md:py-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4">
-          <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
-            <div className="text-xs text-gray-600 font-medium">Samples Requested</div>
-            <div className="text-2xl md:text-3xl font-bold text-purple-600 mt-1">{stats.samplesRequested}</div>
-            <div className="text-xs text-gray-500 mt-2">📊 +{todayRequested} today</div>
-          </div>
-          <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
-            <div className="text-xs text-gray-600 font-medium">Samples Redeemed</div>
-            <div className="text-2xl md:text-3xl font-bold text-green-600 mt-1">{stats.samplesRedeemed}</div>
-            <div className="text-xs text-gray-500 mt-2">✅ +{todayRedeemed} today</div>
-          </div>
-          <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
-            <div className="text-xs text-gray-600 font-medium">1st Purchases</div>
-            <div className="text-2xl md:text-3xl font-bold text-emerald-600 mt-1">{stats.promosUsed}</div>
-            <div className="text-xs text-gray-500 mt-2">🎉 +{todayPromos} today</div>
-          </div>
-          <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
-            <div className="text-xs text-gray-600 font-medium">Conv Rate</div>
-            <div className="text-2xl md:text-3xl font-bold text-blue-600 mt-1">{stats.conversionRate}%</div>
-            <div className="text-xs text-gray-500 mt-2">📈 Trend —</div>
+      {/* Stats Cards - Hidden on Settings Tab */}
+      {activeTab !== 'settings' && (
+        <div className="px-4 md:px-6 py-3 md:py-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+            <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
+              <div className="text-xs text-gray-600 font-medium">Samples Requested</div>
+              <div className="text-2xl md:text-3xl font-bold text-purple-600 mt-1">{stats.samplesRequested}</div>
+              <div className="text-xs text-gray-500 mt-2">📊 +{todayRequested} today</div>
+            </div>
+            <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
+              <div className="text-xs text-gray-600 font-medium">Samples Redeemed</div>
+              <div className="text-2xl md:text-3xl font-bold text-green-600 mt-1">{stats.samplesRedeemed}</div>
+              <div className="text-xs text-gray-500 mt-2">✅ +{todayRedeemed} today</div>
+            </div>
+            <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
+              <div className="text-xs text-gray-600 font-medium">1st Purchases</div>
+              <div className="text-2xl md:text-3xl font-bold text-emerald-600 mt-1">{stats.promosUsed}</div>
+              <div className="text-xs text-gray-500 mt-2">🎉 +{todayPromos} today</div>
+            </div>
+            <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
+              <div className="text-xs text-gray-600 font-medium">Conv Rate</div>
+              <div className="text-2xl md:text-3xl font-bold text-blue-600 mt-1">{stats.conversionRate}%</div>
+              <div className="text-xs text-gray-500 mt-2">📈 Trend —</div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Desktop Tabs */}
       <div className="hidden md:block px-4 md:px-6">
@@ -584,7 +586,7 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
       </div>
 
       {/* Tab Content */}
-      <div className="px-4 md:px-6 py-6 space-y-6">
+      <div className="px-4 md:px-6 py-4 space-y-4">
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <>

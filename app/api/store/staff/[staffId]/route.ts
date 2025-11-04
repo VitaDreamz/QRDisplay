@@ -103,7 +103,7 @@ export async function PATCH(
       email,
       phone,
       type,
-      staffPin,
+      // staffPin is derived from phone; ignore direct updates
       onCallDays,
       onCallHoursStart,
       onCallHoursStop,
@@ -112,20 +112,28 @@ export async function PATCH(
       notes
     } = body;
 
-    // If updating PIN, check if it's already in use by another staff member
-    if (staffPin) {
+    // If phone provided, derive new PIN and ensure it's unique among active staff
+    let derivedPin: string | undefined;
+    if (phone !== undefined) {
+      const digits = String(phone).replace(/\D/g, '');
+      if (digits.length < 4) {
+        return NextResponse.json(
+          { error: 'Phone must contain at least 4 digits to derive PIN' },
+          { status: 400 }
+        );
+      }
+      derivedPin = digits.slice(-4);
       const existingStaff = await prisma.staff.findFirst({
         where: {
           storeId: store.id,
-          staffPin,
+          staffPin: derivedPin,
           staffId: { not: staffId },
           status: 'active'
         }
       });
-
       if (existingStaff) {
         return NextResponse.json(
-          { error: 'PIN already in use by another staff member' },
+          { error: 'Another staff member already uses that PIN in this store. Please adjust phone or deactivate the other member.' },
           { status: 400 }
         );
       }
@@ -142,7 +150,7 @@ export async function PATCH(
         ...(email !== undefined && { email }),
         ...(phone !== undefined && { phone }),
         ...(type !== undefined && { type }),
-        ...(staffPin !== undefined && { staffPin }),
+        ...(derivedPin !== undefined && { staffPin: derivedPin }),
         ...(onCallDays !== undefined && { onCallDays }),
         ...(onCallHoursStart !== undefined && { onCallHoursStart }),
         ...(onCallHoursStop !== undefined && { onCallHoursStop }),

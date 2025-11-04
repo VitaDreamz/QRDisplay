@@ -9,7 +9,6 @@ export default function StoreLoginPage({ params }: { params: Promise<{ storeId: 
   const [orgName, setOrgName] = useState<string>('');
   const [loginType, setLoginType] = useState<'owner' | 'staff'>('owner');
   const [pin, setPin] = useState('');
-  const [staffId, setStaffId] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
@@ -40,8 +39,7 @@ export default function StoreLoginPage({ params }: { params: Promise<{ storeId: 
         body: JSON.stringify({
           storeId,
           loginType,
-          pin,
-          ...(loginType === 'staff' && { staffId })
+          pin
         })
       });
 
@@ -130,21 +128,7 @@ export default function StoreLoginPage({ params }: { params: Promise<{ storeId: 
           </div>
 
           {/* Staff ID Input (only for staff) */}
-          {loginType === 'staff' && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Staff ID
-              </label>
-              <input
-                type="text"
-                required
-                value={staffId}
-                onChange={(e) => setStaffId(e.target.value.toUpperCase())}
-                placeholder="STF-001"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-lg"
-              />
-            </div>
-          )}
+          {/* Staff ID no longer required for staff login */}
 
           {/* PIN Input */}
           <div className="mb-6">

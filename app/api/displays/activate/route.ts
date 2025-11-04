@@ -25,6 +25,13 @@ export async function POST(req: NextRequest) {
       promoOffer,
       followupDays,
       pin,
+      ownerName,
+      ownerPhone,
+      ownerEmail,
+      purchasingManager,
+      purchasingPhone,
+      purchasingEmail,
+      purchasingSameAsOwner,
     } = body;
 
     // Validate required fields
@@ -41,7 +48,10 @@ export async function POST(req: NextRequest) {
       !timezone ||
       !pin ||
       !followupDays ||
-      !Array.isArray(followupDays)
+      !Array.isArray(followupDays) ||
+      !ownerName ||
+      !ownerPhone ||
+      !ownerEmail
     ) {
       return NextResponse.json(
         { error: 'Missing required fields' },
@@ -150,19 +160,25 @@ export async function POST(req: NextRequest) {
     const store = await prisma.store.create({
       data: {
         storeId,
-          storeName,
+        storeName,
         contactName,
-          contactEmail: email,
-          contactPhone: phone,
-          streetAddress: address,
+        contactEmail: email,
+        contactPhone: phone,
+        streetAddress: address,
         city,
         state,
-          zipCode: zip,
+        zipCode: zip,
         timezone,
-          promoOffer: promoOffer || '20% Off 1st In-Store Purchase',
+        promoOffer: promoOffer || '20% Off 1st In-Store Purchase',
         followupDays,
-          staffPin: pin,
+        staffPin: pin,
         orgId: orgId,
+        ownerName,
+        ownerPhone,
+        ownerEmail,
+        purchasingManager: purchasingSameAsOwner ? ownerName : purchasingManager,
+        purchasingPhone: purchasingSameAsOwner ? ownerPhone : purchasingPhone,
+        purchasingEmail: purchasingSameAsOwner ? ownerEmail : purchasingEmail,
       },
     });
 

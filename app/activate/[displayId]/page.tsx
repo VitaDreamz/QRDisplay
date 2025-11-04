@@ -36,6 +36,15 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
     day14: false,
   });
   const [pin, setPin] = useState('');
+  
+  // Owner and Purchasing Manager
+  const [ownerName, setOwnerName] = useState('');
+  const [ownerPhone, setOwnerPhone] = useState('');
+  const [ownerEmail, setOwnerEmail] = useState('');
+  const [purchasingManager, setPurchasingManager] = useState('');
+  const [purchasingPhone, setPurchasingPhone] = useState('');
+  const [purchasingEmail, setPurchasingEmail] = useState('');
+  const [purchasingSameAsOwner, setPurchasingSameAsOwner] = useState(false);
 
     // Unwrap params Promise and fetch brand info
     useEffect(() => {
@@ -132,6 +141,13 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
           promoOffer,
           followupDays: selectedFollowupDays,
           pin,
+          ownerName,
+          ownerPhone,
+          ownerEmail,
+          purchasingManager: purchasingSameAsOwner ? ownerName : purchasingManager,
+          purchasingPhone: purchasingSameAsOwner ? ownerPhone : purchasingPhone,
+          purchasingEmail: purchasingSameAsOwner ? ownerEmail : purchasingEmail,
+          purchasingSameAsOwner,
         }),
       });
 
@@ -324,6 +340,119 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
                     placeholder="(555) 123-4567"
                   />
                 </div>
+              </div>
+            </div>
+
+            {/* Owner Information */}
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Owner Information</h2>
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="ownerName" className="block text-sm font-medium text-gray-700 mb-1">
+                    Owner Name *
+                  </label>
+                  <input
+                    type="text"
+                    id="ownerName"
+                    required
+                    value={ownerName}
+                    onChange={(e) => setOwnerName(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Jane Doe"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="ownerPhone" className="block text-sm font-medium text-gray-700 mb-1">
+                    Owner Phone *
+                  </label>
+                  <input
+                    type="tel"
+                    id="ownerPhone"
+                    required
+                    value={ownerPhone}
+                    onChange={(e) => setOwnerPhone(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="(555) 123-4567"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="ownerEmail" className="block text-sm font-medium text-gray-700 mb-1">
+                    Owner Email *
+                  </label>
+                  <input
+                    type="email"
+                    id="ownerEmail"
+                    required
+                    value={ownerEmail}
+                    onChange={(e) => setOwnerEmail(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="owner@example.com"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Purchasing Manager Information */}
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Purchasing Manager Information</h2>
+              <div className="space-y-4">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={purchasingSameAsOwner}
+                    onChange={(e) => setPurchasingSameAsOwner(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Same as owner (saves time for small shops)</span>
+                </label>
+
+                {!purchasingSameAsOwner && (
+                  <>
+                    <div>
+                      <label htmlFor="purchasingManager" className="block text-sm font-medium text-gray-700 mb-1">
+                        Purchasing Manager Name
+                      </label>
+                      <input
+                        type="text"
+                        id="purchasingManager"
+                        value={purchasingManager}
+                        onChange={(e) => setPurchasingManager(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Bob Johnson"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="purchasingPhone" className="block text-sm font-medium text-gray-700 mb-1">
+                        Purchasing Manager Phone
+                      </label>
+                      <input
+                        type="tel"
+                        id="purchasingPhone"
+                        value={purchasingPhone}
+                        onChange={(e) => setPurchasingPhone(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="(555) 987-6543"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="purchasingEmail" className="block text-sm font-medium text-gray-700 mb-1">
+                        Purchasing Manager Email
+                      </label>
+                      <input
+                        type="email"
+                        id="purchasingEmail"
+                        value={purchasingEmail}
+                        onChange={(e) => setPurchasingEmail(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="purchasing@example.com"
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 

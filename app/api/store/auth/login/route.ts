@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 
 export async function POST(request: NextRequest) {
   try {
-    const { storeId, loginType, pin, staffId } = await request.json();
+  const { storeId, loginType, pin, staffId } = await request.json();
 
     // Validate input
     if (!storeId || !loginType || !pin) {
@@ -14,12 +14,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (loginType === 'staff' && !staffId) {
-      return NextResponse.json(
-        { error: 'Staff ID required for staff login' },
-        { status: 400 }
-      );
-    }
+    // For staff login we no longer require Staff ID; PIN-only per store
 
     // Validate PIN format (4 digits)
     if (!/^\d{4}$/.test(pin)) {
@@ -87,11 +82,12 @@ export async function POST(request: NextRequest) {
 
     // STAFF LOGIN
     if (loginType === 'staff') {
-      // Find staff member
+      // Find staff member by store and PIN
       const staffMember = await prisma.staff.findFirst({
         where: {
-          staffId: staffId,
-          storeId: store.id
+          storeId: store.id,
+          staffPin: pin,
+          status: 'active'
         },
         select: {
           id: true,
@@ -110,21 +106,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Check if staff is active
-      if (staffMember.status !== 'active') {
-        return NextResponse.json(
-          { error: 'Staff account is inactive. Contact your manager.' },
-          { status: 403 }
-        );
-      }
-
-      // Verify staff PIN
-      if (staffMember.staffPin !== pin) {
-        return NextResponse.json(
-          { error: 'Invalid PIN' },
-          { status: 401 }
-        );
-      }
+      // Staff already filtered as active and PIN matched
 
       // Create session
       const response = NextResponse.json({

@@ -76,14 +76,18 @@ model Store {
   
   status       String   @default("active")
   storeName    String
-  contactName  String?
-  contactEmail String?
-  contactPhone String?
   
-  // Owner and purchasing manager
+  // Owner (business owner/main decision maker)
   ownerName         String?
   ownerPhone        String?
   ownerEmail        String?
+  
+  // Program Administrator (day-to-day manager, receives notifications)
+  adminName         String?
+  adminEmail        String?
+  adminPhone        String?
+  
+  // Purchasing Manager (handles inventory ordering)
   purchasingManager String?
   purchasingPhone   String?
   purchasingEmail   String?

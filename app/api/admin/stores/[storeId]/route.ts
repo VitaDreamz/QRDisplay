@@ -64,9 +64,9 @@ export async function PATCH(
 
     const {
       storeName,
-      contactName,
-      contactEmail,
-      contactPhone,
+      adminName,
+      adminEmail,
+      adminPhone,
       streetAddress,
       city,
       state,
@@ -81,9 +81,9 @@ export async function PATCH(
       where: { storeId },
       data: {
         ...(storeName !== undefined && { storeName }),
-        ...(contactName !== undefined && { contactName }),
-        ...(contactEmail !== undefined && { contactEmail }),
-        ...(contactPhone !== undefined && { contactPhone }),
+        ...(adminName !== undefined && { adminName }),
+        ...(adminEmail !== undefined && { adminEmail }),
+        ...(adminPhone !== undefined && { adminPhone }),
         ...(streetAddress !== undefined && { streetAddress }),
         ...(city !== undefined && { city }),
         ...(state !== undefined && { state }),

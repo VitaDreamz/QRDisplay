@@ -120,9 +120,9 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     setEditingStore(store);
     setStoreForm({
       storeName: store.storeName || '',
-      contactName: store.contactName || '',
-      contactEmail: store.contactEmail || '',
-      contactPhone: store.contactPhone || '',
+      adminName: store.adminName || '',
+      adminEmail: store.adminEmail || '',
+      adminPhone: store.adminPhone || '',
       streetAddress: store.streetAddress || '',
       city: store.city || '',
       state: store.state || '',
@@ -189,11 +189,11 @@ export function DashboardClient({ data }: { data: DashboardData }) {
       const query = searchQuery.toLowerCase();
       const matchesName = s.storeName.toLowerCase().includes(query);
       const matchesId = s.storeId.toLowerCase().includes(query);
-      const matchesContact = s.contactName?.toLowerCase().includes(query);
-      const matchesEmail = s.contactEmail?.toLowerCase().includes(query);
-      const matchesPhone = s.contactPhone?.includes(query);
+      const matchesAdmin = s.adminName?.toLowerCase().includes(query);
+      const matchesEmail = s.adminEmail?.toLowerCase().includes(query);
+      const matchesPhone = s.adminPhone?.includes(query);
       const matchesCity = s.city?.toLowerCase().includes(query);
-      if (!matchesName && !matchesId && !matchesContact && !matchesEmail && !matchesPhone && !matchesCity) return false;
+      if (!matchesName && !matchesId && !matchesAdmin && !matchesEmail && !matchesPhone && !matchesCity) return false;
     }
     return true;
   });
@@ -495,12 +495,12 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                         <span>•</span>
                         <span>{store.organization?.name}</span>
                       </div>
-                      {store.contactName && (
+                      {store.adminName && (
                         <div className="text-xs">
-                          {store.contactName}
-                          {store.contactPhone && ` • ${store.contactPhone}`}
-                          {store.contactEmail && (
-                            <div>{store.contactEmail}</div>
+                          {store.adminName}
+                          {store.adminPhone && ` • ${store.adminPhone}`}
+                          {store.adminEmail && (
+                            <div>{store.adminEmail}</div>
                           )}
                         </div>
                       )}
@@ -562,14 +562,14 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                           <td className="px-4 py-3 font-mono text-xs">{store.storeId}</td>
                           <td className="px-4 py-3 text-sm font-medium">{store.storeName}</td>
                           <td className="px-4 py-3 text-xs">
-                            {store.contactName && (
+                            {store.adminName && (
                               <div className="space-y-0.5">
-                                <div>{store.contactName}</div>
-                                {store.contactPhone && <div>{store.contactPhone}</div>}
-                                {store.contactEmail && <div className="text-gray-500">{store.contactEmail}</div>}
+                                <div>{store.adminName}</div>
+                                {store.adminPhone && <div>{store.adminPhone}</div>}
+                                {store.adminEmail && <div className="text-gray-500">{store.adminEmail}</div>}
                               </div>
                             )}
-                            {!store.contactName && '—'}
+                            {!store.adminName && '—'}
                           </td>
                           <td className="px-4 py-3 text-sm">
                             {store.city && store.state 
@@ -927,29 +927,29 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Contact Name</label>
+                <label className="block text-sm font-medium mb-1">Administrator Name</label>
                 <input
                   type="text"
-                  value={storeForm.contactName}
-                  onChange={(e) => setStoreForm({ ...storeForm, contactName: e.target.value })}
+                  value={storeForm.adminName}
+                  onChange={(e) => setStoreForm({ ...storeForm, adminName: e.target.value })}
                   className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Email</label>
+                <label className="block text-sm font-medium mb-1">Admin Email</label>
                 <input
                   type="email"
-                  value={storeForm.contactEmail}
-                  onChange={(e) => setStoreForm({ ...storeForm, contactEmail: e.target.value })}
+                  value={storeForm.adminEmail}
+                  onChange={(e) => setStoreForm({ ...storeForm, adminEmail: e.target.value })}
                   className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Phone</label>
+                <label className="block text-sm font-medium mb-1">Admin Phone</label>
                 <input
                   type="tel"
-                  value={storeForm.contactPhone}
-                  onChange={(e) => setStoreForm({ ...storeForm, contactPhone: e.target.value })}
+                  value={storeForm.adminPhone}
+                  onChange={(e) => setStoreForm({ ...storeForm, adminPhone: e.target.value })}
                   className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
                 />
               </div>

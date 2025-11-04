@@ -32,9 +32,9 @@ export async function PATCH(req: NextRequest) {
     const { 
       promoOffer, 
       followupDays, 
-      contactEmail, 
-      contactPhone, 
-      contactName, 
+      adminEmail, 
+      adminPhone, 
+      adminName, 
       staffPin,
       ownerName,
       ownerPhone,
@@ -50,9 +50,9 @@ export async function PATCH(req: NextRequest) {
     if (followupDays !== undefined && Array.isArray(followupDays)) {
       updateData.followupDays = followupDays.map(d => parseInt(d)).filter(d => d > 0);
     }
-    if (contactEmail !== undefined) updateData.contactEmail = String(contactEmail).trim();
-    if (contactPhone !== undefined) updateData.contactPhone = String(contactPhone).trim();
-    if (contactName !== undefined) updateData.contactName = String(contactName).trim();
+    if (adminEmail !== undefined) updateData.adminEmail = String(adminEmail).trim();
+    if (adminPhone !== undefined) updateData.adminPhone = String(adminPhone).trim();
+    if (adminName !== undefined) updateData.adminName = String(adminName).trim();
     if (ownerName !== undefined) updateData.ownerName = String(ownerName).trim();
     if (ownerPhone !== undefined) updateData.ownerPhone = String(ownerPhone).trim();
     if (ownerEmail !== undefined) updateData.ownerEmail = String(ownerEmail).trim();

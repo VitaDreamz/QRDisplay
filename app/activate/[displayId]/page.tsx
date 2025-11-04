@@ -19,9 +19,6 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
 
   // Form state
   const [storeName, setStoreName] = useState('');
-  const [contactName, setContactName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
@@ -37,10 +34,18 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
   });
   const [pin, setPin] = useState('');
   
-  // Owner and Purchasing Manager
+  // Owner (business owner/main decision maker)
   const [ownerName, setOwnerName] = useState('');
   const [ownerPhone, setOwnerPhone] = useState('');
   const [ownerEmail, setOwnerEmail] = useState('');
+  
+  // Program Administrator (day-to-day manager)
+  const [adminName, setAdminName] = useState('');
+  const [adminPhone, setAdminPhone] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminSameAsOwner, setAdminSameAsOwner] = useState(false);
+  
+  // Purchasing Manager
   const [purchasingManager, setPurchasingManager] = useState('');
   const [purchasingPhone, setPurchasingPhone] = useState('');
   const [purchasingEmail, setPurchasingEmail] = useState('');
@@ -69,18 +74,20 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
     setLoading(true);
     setError('');
 
-    // Validate email
+    // Validate admin email (or owner email if admin is same as owner)
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setError('Please enter a valid email address');
+    const adminEmailToUse = adminSameAsOwner ? ownerEmail : adminEmail;
+    if (!emailRegex.test(adminEmailToUse)) {
+      setError('Please enter a valid admin email address');
       setLoading(false);
       return;
     }
 
-    // Validate phone (10-15 chars with digits, spaces, dashes, parens, and optional + prefix)
+    // Validate admin phone (or owner phone if admin is same as owner)
     const phoneRegex = /^[\+\d\s\-\(\)]{10,15}$/;
-    if (!phoneRegex.test(phone)) {
-      setError('Please enter a valid US phone number');
+    const adminPhoneToUse = adminSameAsOwner ? ownerPhone : adminPhone;
+    if (!phoneRegex.test(adminPhoneToUse)) {
+      setError('Please enter a valid admin phone number');
       setLoading(false);
       return;
     }
@@ -131,9 +138,6 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
         body: JSON.stringify({
           displayId,
           storeName,
-          contactName,
-          email,
-          phone,
           address,
           city,
           state,
@@ -145,10 +149,12 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
           ownerName,
           ownerPhone,
           ownerEmail,
+          adminName: adminSameAsOwner ? ownerName : adminName,
+          adminPhone: adminSameAsOwner ? ownerPhone : adminPhone,
+          adminEmail: adminSameAsOwner ? ownerEmail : adminEmail,
           purchasingManager: purchasingSameAsOwner ? ownerName : purchasingManager,
           purchasingPhone: purchasingSameAsOwner ? ownerPhone : purchasingPhone,
           purchasingEmail: purchasingSameAsOwner ? ownerEmail : purchasingEmail,
-          purchasingSameAsOwner,
         }),
       });
 
@@ -293,60 +299,10 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
               </div>
             </div>
 
-            {/* Contact Information */}
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Contact Information</h2>
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="contactName" className="block text-sm font-medium text-gray-700 mb-1">
-                    Contact Name *
-                  </label>
-                  <input
-                    type="text"
-                    id="contactName"
-                    required
-                    value={contactName}
-                    onChange={(e) => setContactName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="John Smith"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                    Email Address *
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="john@example.com"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-                    Phone Number *
-                  </label>
-                  <input
-                    type="tel"
-                    id="phone"
-                    required
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="(555) 123-4567"
-                  />
-                </div>
-              </div>
-            </div>
-
             {/* Owner Information */}
             <div>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Owner Information</h2>
+              <p className="text-sm text-gray-600 mb-4">Business owner / main decision maker</p>
               <div className="space-y-4">
                 <div>
                   <label htmlFor="ownerName" className="block text-sm font-medium text-gray-700 mb-1">
@@ -395,9 +351,76 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
               </div>
             </div>
 
+            {/* Program Administrator Information */}
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Program Administrator</h2>
+              <p className="text-sm text-gray-600 mb-4">Day-to-day manager who will oversee the sampling program (receives notifications and manages dashboard)</p>
+              <div className="space-y-4">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={adminSameAsOwner}
+                    onChange={(e) => setAdminSameAsOwner(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Same as owner</span>
+                </label>
+
+                {!adminSameAsOwner && (
+                  <>
+                    <div>
+                      <label htmlFor="adminName" className="block text-sm font-medium text-gray-700 mb-1">
+                        Administrator Name *
+                      </label>
+                      <input
+                        type="text"
+                        id="adminName"
+                        required={!adminSameAsOwner}
+                        value={adminName}
+                        onChange={(e) => setAdminName(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Jane Smith"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="adminPhone" className="block text-sm font-medium text-gray-700 mb-1">
+                        Administrator Phone *
+                      </label>
+                      <input
+                        type="tel"
+                        id="adminPhone"
+                        required={!adminSameAsOwner}
+                        value={adminPhone}
+                        onChange={(e) => setAdminPhone(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="(555) 123-4567"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="adminEmail" className="block text-sm font-medium text-gray-700 mb-1">
+                        Administrator Email *
+                      </label>
+                      <input
+                        type="email"
+                        id="adminEmail"
+                        required={!adminSameAsOwner}
+                        value={adminEmail}
+                        onChange={(e) => setAdminEmail(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="admin@example.com"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
             {/* Purchasing Manager Information */}
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Purchasing Manager Information</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Purchasing Manager</h2>
+              <p className="text-sm text-gray-600 mb-4">Person responsible for inventory ordering and restocking</p>
               <div className="space-y-4">
                 <label className="flex items-center">
                   <input

@@ -14,9 +14,9 @@ export async function POST(req: NextRequest) {
     const {
       displayId,
       storeName,
-      contactName,
-      email,
-      phone,
+      adminName,
+      adminEmail,
+      adminPhone,
       address,
       city,
       state,
@@ -32,15 +32,16 @@ export async function POST(req: NextRequest) {
       purchasingPhone,
       purchasingEmail,
       purchasingSameAsOwner,
+      adminSameAsOwner,
     } = body;
 
     // Validate required fields
     if (
       !displayId ||
       !storeName ||
-      !contactName ||
-      !email ||
-      !phone ||
+      !adminName ||
+      !adminEmail ||
+      !adminPhone ||
       !address ||
       !city ||
       !state ||
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(adminEmail)) {
       return NextResponse.json(
         { error: 'Invalid email format' },
         { status: 400 }
@@ -70,7 +71,7 @@ export async function POST(req: NextRequest) {
 
     // Validate phone format (US) - allow + for international format
     const phoneRegex = /^[\+\d\s\-\(\)]{10,15}$/;
-    if (!phoneRegex.test(phone)) {
+    if (!phoneRegex.test(adminPhone)) {
       return NextResponse.json(
         { error: 'Invalid phone number format' },
         { status: 400 }
@@ -161,9 +162,9 @@ export async function POST(req: NextRequest) {
       data: {
         storeId,
         storeName,
-        contactName,
-        contactEmail: email,
-        contactPhone: phone,
+        adminName,
+        adminEmail,
+        adminPhone,
         streetAddress: address,
         city,
         state,
@@ -212,8 +213,8 @@ export async function POST(req: NextRequest) {
             websiteUrl: display.organization.websiteUrl || undefined,
           },
           store: {
-            contactEmail: email,
-            contactName,
+            contactEmail: adminEmail,
+            contactName: adminName,
             storeName,
             storeId: store.storeId,
           },
@@ -222,7 +223,7 @@ export async function POST(req: NextRequest) {
             promoOffer,
             followupDays,
             timezone,
-            contactPhone: phone,
+            contactPhone: adminPhone,
             streetAddress: address,
             city,
             state,
@@ -238,8 +239,8 @@ export async function POST(req: NextRequest) {
             brandEmail: display.organization.supportEmail,
             store: {
               storeName,
-              contactEmail: email,
-              contactPhone: phone,
+              contactEmail: adminEmail,
+              contactPhone: adminPhone,
               streetAddress: address,
               city,
               state,
@@ -272,19 +273,19 @@ export async function POST(req: NextRequest) {
         process.env.TWILIO_AUTH_TOKEN
       );
 
-      // 1. SMS to store contact
+      // 1. SMS to store administrator
   const storeMessage = `🏪 Your display is active! Dashboard: ${loginUrl} | PIN: ${pin} | Bookmark this link!`;
       
       await client.messages.create({
-        to: phone,
+        to: adminPhone,
         from: process.env.TWILIO_PHONE_NUMBER,
         body: storeMessage
       });
-      console.log('✅ Store activation SMS sent to:', phone);
+      console.log('✅ Store activation SMS sent to:', adminPhone);
 
       // 2. SMS to brand owner (if exists and has phone)
       if (brandOwner && brandOwner.phone) {
-        const ownerMessage = `New store activated! ${storeName} (${store.storeId}) in ${city}, ${state}. Contact: ${contactName} ${phone}`;
+        const ownerMessage = `New store activated! ${storeName} (${store.storeId}) in ${city}, ${state}. Contact: ${adminName} ${adminPhone}`;
         
         await client.messages.create({
           to: brandOwner.phone,
@@ -323,7 +324,7 @@ export async function POST(req: NextRequest) {
             promoOffer,
             followupDays,
             timezone,
-            contactPhone: phone,
+            contactPhone: adminPhone,
             streetAddress: address,
             city,
             state,

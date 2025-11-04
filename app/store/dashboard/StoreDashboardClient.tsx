@@ -7,9 +7,9 @@ type Store = {
   storeName: string;
   promoOffer: string;
   followupDays: number[];
-  contactName: string | null;
-  contactEmail: string | null;
-  contactPhone: string | null;
+  adminName: string | null;
+  adminEmail: string | null;
+  adminPhone: string | null;
   staffPin: string | null;
   streetAddress: string | null;
   city: string | null;
@@ -80,9 +80,9 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
   });
   const [followupForm, setFollowupForm] = useState<number[]>(data.store.followupDays);
   const [contactForm, setContactForm] = useState({
-    contactName: data.store.contactName || '',
-    contactEmail: data.store.contactEmail || '',
-    contactPhone: data.store.contactPhone || ''
+    adminName: data.store.adminName || '',
+    adminEmail: data.store.adminEmail || '',
+    adminPhone: data.store.adminPhone || ''
   });
   const [pinForm, setPinForm] = useState({ current: '', new: '' });
   const [blastForm, setBlastForm] = useState({
@@ -992,19 +992,20 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                   </button>
                 </div>
                 
-                {/* Contact Info */}
+                {/* Administrator Info */}
                 <div className="flex justify-between items-center">
                   <div>
-                    <label className="text-sm text-gray-600">Contact Info</label>
-                    <p className="text-sm">{data.store.contactEmail || 'Not set'}</p>
-                    <p className="text-sm">{data.store.contactPhone || 'Not set'}</p>
+                    <label className="text-sm text-gray-600">Program Administrator</label>
+                    <p className="text-sm font-medium">{data.store.adminName || 'Not set'}</p>
+                    <p className="text-sm">{data.store.adminEmail || 'Not set'}</p>
+                    <p className="text-sm">{data.store.adminPhone || 'Not set'}</p>
                   </div>
                   <button
                     onClick={() => {
                       setContactForm({
-                        contactName: data.store.contactName || '',
-                        contactEmail: data.store.contactEmail || '',
-                        contactPhone: data.store.contactPhone || ''
+                        adminName: data.store.adminName || '',
+                        adminEmail: data.store.adminEmail || '',
+                        adminPhone: data.store.adminPhone || ''
                       });
                       setEditingContact(true);
                     }}
@@ -1209,19 +1210,19 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
         </div>
       )}
 
-      {/* Edit Contact Modal */}
+      {/* Edit Administrator Info Modal */}
       {editingContact && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4">Edit Contact Info</h3>
+            <h3 className="text-xl font-bold mb-4">Edit Administrator Info</h3>
             
             <form onSubmit={saveContact}>
               <div className="space-y-4 mb-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Contact Name</label>
+                  <label className="block text-sm font-medium mb-1">Administrator Name</label>
                   <input
-                    value={contactForm.contactName}
-                    onChange={(e) => setContactForm({ ...contactForm, contactName: e.target.value })}
+                    value={contactForm.adminName}
+                    onChange={(e) => setContactForm({ ...contactForm, adminName: e.target.value })}
                     className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
@@ -1229,16 +1230,16 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                   <label className="block text-sm font-medium mb-1">Email</label>
                   <input
                     type="email"
-                    value={contactForm.contactEmail}
-                    onChange={(e) => setContactForm({ ...contactForm, contactEmail: e.target.value })}
+                    value={contactForm.adminEmail}
+                    onChange={(e) => setContactForm({ ...contactForm, adminEmail: e.target.value })}
                     className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Phone</label>
                   <input
-                    value={contactForm.contactPhone}
-                    onChange={(e) => setContactForm({ ...contactForm, contactPhone: e.target.value })}
+                    value={contactForm.adminPhone}
+                    onChange={(e) => setContactForm({ ...contactForm, adminPhone: e.target.value })}
                     className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
                   />
                 </div>

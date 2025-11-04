@@ -494,17 +494,17 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
   return (
     <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-6 md:py-8">
+      <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-4 md:py-5">
         <div className="flex flex-col items-center text-center">
-          <h1 className="text-4xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 mb-2">
+          <h1 className="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 mb-1.5">
             {data.store.storeName}
           </h1>
           {data.organization?.name && (
             <div className="flex flex-col items-center">
-              <p className="text-base md:text-lg font-semibold text-gray-800">
+              <p className="text-sm md:text-base font-semibold text-gray-800">
                 {data.organization.name} Samples Dashboard
               </p>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-[10px] text-gray-500 mt-0.5">
                 powered by QRDisplay
               </p>
             </div>
@@ -514,7 +514,7 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
 
       {/* Stats Cards - Hidden on Settings Tab */}
       {activeTab !== 'settings' && (
-        <div className="px-4 md:px-6 py-3 md:py-4">
+        <div className="px-4 md:px-6 py-2 md:py-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
               <div className="text-xs text-gray-600 font-medium">Samples Requested</div>

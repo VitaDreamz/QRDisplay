@@ -20,13 +20,16 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Step 1: Delete all customers
+    // Step 1: Delete all promo redemptions (must be first due to foreign key constraints)
+    const deletedPromos = await prisma.promoRedemption.deleteMany({});
+    
+    // Step 2: Delete all customers
     const deletedCustomers = await prisma.customer.deleteMany({});
     
-    // Step 2: Delete all staff members
+    // Step 3: Delete all staff members
     const deletedStaff = await prisma.staff.deleteMany({});
     
-    // Step 3: Delete all stores
+    // Step 4: Delete all stores
     const deletedStores = await prisma.store.deleteMany({});
     
     // Step 4: Get VitaDreamz organization
@@ -35,8 +38,9 @@ export async function POST(req: NextRequest) {
     });
 
     // Step 5: Reset all displays
+    let displaysResetCount = 0;
     if (vitadreamz) {
-      await prisma.display.updateMany({
+      const updatedDisplays = await prisma.display.updateMany({
         data: {
           status: 'sold',
           storeId: null,
@@ -45,16 +49,19 @@ export async function POST(req: NextRequest) {
           ownerOrgId: vitadreamz.id,
         }
       });
+      displaysResetCount = updatedDisplays.count;
     }
 
     return NextResponse.json({
       success: true,
       message: 'Database reset successfully',
       stats: {
+        promosDeleted: deletedPromos.count,
         customersDeleted: deletedCustomers.count,
         staffDeleted: deletedStaff.count,
-        storesDeleted: deletedStores.count
-      }
+        storesDeleted: deletedStores.count,
+        displaysReset: displaysResetCount,
+      },
     });
 
   } catch (error) {

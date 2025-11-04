@@ -12,7 +12,7 @@ export async function GET(
   try {
     const { staffId } = await context.params;
     const cookieStore = await cookies();
-    const storeId = cookieStore.get('storeId')?.value;
+    const storeId = cookieStore.get('store-id')?.value;
 
     if (!storeId) {
       return NextResponse.json(
@@ -74,7 +74,7 @@ export async function PATCH(
   try {
     const { staffId } = await context.params;
     const cookieStore = await cookies();
-    const storeId = cookieStore.get('storeId')?.value;
+    const storeId = cookieStore.get('store-id')?.value;
 
     if (!storeId) {
       return NextResponse.json(
@@ -182,7 +182,7 @@ export async function DELETE(
   try {
     const { staffId } = await context.params;
     const cookieStore = await cookies();
-    const storeId = cookieStore.get('storeId')?.value;
+    const storeId = cookieStore.get('store-id')?.value;
 
     if (!storeId) {
       return NextResponse.json(

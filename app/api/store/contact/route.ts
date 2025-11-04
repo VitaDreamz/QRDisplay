@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export async function PATCH(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const storeId = cookieStore.get('storeId')?.value;
+    const storeId = cookieStore.get('store-id')?.value;
 
     if (!storeId) {
       return NextResponse.json(

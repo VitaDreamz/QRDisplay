@@ -13,7 +13,7 @@ function generateStaffId(count: number): string {
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const storeId = cookieStore.get('storeId')?.value;
+    const storeId = cookieStore.get('store-id')?.value;
 
     if (!storeId) {
       return NextResponse.json(
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const storeId = cookieStore.get('storeId')?.value;
+    const storeId = cookieStore.get('store-id')?.value;
 
     if (!storeId) {
       return NextResponse.json(

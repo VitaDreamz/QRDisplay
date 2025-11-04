@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "prisma:seed": "ts-node prisma/seed/index.ts"
+    "prisma:seed": "ts-node prisma/seed/index.ts",
+    "postinstall": "prisma generate"
   },
   "primsa": {
     "seed": "ts-node prisma/seed/index.ts"

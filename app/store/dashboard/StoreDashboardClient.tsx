@@ -48,7 +48,7 @@ type DashboardData = {
   } | null;
 };
 
-export default function StoreDashboardClient({ initialData, userId, role }: { initialData: DashboardData; userId: string; role: 'owner' | 'staff' }) {
+export default function StoreDashboardClient({ initialData, role }: { initialData: DashboardData; role: 'owner' | 'staff' }) {
   const [data, setData] = useState(initialData);
   const [activeTab, setActiveTab] = useState<'overview' | 'customers' | 'staff' | 'settings'>('overview');
   const [customerFilter, setCustomerFilter] = useState<'all' | 'pending' | 'redeemed' | 'promo-used'>('all');
@@ -162,7 +162,7 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
       const res = await fetch('/api/store/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, promoOffer: promoOfferText })
+        body: JSON.stringify({ promoOffer: promoOfferText })
       });
       const result = await res.json();
       if (result.success) {
@@ -190,7 +190,7 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
       const res = await fetch('/api/store/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, followupDays: followupForm })
+        body: JSON.stringify({ followupDays: followupForm })
       });
       const result = await res.json();
       if (result.success) {
@@ -214,7 +214,7 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
       const res = await fetch('/api/store/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, ...contactForm })
+        body: JSON.stringify({ ...contactForm })
       });
       const result = await res.json();
       if (result.success) {
@@ -246,7 +246,7 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
       const res = await fetch('/api/store/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, staffPin: pinForm.new })
+        body: JSON.stringify({ staffPin: pinForm.new })
       });
       const result = await res.json();
       if (result.success) {
@@ -278,7 +278,7 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
       const res = await fetch('/api/store/message/customers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, ...blastForm })
+        body: JSON.stringify({ ...blastForm })
       });
       const result = await res.json();
       if (result.success) {

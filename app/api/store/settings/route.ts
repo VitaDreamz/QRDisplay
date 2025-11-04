@@ -1,25 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { cookies } from 'next/headers';
+
+export const dynamic = 'force-dynamic';
 
 export async function PATCH(req: NextRequest) {
   try {
-    const body = await req.json();
-    
-    // For now, get userId from body until Clerk is set up
-    const userId = body.userId;
-    
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized - userId required' }, { status: 401 });
+    const cookieStore = await cookies();
+    const storeIdCookie = cookieStore.get('store-id')?.value;
+    const role = cookieStore.get('store-role')?.value;
+
+    if (!storeIdCookie) {
+      return NextResponse.json({ error: 'No store session found' }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { userId }
+    if (role !== 'owner') {
+      return NextResponse.json({ error: 'Access denied. Store owner only.' }, { status: 403 });
+    }
+
+    // Get store's internal ID
+    const store = await prisma.store.findUnique({
+      where: { storeId: storeIdCookie },
+      select: { id: true }
     });
 
-    if (!user || user.role !== 'store-admin' || !user.storeId) {
-      return NextResponse.json({ error: 'Access denied. Store admin only.' }, { status: 403 });
+    if (!store) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 });
     }
-    const { promoOffer, followupDays, contactEmail, contactPhone, contactName, staffPin } = body;
+
+    const body = await req.json();
+    const { 
+      promoOffer, 
+      followupDays, 
+      contactEmail, 
+      contactPhone, 
+      contactName, 
+      staffPin,
+      ownerName,
+      ownerPhone,
+      ownerEmail,
+      purchasingManager,
+      purchasingPhone,
+      purchasingEmail
+    } = body;
 
     const updateData: any = {};
     
@@ -30,6 +53,12 @@ export async function PATCH(req: NextRequest) {
     if (contactEmail !== undefined) updateData.contactEmail = String(contactEmail).trim();
     if (contactPhone !== undefined) updateData.contactPhone = String(contactPhone).trim();
     if (contactName !== undefined) updateData.contactName = String(contactName).trim();
+    if (ownerName !== undefined) updateData.ownerName = String(ownerName).trim();
+    if (ownerPhone !== undefined) updateData.ownerPhone = String(ownerPhone).trim();
+    if (ownerEmail !== undefined) updateData.ownerEmail = String(ownerEmail).trim();
+    if (purchasingManager !== undefined) updateData.purchasingManager = String(purchasingManager).trim();
+    if (purchasingPhone !== undefined) updateData.purchasingPhone = String(purchasingPhone).trim();
+    if (purchasingEmail !== undefined) updateData.purchasingEmail = String(purchasingEmail).trim();
     if (staffPin !== undefined) {
       // Validate PIN is 4 digits
       if (!/^\d{4}$/.test(staffPin)) {
@@ -38,12 +67,12 @@ export async function PATCH(req: NextRequest) {
       updateData.staffPin = String(staffPin);
     }
 
-    const store = await prisma.store.update({
-      where: { storeId: user.storeId },
+    const updatedStore = await prisma.store.update({
+      where: { id: store.id },
       data: updateData
     });
 
-    return NextResponse.json({ success: true, store });
+    return NextResponse.json({ success: true, store: updatedStore });
   } catch (err) {
     console.error('Store settings update error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

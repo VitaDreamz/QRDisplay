@@ -111,5 +111,5 @@ export default async function StoreDashboardPage() {
     } : null
   };
 
-  return <StoreDashboardClient initialData={data} userId={storeId} role={role} />;
+  return <StoreDashboardClient initialData={data} role={role} />;
 }

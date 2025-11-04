@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { SAMPLE_OPTIONS } from '@/lib/constants';
 
 interface BrandInfo {
   name: string;
@@ -50,6 +51,9 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
   const [purchasingPhone, setPurchasingPhone] = useState('');
   const [purchasingEmail, setPurchasingEmail] = useState('');
   const [purchasingSameAsOwner, setPurchasingSameAsOwner] = useState(false);
+  
+  // Available Samples
+  const [availableSamples, setAvailableSamples] = useState<string[]>([]);
 
     // Unwrap params Promise and fetch brand info
     useEffect(() => {
@@ -130,6 +134,13 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
       return;
     }
 
+    // Validate available samples (require at least 1)
+    if (availableSamples.length === 0) {
+      setError('Please select at least one sample product that your store will offer');
+      setLoading(false);
+      return;
+    }
+
     try {
       const promoOffer = `${promoPercentage}% Off In-Store Purchase`;
       const response = await fetch('/api/displays/activate', {
@@ -155,6 +166,7 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
           purchasingManager: purchasingSameAsOwner ? ownerName : purchasingManager,
           purchasingPhone: purchasingSameAsOwner ? ownerPhone : purchasingPhone,
           purchasingEmail: purchasingSameAsOwner ? ownerEmail : purchasingEmail,
+          availableSamples,
         }),
       });
 
@@ -478,6 +490,42 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
                   </>
                 )}
               </div>
+            </div>
+
+            {/* Sample Selection */}
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Sample Selection</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Which samples does your store carry? Check all that apply. Customers will only see the samples you select.
+              </p>
+              
+              <div className="space-y-3 border-2 border-gray-200 rounded-lg p-4 bg-gray-50">
+                {SAMPLE_OPTIONS.map(sample => (
+                  <label 
+                    key={sample.value} 
+                    className="flex items-start gap-3 cursor-pointer hover:bg-white p-3 rounded-md transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={availableSamples.includes(sample.value)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setAvailableSamples([...availableSamples, sample.value]);
+                        } else {
+                          setAvailableSamples(availableSamples.filter(s => s !== sample.value));
+                        }
+                      }}
+                      className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm font-medium text-gray-900">{sample.label}</span>
+                  </label>
+                ))}
+              </div>
+              
+              <p className="text-xs text-gray-500 mt-3 flex items-center gap-1">
+                <span>💡</span>
+                <span>You can update these selections later in your dashboard</span>
+              </p>
             </div>
 
             {/* Settings */}

@@ -30,6 +30,7 @@ export async function GET(
       supportEmail: display.organization.supportEmail || 'support@qrdisplay.com',
       supportPhone: display.organization.supportPhone,
       storeName: display.store?.storeName || null,
+      availableSamples: display.store?.availableSamples || [],
     });
   } catch (error) {
     console.error('Error fetching brand info:', error);

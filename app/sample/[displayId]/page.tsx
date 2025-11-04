@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatPhoneDisplay } from '@/lib/phone';
+import { SAMPLE_OPTIONS } from '@/lib/constants';
 
 type BrandInfo = {
   name: string;
@@ -10,14 +11,8 @@ type BrandInfo = {
   supportEmail?: string | null;
   supportPhone?: string | null;
   storeName?: string | null;
+  availableSamples?: string[];
 };
-
-const SAMPLE_OPTIONS = [
-  'Slumber Berry - Sleep Gummies (4ct)',
-  'Luna Berry - Sleep Gummies (4ct)',
-  'Bliss Berry - Relax Gummies (4ct)',
-  'Berry Chill - Relax Gummies (4ct)'
-];
 
 export default function SampleRequestPage({ params }: { params: Promise<{ displayId: string }> }) {
   const router = useRouter();
@@ -54,6 +49,15 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
     const left = brand.name || 'Brand';
     const right = brand.storeName || 'Your Store';
     return `${left} × ${right}`;
+  }, [brand]);
+
+  // Filter samples based on what the store has available
+  // If store hasn't set any (empty array), show all samples (legacy support)
+  const availableOptions = useMemo(() => {
+    if (!brand?.availableSamples || brand.availableSamples.length === 0) {
+      return SAMPLE_OPTIONS;
+    }
+    return SAMPLE_OPTIONS.filter(opt => brand.availableSamples!.includes(opt.value));
   }, [brand]);
 
   function validate(): boolean {
@@ -189,8 +193,8 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
                 onChange={(e) => setSampleChoice(e.target.value)}
               >
                 <option value="" disabled>Select a sample</option>
-                {SAMPLE_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
+                {availableOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
               {errors.sampleChoice && <p className="text-red-600 text-sm mt-1">{errors.sampleChoice}</p>}

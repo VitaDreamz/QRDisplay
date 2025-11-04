@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
       purchasingEmail,
       purchasingSameAsOwner,
       adminSameAsOwner,
+      availableSamples,
     } = body;
 
     // Validate required fields
@@ -83,6 +84,14 @@ export async function POST(req: NextRequest) {
     if (!pinRegex.test(pin)) {
       return NextResponse.json(
         { error: 'PIN must be exactly 4 digits' },
+        { status: 400 }
+      );
+    }
+
+    // Validate available samples (require at least 1)
+    if (!availableSamples || !Array.isArray(availableSamples) || availableSamples.length === 0) {
+      return NextResponse.json(
+        { error: 'At least one sample product must be selected' },
         { status: 400 }
       );
     }
@@ -180,6 +189,7 @@ export async function POST(req: NextRequest) {
         purchasingManager: purchasingSameAsOwner ? ownerName : purchasingManager,
         purchasingPhone: purchasingSameAsOwner ? ownerPhone : purchasingPhone,
         purchasingEmail: purchasingSameAsOwner ? ownerEmail : purchasingEmail,
+        availableSamples,
       },
     });
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { SAMPLE_OPTIONS } from '@/lib/constants';
 
 type Store = {
   storeId: string;
@@ -21,6 +22,7 @@ type Store = {
   purchasingManager?: string | null;
   purchasingPhone?: string | null;
   purchasingEmail?: string | null;
+  availableSamples?: string[];
 };
 
 type Customer = {
@@ -60,6 +62,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
   const [changingPin, setChangingPin] = useState(false);
   const [sendingBlast, setSendingBlast] = useState(false);
   const [sendingStaffMsg, setSendingStaffMsg] = useState(false);
+  const [editingSamples, setEditingSamples] = useState(false);
   
   // Staff Management
   const [staff, setStaff] = useState<any[]>([]);
@@ -97,6 +100,9 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
     channel: 'sms' as 'sms' | 'email' | 'both',
     message: ''
   });
+  const [selectedSamples, setSelectedSamples] = useState<string[]>(
+    data.store.availableSamples || []
+  );
   
   const [saving, setSaving] = useState(false);
   const [blasting, setBlasting] = useState(false);
@@ -221,6 +227,34 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
         setData({ ...data, store: { ...data.store, ...contactForm } });
         setEditingContact(false);
         alert('Contact info updated!');
+      } else {
+        alert('Error: ' + result.error);
+      }
+    } catch (err) {
+      alert('Failed to update');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveSamples = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedSamples.length === 0) {
+      alert('Select at least one sample product');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/store/samples', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ availableSamples: selectedSamples })
+      });
+      const result = await res.json();
+      if (result.success) {
+        setData({ ...data, store: { ...data.store, availableSamples: selectedSamples } });
+        setEditingSamples(false);
+        alert('Available samples updated!');
       } else {
         alert('Error: ' + result.error);
       }
@@ -622,6 +656,54 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                     }}
                     className="px-3 py-2 bg-white/15 hover:bg-white/25 rounded-md text-sm font-medium"
                   >Edit</button>
+                </div>
+              </div>
+            )}
+
+            {/* Available Samples Card */}
+            {role === 'owner' && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h2 className="text-xl font-bold mb-1">Available Samples</h2>
+                    <p className="text-sm text-gray-600">Products your store currently offers</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedSamples(data.store.availableSamples || []);
+                      setEditingSamples(true);
+                    }}
+                    className="px-3 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-md text-sm font-medium"
+                  >
+                    Edit
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {SAMPLE_OPTIONS.map((sample) => {
+                    const isSelected = (data.store.availableSamples || []).includes(sample.value);
+                    return (
+                      <div
+                        key={sample.value}
+                        className={`flex items-center gap-3 p-3 rounded-lg border-2 ${
+                          isSelected
+                            ? 'border-green-500 bg-green-50'
+                            : 'border-gray-200 bg-gray-50 opacity-50'
+                        }`}
+                      >
+                        <div className={`text-xl ${isSelected ? '' : 'opacity-40'}`}>
+                          {isSelected ? '✓' : '○'}
+                        </div>
+                        <div className="text-sm">
+                          <div className={`font-medium ${isSelected ? 'text-gray-900' : 'text-gray-500'}`}>
+                            {sample.label.split(' - ')[0]}
+                          </div>
+                          <div className={`text-xs ${isSelected ? 'text-gray-600' : 'text-gray-400'}`}>
+                            {sample.label.split(' - ')[1]}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -1151,6 +1233,72 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                 <button
                   type="button"
                   onClick={() => setEditingPromo(false)}
+                  className="flex-1 bg-gray-200 py-2 rounded hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Samples Modal */}
+      {editingSamples && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Edit Available Samples</h3>
+            
+            <form onSubmit={saveSamples}>
+              <p className="text-sm text-gray-600 mb-4">
+                Select which sample products your store currently has in stock:
+              </p>
+              
+              <div className="space-y-3 mb-4">
+                {SAMPLE_OPTIONS.map((sample) => (
+                  <label
+                    key={sample.value}
+                    className={`flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                      selectedSamples.includes(sample.value)
+                        ? 'border-purple-500 bg-purple-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedSamples.includes(sample.value)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedSamples([...selectedSamples, sample.value]);
+                        } else {
+                          setSelectedSamples(selectedSamples.filter(s => s !== sample.value));
+                        }
+                      }}
+                      className="mt-1"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">{sample.label.split(' - ')[0]}</div>
+                      <div className="text-xs text-gray-600">{sample.label.split(' - ')[1]}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              
+              <p className="text-xs text-gray-500 mb-4">
+                Select at least one sample. Customers will only see samples you've selected.
+              </p>
+              
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={saving || selectedSamples.length === 0}
+                  className="flex-1 bg-purple-600 text-white py-2 rounded hover:bg-purple-700 disabled:bg-gray-400"
+                >
+                  {saving ? 'Saving...' : 'Save Samples'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingSamples(false)}
                   className="flex-1 bg-gray-200 py-2 rounded hover:bg-gray-300"
                 >
                   Cancel

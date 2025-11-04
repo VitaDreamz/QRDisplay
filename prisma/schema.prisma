@@ -102,6 +102,9 @@ model Store {
   followupDays Int[]    @default([4, 12])
   staffPin     String?
   
+  // Available sample products (stores choose which samples they carry)
+  availableSamples String[] @default([])
+  
   activatedAt  DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

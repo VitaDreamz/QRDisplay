@@ -1,23 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 
 export async function POST(req: NextRequest) {
-  // Check admin authentication
-  const cookieStore = await cookies();
-  const userId = cookieStore.get('user-id')?.value;
+  // Check Clerk authentication
+  const { userId } = await auth();
   
   if (!userId) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
-  // Verify user is admin
+  // Verify user is admin (check if user exists in database with admin role)
   const user = await prisma.user.findUnique({
     where: { userId: userId }
   });
 
-  if (!user || user.role !== 'admin') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  if (!user || user.role !== 'super-admin') {
+    return NextResponse.json({ error: 'Unauthorized - Super admin access required' }, { status: 403 });
   }
 
   try {

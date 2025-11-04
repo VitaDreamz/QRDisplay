@@ -31,7 +31,10 @@ export async function sendActivationEmail(data: {
     state: string;
     zipCode: string;
   };
+  // Permanent login URL for the store dashboard
   shortLinkUrl?: string;
+  // Owner PIN (4 digits) to include in the message
+  ownerPin?: string;
 }) {
   const { organization, store, display, settings } = data;
 
@@ -72,9 +75,16 @@ export async function sendActivationEmail(data: {
                     <div style="text-align: center; margin: 24px 0 28px 0;">
                       <a href="${data.shortLinkUrl}"
                          style="background: #6f42c1; color: #ffffff; padding: 14px 24px; border-radius: 10px; text-decoration: none; display: inline-block; font-weight: 700;">
-                        Access Your Store Dashboard
+                        Open Your Store Dashboard
                       </a>
-                      <p style="margin: 10px 0 0; font-size: 12px; color: #6b6b6b;">Short link: ${data.shortLinkUrl}</p>
+                      <p style="margin: 10px 0 0; font-size: 12px; color: #6b6b6b;">Permanent login: ${data.shortLinkUrl}</p>
+                    </div>
+                    ` : ''}
+
+                    ${data.ownerPin ? `
+                    <div style="background: #ecfdf5; border: 1px solid #10b981; color: #065f46; border-radius: 10px; padding: 16px; margin: 0 0 24px 0;">
+                      <strong>Owner PIN:</strong> <span style="font-family: monospace; font-size: 16px;">${data.ownerPin}</span><br/>
+                      <span style="font-size: 12px; color: #047857;">Bookmark your login link above for quick access.</span>
                     </div>
                     ` : ''}
 
@@ -122,8 +132,8 @@ export async function sendActivationEmail(data: {
                           <td style="color: #2b2b2b; text-align: right; padding: 8px 0;">${settings.followupDays.join(', ')} days</td>
                         </tr>
                         <tr>
-                          <td style="color: #6b6b6b; padding: 8px 0;">Staff PIN</td>
-                          <td style="color: #2b2b2b; text-align: right; padding: 8px 0; font-family: monospace;">••••</td>
+                          <td style="color: #6b6b6b; padding: 8px 0;">Owner PIN</td>
+                          <td style="color: #2b2b2b; text-align: right; padding: 8px 0; font-family: monospace;">${data.ownerPin ?? '••••'}</td>
                         </tr>
                       </table>
                     </div>

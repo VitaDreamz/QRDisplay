@@ -176,18 +176,9 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Create short magic link for store login
-    const slug = generateBase62Slug(7);
-    await prisma.shortlink.create({
-      data: {
-        slug,
-        action: 'store_login',
-        storeId: store.storeId,
-        role: 'store',
-      }
-    });
+    // Use permanent login link for store dashboard
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
-    const shortLinkUrl = `${baseUrl}/s/${slug}`;
+    const loginUrl = `${baseUrl}/store/login/${store.storeId}`;
 
     // Send activation email (non-blocking for overall activation)
     try {
@@ -221,7 +212,8 @@ export async function POST(req: NextRequest) {
             state,
             zipCode: zip,
           },
-          shortLinkUrl,
+          shortLinkUrl: loginUrl,
+          ownerPin: pin,
         });
 
         // Send brand notification email
@@ -265,7 +257,7 @@ export async function POST(req: NextRequest) {
       );
 
       // 1. SMS to store contact
-  const storeMessage = `Hi ${contactName}, your new sample display for ${storeName} is now activated and ready for customers!\n\nAccess your dashboard: ${shortLinkUrl}\n\nReply HELP for support.`;
+  const storeMessage = `🏪 Your display is active! Dashboard: ${loginUrl} | PIN: ${pin} | Bookmark this link!`;
       
       await client.messages.create({
         to: phone,

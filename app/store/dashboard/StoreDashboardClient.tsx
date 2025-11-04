@@ -59,6 +59,7 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
   const [editingContact, setEditingContact] = useState(false);
   const [changingPin, setChangingPin] = useState(false);
   const [sendingBlast, setSendingBlast] = useState(false);
+  const [sendingStaffMsg, setSendingStaffMsg] = useState(false);
   
   // Staff Management
   const [staff, setStaff] = useState<any[]>([]);
@@ -81,7 +82,15 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
   });
   const [pinForm, setPinForm] = useState({ current: '', new: '' });
   const [blastForm, setBlastForm] = useState({
-    audience: 'all',
+    audience: 'all' as 'all' | 'redeemed' | 'not-promo',
+    channel: 'sms' as 'sms' | 'email' | 'both',
+    message: ''
+  });
+  const [staffMsgForm, setStaffMsgForm] = useState({
+    recipients: 'all' as 'all' | 'type' | 'specific',
+    type: 'Sales',
+    staffId: '',
+    channel: 'sms' as 'sms' | 'email' | 'both',
     message: ''
   });
   
@@ -100,6 +109,16 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
         )
       : 0
   };
+
+  // Mini stats for "today"
+  const isToday = (d: Date) => {
+    const dt = new Date(d);
+    const now = new Date();
+    return dt.getFullYear() === now.getFullYear() && dt.getMonth() === now.getMonth() && dt.getDate() === now.getDate();
+  };
+  const todayRequested = data.customers.filter(c => isToday(c.requestedAt)).length;
+  const todayRedeemed = data.customers.filter(c => c.redeemed && isToday(c.requestedAt)).length;
+  const todayPromos = data.customers.filter(c => c.promoRedeemed && isToday(c.requestedAt)).length;
 
   // Filter customers
   const filteredCustomers = data.customers.filter(c => {
@@ -251,7 +270,7 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
     
     setBlasting(true);
     try {
-      const res = await fetch('/api/store/blast', {
+      const res = await fetch('/api/store/message/customers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, ...blastForm })
@@ -259,8 +278,32 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
       const result = await res.json();
       if (result.success) {
         alert(`Sent to ${result.sent} customers!${result.failed > 0 ? ` (${result.failed} failed)` : ''}`);
-        setBlastForm({ audience: 'all', message: '' });
+        setBlastForm({ audience: 'all', channel: 'sms', message: '' });
         setSendingBlast(false);
+      } else {
+        alert('Error: ' + result.error);
+      }
+    } catch (err) {
+      alert('Failed to send');
+    } finally {
+      setBlasting(false);
+    }
+  };
+
+  const sendStaffMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBlasting(true);
+    try {
+      const res = await fetch('/api/store/message/staff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...staffMsgForm })
+      });
+      const result = await res.json();
+      if (result.success) {
+        alert(`Sent to ${result.sent} staff!${result.failed > 0 ? ` (${result.failed} failed)` : ''}`);
+        setStaffMsgForm({ recipients: 'all', type: 'Sales', staffId: '', channel: 'sms', message: '' });
+        setSendingStaffMsg(false);
       } else {
         alert('Error: ' + result.error);
       }
@@ -295,6 +338,9 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
 
   useEffect(() => {
     if (activeTab === 'staff') {
+      fetchStaff();
+    }
+    if (activeTab === 'overview' && role === 'owner' && staff.length === 0) {
       fetchStaff();
     }
   }, [activeTab]);
@@ -449,39 +495,40 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
     <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-4">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{data.store.storeName}</h1>
-        <p className="text-sm md:text-base text-gray-600 mt-1">Store Dashboard</p>
+        <div className="flex flex-col">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+            {data.store.storeName} Dashboard
+          </h1>
+          {data.organization?.name && (
+            <p className="text-xs md:text-sm text-gray-600 mt-1">
+              Powered by <span className="font-semibold">{data.organization.name}</span>
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Stats Cards */}
       <div className="px-4 md:px-6 py-3 md:py-6">
-        <div className="grid grid-cols-4 gap-2 md:gap-4">
-          <div className="bg-white rounded-lg p-2 md:p-5 shadow-sm">
-            <div className="hidden md:block text-3xl mb-2">📊</div>
-            <div className="text-lg md:text-3xl font-bold text-purple-600">{stats.samplesRequested}</div>
-            <div className="text-[10px] md:text-sm text-gray-600 mt-0.5 md:mt-1 leading-tight">Requested</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4">
+          <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
+            <div className="text-xs text-gray-600 font-medium">Samples Requested</div>
+            <div className="text-2xl md:text-3xl font-bold text-purple-600 mt-1">{stats.samplesRequested}</div>
+            <div className="text-xs text-gray-500 mt-2">📊 +{todayRequested} today</div>
           </div>
-
-          <div className="bg-white rounded-lg p-2 md:p-5 shadow-sm">
-            <div className="hidden md:block text-3xl mb-2">✅</div>
-            <div className="text-lg md:text-3xl font-bold text-green-600">{stats.samplesRedeemed}</div>
-            <div className="text-[10px] md:text-sm text-gray-600 mt-0.5 md:mt-1 leading-tight">
-              Redeemed <span className="hidden md:inline">({stats.samplesRequested > 0 ? Math.round((stats.samplesRedeemed / stats.samplesRequested) * 100) : 0}%)</span>
-            </div>
+          <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
+            <div className="text-xs text-gray-600 font-medium">Samples Redeemed</div>
+            <div className="text-2xl md:text-3xl font-bold text-green-600 mt-1">{stats.samplesRedeemed}</div>
+            <div className="text-xs text-gray-500 mt-2">✅ +{todayRedeemed} today</div>
           </div>
-
-          <div className="bg-white rounded-lg p-2 md:p-5 shadow-sm">
-            <div className="hidden md:block text-3xl mb-2">💰</div>
-            <div className="text-lg md:text-3xl font-bold text-emerald-600">{stats.promosUsed}</div>
-            <div className="text-[10px] md:text-sm text-gray-600 mt-0.5 md:mt-1 leading-tight">
-              Promos <span className="hidden md:inline">({stats.samplesRedeemed > 0 ? Math.round((stats.promosUsed / stats.samplesRedeemed) * 100) : 0}%)</span>
-            </div>
+          <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
+            <div className="text-xs text-gray-600 font-medium">1st Purchases</div>
+            <div className="text-2xl md:text-3xl font-bold text-emerald-600 mt-1">{stats.promosUsed}</div>
+            <div className="text-xs text-gray-500 mt-2">🎉 +{todayPromos} today</div>
           </div>
-
-          <div className="bg-white rounded-lg p-2 md:p-5 shadow-sm">
-            <div className="hidden md:block text-3xl mb-2">📈</div>
-            <div className="text-lg md:text-3xl font-bold text-blue-600">{stats.conversionRate}%</div>
-            <div className="text-[10px] md:text-sm text-gray-600 mt-0.5 md:mt-1 leading-tight">Conv. Rate</div>
+          <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
+            <div className="text-xs text-gray-600 font-medium">Conv Rate</div>
+            <div className="text-2xl md:text-3xl font-bold text-blue-600 mt-1">{stats.conversionRate}%</div>
+            <div className="text-xs text-gray-500 mt-2">📈 Trend —</div>
           </div>
         </div>
       </div>
@@ -541,31 +588,59 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <>
-            {/* Quick Actions (Owner Only) */}
+            {/* Current Promo Offer Card */}
             {role === 'owner' && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl shadow p-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="text-sm opacity-90 mb-1">Current Promo Offer</div>
+                    <div className="text-2xl md:text-3xl font-bold">{data.store.promoOffer || 'No promo set'}</div>
+                    <div className="text-xs opacity-90 mt-1">Edit to update what customers see in messages</div>
+                  </div>
                   <button
-                    onClick={() => setSendingBlast(true)}
-                    className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
-                  >
-                    📢 Send Message to Customers
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('customers')}
-                    className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-900 rounded-lg hover:bg-gray-200 font-medium"
-                  >
-                    👥 View All Customers
-                  </button>
+                    onClick={() => { setPromoForm(data.store.promoOffer); setEditingPromo(true); }}
+                    className="px-3 py-2 bg-white/15 hover:bg-white/25 rounded-md text-sm font-medium"
+                  >Edit</button>
                 </div>
               </div>
             )}
 
-            {/* Recent Customers */}
+            {/* Top 3 Staff */}
+            {role === 'owner' && (
+              <div className="bg-white rounded-lg shadow">
+                <div className="p-4 border-b flex items-center justify-between">
+                  <h2 className="text-xl font-bold">Top Performers 🏆</h2>
+                  <button onClick={() => setActiveTab('staff')} className="text-purple-600 hover:text-purple-700 text-sm font-medium">View Leaderboard →</button>
+                </div>
+                <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {staff.slice(0,3).map((m, i) => (
+                    <div key={m.id} className="rounded-lg border border-yellow-200 bg-yellow-50/40 p-4">
+                      <div className="text-2xl">{getMedal(i)}</div>
+                      <div className="font-semibold">{m.firstName} {m.lastName}</div>
+                      <div className="text-sm text-gray-600">{m.type}</div>
+                      <div className="mt-2 grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <div className="text-gray-600">Samples</div>
+                          <div className="font-semibold">{m.samplesRedeemed}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-600">Sales</div>
+                          <div className="font-semibold text-green-600">{m.salesGenerated}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {staff.length === 0 && (
+                    <div className="text-sm text-gray-600">No staff yet. Add team members in the Staff tab.</div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Recent Activity */}
             <div className="bg-white rounded-lg shadow">
               <div className="p-4 border-b">
-                <h2 className="text-xl font-bold">Recent Customers</h2>
+                <h2 className="text-xl font-bold">Recent Activity</h2>
               </div>
               <div className="divide-y">
                 {data.customers.slice(0, 10).map((customer) => (
@@ -603,7 +678,13 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
         {activeTab === 'customers' && (
           <div className="bg-white rounded-lg shadow">
             <div className="p-4 border-b flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-              <h2 className="text-xl font-bold">Your Customers ({filteredCustomers.length})</h2>
+              <div className="flex items-center gap-3 w-full md:w-auto">
+                <h2 className="text-xl font-bold flex-1">Your Customers ({filteredCustomers.length})</h2>
+                <button
+                  onClick={() => setSendingBlast(true)}
+                  className="px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
+                >📢 Send Message</button>
+              </div>
               <select
                 value={customerFilter}
                 onChange={(e) => setCustomerFilter(e.target.value as any)}
@@ -694,57 +775,24 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
         {/* Staff Tab (Owner Only) */}
         {activeTab === 'staff' && role === 'owner' && (
           <>
-            {/* Store Contact Information */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold">Store Contact Information</h2>
-                <button
-                  onClick={openEditStoreContact}
-                  className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-                >
-                  Edit Contact Info
-                </button>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="font-semibold text-gray-700 mb-2">Owner</h3>
-                  {data.store.ownerName || data.store.ownerPhone || data.store.ownerEmail ? (
-                    <div className="text-sm space-y-1">
-                      {data.store.ownerName && <div>{data.store.ownerName}</div>}
-                      {data.store.ownerPhone && <div>{data.store.ownerPhone}</div>}
-                      {data.store.ownerEmail && <div className="text-gray-600">{data.store.ownerEmail}</div>}
-                    </div>
-                  ) : (
-                    <div className="text-sm text-gray-500">No owner info set</div>
-                  )}
-                </div>
-
-                <div>
-                  <h3 className="font-semibold text-gray-700 mb-2">Purchasing Manager</h3>
-                  {data.store.purchasingManager || data.store.purchasingPhone || data.store.purchasingEmail ? (
-                    <div className="text-sm space-y-1">
-                      {data.store.purchasingManager && <div>{data.store.purchasingManager}</div>}
-                      {data.store.purchasingPhone && <div>{data.store.purchasingPhone}</div>}
-                      {data.store.purchasingEmail && <div className="text-gray-600">{data.store.purchasingEmail}</div>}
-                    </div>
-                  ) : (
-                    <div className="text-sm text-gray-500">No purchasing manager info set</div>
-                  )}
-                </div>
-              </div>
-            </div>
-
             {/* Staff Leaderboard */}
             <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex justify-between items-center mb-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6">
                 <h2 className="text-xl font-bold">Staff Leaderboard 🏆</h2>
-                <button
-                  onClick={openAddStaff}
-                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                >
-                  + Add Staff Member
-                </button>
+                <div className="flex gap-2 w-full md:w-auto">
+                  <button
+                    onClick={() => setSendingStaffMsg(true)}
+                    className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                  >
+                    📢 Message Staff
+                  </button>
+                  <button
+                    onClick={openAddStaff}
+                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  >
+                    + Add Staff Member
+                  </button>
+                </div>
               </div>
 
               {loadingStaff ? (
@@ -943,6 +991,35 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
                   >
                     Edit
                   </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Owner & Purchasing Manager Details */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">Owner & Purchasing Details</h2>
+                <button
+                  onClick={openEditStoreContact}
+                  className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                >Edit</button>
+              </div>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="font-semibold text-gray-700 mb-2">Owner</h3>
+                  <div className="text-sm space-y-1">
+                    <div>{data.store.ownerName || <span className="text-gray-500">Name not set</span>}</div>
+                    <div>{data.store.ownerPhone || <span className="text-gray-500">Phone not set</span>}</div>
+                    <div className="text-gray-600">{data.store.ownerEmail || <span className="text-gray-500">Email not set</span>}</div>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-700 mb-2">Purchasing Manager</h3>
+                  <div className="text-sm space-y-1">
+                    <div>{data.store.purchasingManager || <span className="text-gray-500">Name not set</span>}</div>
+                    <div>{data.store.purchasingPhone || <span className="text-gray-500">Phone not set</span>}</div>
+                    <div className="text-gray-600">{data.store.purchasingEmail || <span className="text-gray-500">Email not set</span>}</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1232,12 +1309,25 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
                 <label className="block text-sm font-medium mb-2">Send To:</label>
                 <select
                   value={blastForm.audience}
-                  onChange={(e) => setBlastForm({ ...blastForm, audience: e.target.value })}
+                  onChange={(e) => setBlastForm({ ...blastForm, audience: e.target.value as any })}
                   className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
                 >
                   <option value="all">All Customers ({data.customers.length})</option>
                   <option value="redeemed">Redeemed Sample ({stats.samplesRedeemed})</option>
                   <option value="not-promo">Didn't Use Promo ({stats.samplesRedeemed - stats.promosUsed})</option>
+                </select>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">Channel:</label>
+                <select
+                  value={blastForm.channel}
+                  onChange={(e) => setBlastForm({ ...blastForm, channel: e.target.value as any })}
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="sms">SMS</option>
+                  <option value="email">Email</option>
+                  <option value="both">Both</option>
                 </select>
               </div>
               
@@ -1274,6 +1364,102 @@ export default function StoreDashboardClient({ initialData, userId, role }: { in
                 <button
                   type="button"
                   onClick={() => setSendingBlast(false)}
+                  className="px-4 bg-gray-200 py-3 rounded hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Staff Messaging Modal */}
+      {sendingStaffMsg && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">📢 Message Staff</h3>
+
+            <form onSubmit={sendStaffMessage}>
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">Recipients:</label>
+                <select
+                  value={staffMsgForm.recipients}
+                  onChange={(e) => setStaffMsgForm({ ...staffMsgForm, recipients: e.target.value as any })}
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="all">All Staff</option>
+                  <option value="type">By Type</option>
+                  <option value="specific">Specific Staff</option>
+                </select>
+              </div>
+
+              {staffMsgForm.recipients === 'type' && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-2">Staff Type:</label>
+                  <select
+                    value={staffMsgForm.type}
+                    onChange={(e) => setStaffMsgForm({ ...staffMsgForm, type: e.target.value })}
+                    className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="Sales">Sales</option>
+                    <option value="Marketing">Marketing</option>
+                    <option value="Cashier">Cashier</option>
+                    <option value="Manager">Manager</option>
+                  </select>
+                </div>
+              )}
+
+              {staffMsgForm.recipients === 'specific' && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-2">Staff Member (ID):</label>
+                  <input
+                    value={staffMsgForm.staffId}
+                    onChange={(e) => setStaffMsgForm({ ...staffMsgForm, staffId: e.target.value })}
+                    className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                    placeholder="STF-001"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Enter the Staff ID (e.g., STF-001)</p>
+                </div>
+              )}
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">Channel:</label>
+                <select
+                  value={staffMsgForm.channel}
+                  onChange={(e) => setStaffMsgForm({ ...staffMsgForm, channel: e.target.value as any })}
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="sms">SMS</option>
+                  <option value="email">Email</option>
+                  <option value="both">Both</option>
+                </select>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">Message:</label>
+                <textarea
+                  value={staffMsgForm.message}
+                  onChange={(e) => setStaffMsgForm({ ...staffMsgForm, message: e.target.value })}
+                  rows={4}
+                  maxLength={500}
+                  placeholder="Reminder: Team meeting at 9am tomorrow."
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">{staffMsgForm.message.length}/500</p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={blasting || !staffMsgForm.message.trim()}
+                  className="flex-1 bg-purple-600 text-white py-3 rounded hover:bg-purple-700 disabled:bg-gray-400 font-medium"
+                >
+                  {blasting ? 'Sending...' : 'Send Message'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSendingStaffMsg(false)}
                   className="px-4 bg-gray-200 py-3 rounded hover:bg-gray-300"
                 >
                   Cancel

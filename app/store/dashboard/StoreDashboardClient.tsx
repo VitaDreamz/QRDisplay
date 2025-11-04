@@ -448,34 +448,34 @@ export default function StoreDashboardClient({ initialData, userId }: { initialD
       </div>
 
       {/* Stats Cards */}
-      <div className="px-4 md:px-6 py-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl p-5 shadow-sm">
-            <div className="text-3xl mb-2">📊</div>
-            <div className="text-3xl font-bold text-purple-600">{stats.samplesRequested}</div>
-            <div className="text-sm text-gray-600 mt-1">Samples Requested</div>
+      <div className="px-4 md:px-6 py-3 md:py-6">
+        <div className="grid grid-cols-4 gap-2 md:gap-4">
+          <div className="bg-white rounded-lg p-2 md:p-5 shadow-sm">
+            <div className="hidden md:block text-3xl mb-2">📊</div>
+            <div className="text-lg md:text-3xl font-bold text-purple-600">{stats.samplesRequested}</div>
+            <div className="text-[10px] md:text-sm text-gray-600 mt-0.5 md:mt-1 leading-tight">Requested</div>
           </div>
 
-          <div className="bg-white rounded-xl p-5 shadow-sm">
-            <div className="text-3xl mb-2">✅</div>
-            <div className="text-3xl font-bold text-green-600">{stats.samplesRedeemed}</div>
-            <div className="text-sm text-gray-600 mt-1">
-              Redeemed ({stats.samplesRequested > 0 ? Math.round((stats.samplesRedeemed / stats.samplesRequested) * 100) : 0}%)
+          <div className="bg-white rounded-lg p-2 md:p-5 shadow-sm">
+            <div className="hidden md:block text-3xl mb-2">✅</div>
+            <div className="text-lg md:text-3xl font-bold text-green-600">{stats.samplesRedeemed}</div>
+            <div className="text-[10px] md:text-sm text-gray-600 mt-0.5 md:mt-1 leading-tight">
+              Redeemed <span className="hidden md:inline">({stats.samplesRequested > 0 ? Math.round((stats.samplesRedeemed / stats.samplesRequested) * 100) : 0}%)</span>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-5 shadow-sm">
-            <div className="text-3xl mb-2">💰</div>
-            <div className="text-3xl font-bold text-emerald-600">{stats.promosUsed}</div>
-            <div className="text-sm text-gray-600 mt-1">
-              Promos Used ({stats.samplesRedeemed > 0 ? Math.round((stats.promosUsed / stats.samplesRedeemed) * 100) : 0}%)
+          <div className="bg-white rounded-lg p-2 md:p-5 shadow-sm">
+            <div className="hidden md:block text-3xl mb-2">💰</div>
+            <div className="text-lg md:text-3xl font-bold text-emerald-600">{stats.promosUsed}</div>
+            <div className="text-[10px] md:text-sm text-gray-600 mt-0.5 md:mt-1 leading-tight">
+              Promos <span className="hidden md:inline">({stats.samplesRedeemed > 0 ? Math.round((stats.promosUsed / stats.samplesRedeemed) * 100) : 0}%)</span>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-5 shadow-sm">
-            <div className="text-3xl mb-2">📈</div>
-            <div className="text-3xl font-bold text-blue-600">{stats.conversionRate}%</div>
-            <div className="text-sm text-gray-600 mt-1">Conversion Rate</div>
+          <div className="bg-white rounded-lg p-2 md:p-5 shadow-sm">
+            <div className="hidden md:block text-3xl mb-2">📈</div>
+            <div className="text-lg md:text-3xl font-bold text-blue-600">{stats.conversionRate}%</div>
+            <div className="text-[10px] md:text-sm text-gray-600 mt-0.5 md:mt-1 leading-tight">Conv. Rate</div>
           </div>
         </div>
       </div>

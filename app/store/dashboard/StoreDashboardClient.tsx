@@ -670,7 +670,11 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                   </div>
                   <button
                     onClick={() => {
-                      setSelectedSamples(data.store.availableSamples || []);
+                      // Default to all samples if none are set yet
+                      const currentSamples = data.store.availableSamples && data.store.availableSamples.length > 0
+                        ? data.store.availableSamples
+                        : SAMPLE_OPTIONS.map(s => s.value);
+                      setSelectedSamples(currentSamples);
                       setEditingSamples(true);
                     }}
                     className="px-3 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-md text-sm font-medium"
@@ -680,7 +684,11 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {SAMPLE_OPTIONS.map((sample) => {
-                    const isSelected = (data.store.availableSamples || []).includes(sample.value);
+                    // If no samples are set, default to showing all as selected (legacy stores)
+                    const availableSamples = data.store.availableSamples && data.store.availableSamples.length > 0
+                      ? data.store.availableSamples
+                      : SAMPLE_OPTIONS.map(s => s.value);
+                    const isSelected = availableSamples.includes(sample.value);
                     return (
                       <div
                         key={sample.value}

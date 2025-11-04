@@ -228,6 +228,26 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // If a setup photo was uploaded during the wizard on the display, carry it over to the store
+    try {
+      const displayPhoto = (await prisma.display.findUnique({
+        where: { displayId },
+      })) as any;
+      if (displayPhoto && displayPhoto.setupPhotoUrl) {
+        await prisma.store.update({
+          where: { storeId: store.storeId },
+          data: {
+            setupPhotoUrl: displayPhoto.setupPhotoUrl,
+            setupPhotoUploadedAt: displayPhoto.setupPhotoUploadedAt || new Date(),
+            setupPhotoCredit: !!displayPhoto.setupPhotoCredit,
+          } as any,
+        });
+        console.log('✅ Setup photo carried over to store');
+      }
+    } catch (carryErr) {
+      console.warn('⚠️ Failed to carry over setup photo to store:', carryErr);
+    }
+
     // Update the display to mark it as active
     await prisma.display.update({
       where: { displayId },
@@ -262,6 +282,9 @@ export async function POST(req: NextRequest) {
             contactName: adminName,
             storeName,
             storeId: store.storeId,
+            // Optional: photo info for enhanced template
+            setupPhotoUrl: (store as any).setupPhotoUrl,
+            setupPhotoCredit: (store as any).setupPhotoCredit,
           },
           display: { displayId },
           settings: {
@@ -290,6 +313,9 @@ export async function POST(req: NextRequest) {
               city,
               state,
               zipCode: zip,
+              // Optional: photo info for enhanced template
+              setupPhotoUrl: (store as any).setupPhotoUrl,
+              setupPhotoCredit: (store as any).setupPhotoCredit,
             },
             display: { displayId },
             settings: { staffPin: pin },

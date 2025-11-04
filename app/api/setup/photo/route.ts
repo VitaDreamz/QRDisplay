@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,16 +14,16 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // Upload to storage (Vercel Blob, S3, Cloudinary, etc.)
+  // Upload to storage (Vercel Blob, S3, Cloudinary, etc.)
     // For now, we'll just log it and return success
     let photoUrl = '';
     try {
       // TODO: Implement actual storage upload
-      // const { put } = await import('@vercel/blob');
-      // const blob = await put(`setup-photos/${displayId}-${Date.now()}.jpg`, photo, {
-      //   access: 'public',
-      // });
-      // photoUrl = blob.url;
+  // const { put } = await import('@vercel/blob');
+  // const blob = await put(`setup-photos/${displayId}-${Date.now()}.jpg`, photo, {
+  //   access: 'public',
+  // });
+  // photoUrl = blob.url;
       
       // For now, just acknowledge the upload
       photoUrl = `setup-photo-${displayId}-${Date.now()}`;
@@ -33,18 +34,28 @@ export async function POST(req: NextRequest) {
       photoUrl = 'uploaded';
     }
     
-    // TODO: Save photo URL to database
-    // await prisma.display.update({
-    //   where: { displayId },
-    //   data: { setupPhotoUrl: photoUrl }
-    // });
-    
-    // TODO: Apply $10 credit to store account
-    // This could be a flag that's checked during next sample order
-    // await prisma.store.update({
-    //   where: { displays: { some: { displayId } } },
-    //   data: { setupPhotoCredit: 1000 } // $10 in cents
-    // });
+    // Save photo URL to database and mark credit
+    const updatedDisplay = await prisma.display.update({
+      where: { displayId },
+      // Cast to any to avoid TS mismatch during schema/type propagation
+      data: {
+        setupPhotoUrl: photoUrl,
+        setupPhotoUploadedAt: new Date(),
+        setupPhotoCredit: true,
+      } as any
+    });
+
+    // If the display is already linked to a store, update the store too
+    if (updatedDisplay.storeId) {
+      await prisma.store.update({
+        where: { storeId: updatedDisplay.storeId },
+        data: {
+          setupPhotoUrl: photoUrl,
+          setupPhotoUploadedAt: new Date(),
+          setupPhotoCredit: true,
+        } as any
+      });
+    }
     
     console.log(`Setup photo uploaded for ${displayId}: ${photoUrl}`);
     

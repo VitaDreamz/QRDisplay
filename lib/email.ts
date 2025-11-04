@@ -17,6 +17,8 @@ export async function sendActivationEmail(data: {
     contactName: string;
     storeName: string;
     storeId: string;
+    setupPhotoUrl?: string;
+    setupPhotoCredit?: boolean;
   };
   display: {
     displayId: string;
@@ -138,6 +140,20 @@ export async function sendActivationEmail(data: {
                       </table>
                     </div>
 
+                    ${store.setupPhotoUrl ? `
+                    <!-- Setup Photo (conditional) -->
+                    <div style="margin: 24px 0; padding: 16px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px;">
+                      <h3 style="margin: 0 0 12px 0; font-size: 16px; color: #1f2937;">📸 Your Display Setup</h3>
+                      <img src="${store.setupPhotoUrl}" alt="Display setup photo" style="max-width: 100%; border-radius: 8px; border: 2px solid #e5e7eb;"/>
+                      ${store.setupPhotoCredit ? `
+                      <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 14px; border-radius: 10px; text-align: center; margin-top: 14px;">
+                        <div style="font-size: 22px;">💰 $10 Credit Earned!</div>
+                        <div style="font-size: 12px; opacity: 0.95; margin-top: 4px;">Thanks for sharing your setup photo. Credit applies to your next sample order.</div>
+                      </div>
+                      ` : ''}
+                    </div>
+                    ` : ''}
+
                     <!-- What's Next -->
                     <h2 style="margin: 0 0 12px 0; font-size: 18px; font-weight: 700; color: #2b2b2b;">What's Next?</h2>
                     <ol style="margin: 0 0 24px 0; padding-left: 20px; font-size: 15px; line-height: 1.8; color: #2b2b2b;">
@@ -212,6 +228,8 @@ export async function sendBrandStoreActivationEmail(data: {
     city: string;
     state: string;
     zipCode: string;
+    setupPhotoUrl?: string;
+    setupPhotoCredit?: boolean;
   };
   display: {
     displayId: string;
@@ -263,6 +281,25 @@ export async function sendBrandStoreActivationEmail(data: {
               <td style="padding: 12px; border: 1px solid #dee2e6;">${activatedAt.toLocaleString()}</td>
             </tr>
           </table>
+
+          ${store.setupPhotoUrl ? `
+          <!-- Setup Photo (conditional) -->
+          <div style="margin: 20px 0; padding: 16px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 10px;">
+              <strong>📸 Display Setup Photo</strong>
+              ${store.setupPhotoCredit ? `<span style="background:#10b981;color:#fff;padding:4px 10px;border-radius:12px;font-size:12px;">✓ $10 Credit</span>` : ''}
+            </div>
+            <img src="${store.setupPhotoUrl}" alt="Display setup at ${store.storeName}" style="max-width: 100%; border-radius: 8px; border: 2px solid #e5e7eb;"/>
+            <p style="font-size: 12px; color: #6b7280; margin-top: 8px; text-align: center;">Uploaded during wizard setup</p>
+          </div>
+          ` : `
+          <!-- No Photo Warning -->
+          <div style="margin: 20px 0; padding: 12px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 6px;">
+            <p style="margin: 0; color: #92400e; font-size: 14px;">
+              ⚠️ <strong>No setup photo uploaded</strong> — Store completed activation but skipped the photo upload step.
+            </p>
+          </div>
+          `}
         </div>
       </body>
     </html>

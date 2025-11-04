@@ -101,6 +101,11 @@ model Store {
   promoOffer   String   @default("20%-off 1st Purchase")
   followupDays Int[]    @default([4, 12])
   staffPin     String?
+
+  // Wizard setup photo (if uploaded during setup)
+  setupPhotoUrl         String?
+  setupPhotoUploadedAt  DateTime?
+  setupPhotoCredit      Boolean   @default(false)
   
   // Available sample products (stores choose which samples they carry)
   availableSamples String[] @default([])
@@ -168,6 +173,11 @@ model Display {
   activatedBy String?
   
   createdAt   DateTime @default(now())
+
+  // Wizard setup photo (if uploaded during setup)
+  setupPhotoUrl         String?
+  setupPhotoUploadedAt  DateTime?
+  setupPhotoCredit      Boolean   @default(false)
   
   organization Organization? @relation(fields: [assignedOrgId], references: [orgId])
   store        Store?         @relation(fields: [storeId], references: [storeId])

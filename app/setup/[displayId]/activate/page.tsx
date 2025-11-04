@@ -38,12 +38,12 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
   const [adminName, setAdminName] = useState('');
   const [adminPhone, setAdminPhone] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
-  const [adminSameAsOwner, setAdminSameAsOwner] = useState(true);
+  const [adminSameAsOwner, setAdminSameAsOwner] = useState(false);
   
   const [purchasingManager, setPurchasingManager] = useState('');
   const [purchasingPhone, setPurchasingPhone] = useState('');
   const [purchasingEmail, setPurchasingEmail] = useState('');
-  const [purchasingSameAsOwner, setPurchasingSameAsOwner] = useState(true);
+  const [purchasingSameAsOwner, setPurchasingSameAsOwner] = useState(false);
   
   const [availableSamples, setAvailableSamples] = useState<string[]>(
     SAMPLE_OPTIONS.map(s => s.value) // Default to all samples

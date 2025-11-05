@@ -7,19 +7,19 @@ export default function AdminMigrationPage() {
   const [result, setResult] = useState<any>(null);
   const [secret, setSecret] = useState('');
 
-  const runMigration = async () => {
+  const runMigration = async (endpoint: string, label: string) => {
     setLoading(true);
     setResult(null);
     
     try {
-      const response = await fetch(`/api/admin/update-product-images?secret=${secret}`, {
+      const response = await fetch(`/api/admin/${endpoint}?secret=${secret}`, {
         method: 'POST'
       });
       
       const data = await response.json();
-      setResult(data);
+      setResult({ ...data, operation: label });
     } catch (error) {
-      setResult({ error: 'Failed to run migration', details: String(error) });
+      setResult({ error: `Failed to run ${label}`, details: String(error) });
     } finally {
       setLoading(false);
     }
@@ -47,11 +47,19 @@ export default function AdminMigrationPage() {
             </div>
             
             <button
-              onClick={runMigration}
+              onClick={() => runMigration('seed-wholesale-products', 'Seed Wholesale Products')}
+              disabled={loading || !secret}
+              className="w-full px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+            >
+              {loading ? 'Seeding Products...' : '1. Seed Wholesale Products'}
+            </button>
+            
+            <button
+              onClick={() => runMigration('update-product-images', 'Update Product Images')}
               disabled={loading || !secret}
               className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? 'Running Migration...' : 'Update Product Images'}
+              {loading ? 'Updating Images...' : '2. Update Product Images'}
             </button>
           </div>
 

@@ -7,18 +7,30 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { storeId, storeName, productSkus, notes, contactName, contactEmail, contactPhone } = body;
+    const { storeId, storeName, boxQuantities, notes, contactName, contactEmail, contactPhone } = body;
 
-    if (!storeId || !productSkus || productSkus.length === 0) {
+    if (!storeId || !boxQuantities || Object.keys(boxQuantities).length === 0) {
       return NextResponse.json(
         { error: 'Store ID and at least one product are required' },
         { status: 400 }
       );
     }
 
+    // Filter to only SKUs with quantity > 0
+    const orderedSkus = Object.entries(boxQuantities)
+      .filter(([_, qty]) => (qty as number) > 0)
+      .map(([sku]) => sku);
+
+    if (orderedSkus.length === 0) {
+      return NextResponse.json(
+        { error: 'At least one product with quantity > 0 is required' },
+        { status: 400 }
+      );
+    }
+
     // Get product details
     const products = await prisma.product.findMany({
-      where: { sku: { in: productSkus } }
+      where: { sku: { in: orderedSkus } }
     });
 
     // Get organization info
@@ -36,14 +48,45 @@ export async function POST(request: NextRequest) {
 
     const org = store.organization;
 
-    // Prepare product list for email/SMS
-    const productList = products.map(p => `• ${p.name} - $${Number(p.price).toFixed(2)}`).join('\n');
+    // Calculate totals
+    let totalBoxes = 0;
+    let totalCost = 0;
+    let totalRetailValue = 0;
+    let totalUnits = 0;
+
+    const orderItems = products.map(p => {
+      const qty = boxQuantities[p.sku] || 0;
+      const boxPrice = Number(p.price);
+      const wholesalePrice = Number(p.wholesalePrice || 0);
+      const retailPrice = Number(p.retailPrice || 0);
+      const unitsPerBox = p.unitsPerBox || 1;
+      const itemTotal = boxPrice * qty;
+      const itemRetailValue = retailPrice * unitsPerBox * qty;
+      const margin = retailPrice > 0 ? ((retailPrice - wholesalePrice) / retailPrice * 100).toFixed(0) : 0;
+
+      totalBoxes += qty;
+      totalCost += itemTotal;
+      totalRetailValue += itemRetailValue;
+      totalUnits += unitsPerBox * qty;
+
+      return {
+        product: p,
+        qty,
+        boxPrice,
+        wholesalePrice,
+        retailPrice,
+        unitsPerBox,
+        itemTotal,
+        itemRetailValue,
+        margin
+      };
+    });
 
     // Send email to brand
-    const emailSubject = `🛒 Purchase Request from ${storeName}`;
+    const emailSubject = `� Wholesale Order Request from ${storeName}`;
     const emailBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px;">
-        <h2 style="color: #7c3aed;">New Purchase Request</h2>
+        <h2 style="color: #7c3aed;">New Wholesale Order Request</h2>
         
         <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <h3 style="margin-top: 0; color: #374151;">Store Information</h3>
@@ -55,16 +98,45 @@ export async function POST(request: NextRequest) {
         </div>
 
         <div style="background: #ecfdf5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <h3 style="margin-top: 0; color: #059669;">Requested Products (${products.length})</h3>
-          <ul style="list-style: none; padding: 0;">
-            ${products.map(p => `
-              <li style="padding: 8px 0; border-bottom: 1px solid #d1fae5;">
-                <strong>${p.name}</strong> - $${Number(p.price).toFixed(2)}
-                <br/>
-                <small style="color: #6b7280;">${p.description || ''}</small>
-              </li>
-            `).join('')}
-          </ul>
+          <h3 style="margin-top: 0; color: #059669;">Order Details</h3>
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="border-bottom: 2px solid #d1fae5;">
+                <th style="text-align: left; padding: 8px;">Product</th>
+                <th style="text-align: center; padding: 8px;">Qty</th>
+                <th style="text-align: right; padding: 8px;">Box Price</th>
+                <th style="text-align: right; padding: 8px;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${orderItems.map(item => `
+                <tr style="border-bottom: 1px solid #d1fae5;">
+                  <td style="padding: 12px 8px;">
+                    <strong>${item.product.name}</strong>
+                    <br/>
+                    <small style="color: #6b7280;">${item.product.description || ''}</small>
+                    <br/>
+                    <small style="color: #059669;">${item.unitsPerBox} units/box • ${item.margin}% margin</small>
+                  </td>
+                  <td style="text-align: center; padding: 12px 8px;">
+                    <strong>${item.qty}</strong> boxes
+                  </td>
+                  <td style="text-align: right; padding: 12px 8px;">
+                    $${item.boxPrice.toFixed(2)}
+                  </td>
+                  <td style="text-align: right; padding: 12px 8px;">
+                    <strong>$${item.itemTotal.toFixed(2)}</strong>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+            <tfoot>
+              <tr style="background: #d1fae5;">
+                <td colspan="3" style="padding: 12px 8px; text-align: right;"><strong>Subtotal (${totalBoxes} boxes, ${totalUnits} units):</strong></td>
+                <td style="text-align: right; padding: 12px 8px;"><strong style="color: #059669; font-size: 18px;">$${totalCost.toFixed(2)}</strong></td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
 
         ${notes ? `
@@ -75,7 +147,7 @@ export async function POST(request: NextRequest) {
         ` : ''}
 
         <p style="color: #6b7280; font-size: 14px; margin-top: 30px;">
-          Please contact the store directly to discuss pricing, quantities, and shipping.
+          Please contact the store directly to confirm the order, provide shipping details, and arrange payment.
         </p>
       </div>
     `;

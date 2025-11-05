@@ -334,8 +334,16 @@ model Product {
   description String?
   category    String?
   
+  // Product type: retail (individual units) or wholesale-box (bulk boxes)
+  productType String   @default("retail")
+  
   price       Decimal  @db.Decimal(10, 2)
   msrp        Decimal? @db.Decimal(10, 2)
+  
+  // Wholesale box fields (only for productType = 'wholesale-box')
+  unitsPerBox     Int?     // Number of units in a box
+  wholesalePrice  Decimal? @db.Decimal(10, 2) // Price per unit (wholesale)
+  retailPrice     Decimal? @db.Decimal(10, 2) // Price per unit (retail)
   
   imageUrl    String?
   

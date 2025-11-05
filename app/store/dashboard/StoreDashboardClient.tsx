@@ -112,9 +112,9 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
     data.store.availableSamples || []
   );
   
-  // Purchase Request state
+  // Purchase Request state - using quantities for wholesale boxes
   const [showPurchaseRequest, setShowPurchaseRequest] = useState(false);
-  const [selectedPurchaseProducts, setSelectedPurchaseProducts] = useState<string[]>([]);
+  const [boxQuantities, setBoxQuantities] = useState<Record<string, number>>({});
   const [purchaseRequestNotes, setPurchaseRequestNotes] = useState('');
   const [sendingPurchaseRequest, setSendingPurchaseRequest] = useState(false);
   
@@ -122,15 +122,20 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
   const [blasting, setBlasting] = useState(false);
 
   // Calculate stats
+  const samplesRedeemed = data.customers.filter(c => c.redeemed).length;
+  const firstPurchases = data.customers.filter(c => c.promoRedeemed).length;
+  const totalSales = data.customers
+    .filter((c: any) => c.promoRedeemed)
+    .reduce((sum: number, c: any) => sum + parseFloat(c.saleAmount || '0'), 0);
+
   const stats = {
     samplesRequested: data.customers.length,
-    samplesRedeemed: data.customers.filter(c => c.redeemed).length,
-    promosUsed: data.customers.filter(c => c.promoRedeemed).length,
-    conversionRate: data.customers.filter(c => c.redeemed).length > 0
-      ? Math.round(
-          (data.customers.filter(c => c.promoRedeemed).length / 
-           data.customers.filter(c => c.redeemed).length) * 100
-        )
+    samplesRedeemed,
+    firstPurchases,
+    totalSales,
+    promosUsed: firstPurchases, // Keep for backward compatibility
+    conversionRate: samplesRedeemed > 0
+      ? Math.round((firstPurchases / samplesRedeemed) * 100)
       : 0
   };
 
@@ -703,19 +708,21 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
         <div className="px-4 md:px-6 py-2 md:py-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
-              <div className="text-xs text-gray-600 font-medium">Samples Requested</div>
-              <div className="text-2xl md:text-3xl font-bold text-purple-600 mt-1">{stats.samplesRequested}</div>
-              <div className="text-xs text-gray-500 mt-2">📊 +{todayRequested} today</div>
-            </div>
-            <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
               <div className="text-xs text-gray-600 font-medium">Samples Redeemed</div>
               <div className="text-2xl md:text-3xl font-bold text-green-600 mt-1">{stats.samplesRedeemed}</div>
               <div className="text-xs text-gray-500 mt-2">✅ +{todayRedeemed} today</div>
             </div>
             <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
-              <div className="text-xs text-gray-600 font-medium">1st Purchases</div>
+              <div className="text-xs text-gray-600 font-medium">Promos Redeemed</div>
               <div className="text-2xl md:text-3xl font-bold text-emerald-600 mt-1">{stats.promosUsed}</div>
               <div className="text-xs text-gray-500 mt-2">🎉 +{todayPromos} today</div>
+            </div>
+            <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
+              <div className="text-xs text-gray-600 font-medium">Total Sales</div>
+              <div className="text-2xl md:text-3xl font-bold text-purple-600 mt-1">
+                ${data.customers.filter((c: any) => c.promoRedeemed).reduce((sum: number, c: any) => sum + (parseFloat(c.saleAmount || '0')), 0).toFixed(2)}
+              </div>
+              <div className="text-xs text-gray-500 mt-2">💰 Revenue</div>
             </div>
             <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
               <div className="text-xs text-gray-600 font-medium">Conv Rate</div>
@@ -740,16 +747,6 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
             📊 {role === 'staff' ? 'My Stats' : 'Overview'}
           </button>
           <button
-            onClick={() => setActiveTab('customers')}
-            className={`px-6 py-3 text-base font-medium transition-colors ${
-              activeTab === 'customers'
-                ? 'text-purple-600 border-b-2 border-purple-600'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            👥 Customers
-          </button>
-          <button
             onClick={() => setActiveTab('products')}
             className={`px-6 py-3 text-base font-medium transition-colors ${
               activeTab === 'products'
@@ -757,7 +754,17 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            🛍️ Products
+            �️ Products
+          </button>
+          <button
+            onClick={() => setActiveTab('customers')}
+            className={`px-6 py-3 text-base font-medium transition-colors ${
+              activeTab === 'customers'
+                ? 'text-purple-600 border-b-2 border-purple-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            � Customers
           </button>
           {role === 'owner' && (
             <>
@@ -813,62 +820,6 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                     }}
                     className="px-3 py-2 bg-white/15 hover:bg-white/25 rounded-md text-sm font-medium"
                   >Edit</button>
-                </div>
-              </div>
-            )}
-
-            {/* Available Samples Card */}
-            {role === 'owner' && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h2 className="text-xl font-bold mb-1">Available Samples</h2>
-                    <p className="text-sm text-gray-600">Products your store currently offers</p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      // Default to all samples if none are set yet
-                      const currentSamples = data.store.availableSamples && data.store.availableSamples.length > 0
-                        ? data.store.availableSamples
-                        : SAMPLE_OPTIONS.map(s => s.value);
-                      setSelectedSamples(currentSamples);
-                      setEditingSamples(true);
-                    }}
-                    className="px-3 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-md text-sm font-medium"
-                  >
-                    Edit
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {SAMPLE_OPTIONS.map((sample) => {
-                    // If no samples are set, default to showing all as selected (legacy stores)
-                    const availableSamples = data.store.availableSamples && data.store.availableSamples.length > 0
-                      ? data.store.availableSamples
-                      : SAMPLE_OPTIONS.map(s => s.value);
-                    const isSelected = availableSamples.includes(sample.value);
-                    return (
-                      <div
-                        key={sample.value}
-                        className={`flex items-center gap-3 p-3 rounded-lg border-2 ${
-                          isSelected
-                            ? 'border-green-500 bg-green-50'
-                            : 'border-gray-200 bg-gray-50 opacity-50'
-                        }`}
-                      >
-                        <div className={`text-xl ${isSelected ? '' : 'opacity-40'}`}>
-                          {isSelected ? '✓' : '○'}
-                        </div>
-                        <div className="text-sm">
-                          <div className={`font-medium ${isSelected ? 'text-gray-900' : 'text-gray-500'}`}>
-                            {sample.label.split(' - ')[0]}
-                          </div>
-                          <div className={`text-xs ${isSelected ? 'text-gray-600' : 'text-gray-400'}`}>
-                            {sample.label.split(' - ')[1]}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
                 </div>
               </div>
             )}
@@ -1224,21 +1175,41 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {SAMPLE_OPTIONS.map((option) => {
                   const isAvailable = (data.store.availableSamples || []).includes(option.value);
+                  
+                  // Map sample SKUs to their 4ct bag image paths
+                  const sampleImageMap: Record<string, string> = {
+                    'slumber-berry': '/images/products/4ct-SlumberBerry-Bag.png',
+                    'bliss-berry': '/images/products/4ct-BlissBerry-Bag.png',
+                    // berry-chill doesn't have an image yet
+                  };
+                  
+                  const imageUrl = sampleImageMap[option.value];
+                  
                   return (
                     <div
                       key={option.value}
-                      className={`border-2 rounded-lg p-4 ${
+                      className={`border-2 rounded-lg overflow-hidden ${
                         isAvailable ? 'border-purple-500 bg-purple-50' : 'border-gray-200 bg-gray-50'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="text-3xl">🍬</div>
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-sm">{option.label}</h3>
-                          <p className="text-xs text-gray-600 mt-1">
-                            {isAvailable ? '✓ Currently Offered' : '✗ Not Offered'}
-                          </p>
-                        </div>
+                      {/* Product Image */}
+                      <div className="h-32 bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center p-3">
+                        {imageUrl ? (
+                          <img
+                            src={imageUrl}
+                            alt={option.label}
+                            className="max-h-full max-w-full object-contain"
+                          />
+                        ) : (
+                          <div className="text-4xl">🍬</div>
+                        )}
+                      </div>
+                      
+                      <div className="p-4">
+                        <h3 className="font-semibold text-sm">{option.label}</h3>
+                        <p className="text-xs text-gray-600 mt-1">
+                          {isAvailable ? '✓ Currently Offered' : '✗ Not Offered'}
+                        </p>
                       </div>
                     </div>
                   );
@@ -1259,8 +1230,8 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                   onClick={() => setShowPurchaseRequest(true)}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold flex items-center gap-2"
                 >
-                  <span>🛒</span>
-                  Request Product Purchase
+                  <span>+</span>
+                  Create Purchase Order
                 </button>
               </div>
 
@@ -1272,7 +1243,9 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {products.map((product: any) => {
+                {products
+                  .filter((product: any) => product.productType !== 'wholesale-box')
+                  .map((product: any) => {
                   const isOffered = (data.store as any).availableProducts?.includes(product.sku) || false;
                   
                   return (
@@ -1732,18 +1705,18 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
       {/* Purchase Request Modal */}
       {showPurchaseRequest && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-start mb-4">
               <div>
-                <h3 className="text-xl font-bold">Request Product Purchase</h3>
+                <h3 className="text-xl font-bold">Request Wholesale Product Order</h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  Select products you'd like to order and send a purchase inquiry to VitaDreamz
+                  Select boxes and quantities for your wholesale order inquiry
                 </p>
               </div>
               <button
                 onClick={() => {
                   setShowPurchaseRequest(false);
-                  setSelectedPurchaseProducts([]);
+                  setBoxQuantities({});
                   setPurchaseRequestNotes('');
                 }}
                 className="text-gray-400 hover:text-gray-600"
@@ -1756,48 +1729,160 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
               <div className="text-center py-8 text-gray-500">Loading products...</div>
             ) : (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-                  {products.map((product: any) => {
-                    const isSelected = selectedPurchaseProducts.includes(product.sku);
-                    return (
-                      <label
-                        key={product.sku}
-                        className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                          isSelected ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedPurchaseProducts([...selectedPurchaseProducts, product.sku]);
-                            } else {
-                              setSelectedPurchaseProducts(selectedPurchaseProducts.filter(s => s !== product.sku));
-                            }
-                          }}
-                          className="w-5 h-5 mt-0.5 rounded border-gray-300 text-green-600"
-                        />
-                        {product.imageUrl && (
-                          <img
-                            src={product.imageUrl}
-                            alt={product.name}
-                            className="w-16 h-16 object-cover rounded"
-                          />
-                        )}
-                        <div className="flex-1">
-                          <div className="font-semibold text-sm">{product.name}</div>
-                          {product.description && (
-                            <div className="text-xs text-gray-600">{product.description}</div>
+                <div className="grid grid-cols-1 gap-4 mb-6">
+                  {products
+                    .filter((p: any) => p.productType === 'wholesale-box')
+                    .sort((a: any, b: any) => {
+                      // Hardcoded sort order
+                      const order = [
+                        'VD-SB-4-BX',   // Slumber Berry - 4ct Box
+                        'VD-SB-30-BX',  // Slumber Berry - 30ct Box
+                        'VD-SB-60-BX',  // Slumber Berry - 60ct Box
+                        'VD-BB-4-BX',   // Bliss Berry - 4ct Box
+                        'VD-BB-30-BX',  // Bliss Berry - 30ct Box
+                        'VD-BB-60-BX',  // Bliss Berry - 60ct Box
+                        'VD-CC-4-BX',   // Berry Chill - 4ct Box
+                        'VD-CC-20-BX',  // Berry Chill - 20ct Box
+                        'VD-CC-60-BX',  // Berry Chill - 60ct Box
+                      ];
+                      const indexA = order.indexOf(a.sku);
+                      const indexB = order.indexOf(b.sku);
+                      // If not in list, push to end
+                      if (indexA === -1 && indexB === -1) return 0;
+                      if (indexA === -1) return 1;
+                      if (indexB === -1) return -1;
+                      return indexA - indexB;
+                    })
+                    .map((product: any) => {
+                      const qty = boxQuantities[product.sku] || 0;
+                      const wholesalePrice = parseFloat(product.wholesalePrice || 0);
+                      const retailPrice = parseFloat(product.retailPrice || 0);
+                      const boxPrice = parseFloat(product.price);
+                      const unitsPerBox = product.unitsPerBox || 1;
+                      const margin = retailPrice > 0 ? ((retailPrice - wholesalePrice) / retailPrice * 100).toFixed(0) : 0;
+                      
+                      return (
+                        <div
+                          key={product.sku}
+                          className={`flex items-start gap-4 p-4 rounded-lg border-2 transition-all ${
+                            qty > 0 ? 'border-green-500 bg-green-50' : 'border-gray-200'
+                          }`}
+                        >
+                          {product.imageUrl && (
+                            <img
+                              src={product.imageUrl}
+                              alt={product.name}
+                              className="w-20 h-20 object-cover rounded"
+                            />
                           )}
-                          <div className="text-sm font-bold text-green-600 mt-1">
-                            ${parseFloat(product.price).toFixed(2)}
+                          <div className="flex-1">
+                            <div className="font-bold text-base">{product.name}</div>
+                            {product.description && (
+                              <div className="text-xs text-gray-600 mb-2">{product.description}</div>
+                            )}
+                            <div className="text-sm space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-600">Box ({unitsPerBox} units):</span>
+                                <span className="font-bold text-green-600">${boxPrice.toFixed(2)}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-600">Per Unit:</span>
+                                <span className="font-semibold">${wholesalePrice.toFixed(2)}</span>
+                                <span className="text-gray-400">→</span>
+                                <span className="font-semibold">${retailPrice.toFixed(2)}</span>
+                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{margin}% margin</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                const newQty = Math.max(0, qty - 1);
+                                setBoxQuantities({ ...boxQuantities, [product.sku]: newQty });
+                              }}
+                              disabled={qty === 0}
+                              className="w-8 h-8 flex items-center justify-center rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed font-bold text-lg"
+                            >
+                              −
+                            </button>
+                            <input
+                              type="number"
+                              min="0"
+                              max="999"
+                              value={qty}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value) || 0;
+                                setBoxQuantities({ ...boxQuantities, [product.sku]: Math.max(0, Math.min(999, val)) });
+                              }}
+                              className="w-16 text-center border border-gray-300 rounded px-2 py-1 font-semibold"
+                            />
+                            <button
+                              onClick={() => {
+                                const newQty = Math.min(999, qty + 1);
+                                setBoxQuantities({ ...boxQuantities, [product.sku]: newQty });
+                              }}
+                              className="w-8 h-8 flex items-center justify-center rounded border border-gray-300 hover:bg-gray-100 font-bold text-lg"
+                            >
+                              +
+                            </button>
                           </div>
                         </div>
-                      </label>
-                    );
-                  })}
+                      );
+                    })}
                 </div>
+
+                {/* Order Summary */}
+                {(() => {
+                  const selectedBoxes = Object.entries(boxQuantities).filter(([_, qty]) => qty > 0);
+                  if (selectedBoxes.length === 0) return null;
+                  
+                  const totalBoxes = selectedBoxes.reduce((sum, [_, qty]) => sum + qty, 0);
+                  const totalCost = selectedBoxes.reduce((sum, [sku, qty]) => {
+                    const product = products.find((p: any) => p.sku === sku);
+                    return sum + (parseFloat(product?.price || 0) * qty);
+                  }, 0);
+                  const totalRetailValue = selectedBoxes.reduce((sum, [sku, qty]) => {
+                    const product = products.find((p: any) => p.sku === sku);
+                    const retailPrice = parseFloat(product?.retailPrice || 0);
+                    const unitsPerBox = product?.unitsPerBox || 1;
+                    return sum + (retailPrice * unitsPerBox * qty);
+                  }, 0);
+                  
+                  return (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                      <h4 className="font-bold text-sm mb-3">Order Summary</h4>
+                      <div className="space-y-2 text-sm">
+                        {selectedBoxes.map(([sku, qty]) => {
+                          const product = products.find((p: any) => p.sku === sku);
+                          const boxPrice = parseFloat(product?.price || 0);
+                          return (
+                            <div key={sku} className="flex justify-between">
+                              <span>{product?.name} × {qty}</span>
+                              <span className="font-semibold">${(boxPrice * qty).toFixed(2)}</span>
+                            </div>
+                          );
+                        })}
+                        <div className="border-t border-blue-200 pt-2 mt-2">
+                          <div className="flex justify-between font-bold">
+                            <span>Subtotal ({totalBoxes} boxes)</span>
+                            <span className="text-green-600">${totalCost.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs text-gray-600 mt-1">
+                            <span>Retail Value</span>
+                            <span>${totalRetailValue.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs font-semibold text-blue-700 mt-1">
+                            <span>Potential Profit</span>
+                            <span>${(totalRetailValue - totalCost).toFixed(2)}</span>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-2">
+                            + Shipping (to be determined)
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <div className="mb-6">
                   <label className="block text-sm font-medium mb-2">
@@ -1806,7 +1891,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                   <textarea
                     value={purchaseRequestNotes}
                     onChange={(e) => setPurchaseRequestNotes(e.target.value)}
-                    placeholder="e.g., Interested in ordering 50 units of each, need pricing for bulk order..."
+                    placeholder="e.g., When do you need delivery? Any special requirements?"
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 resize-none"
                     rows={3}
                   />
@@ -1816,7 +1901,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                   <button
                     onClick={() => {
                       setShowPurchaseRequest(false);
-                      setSelectedPurchaseProducts([]);
+                      setBoxQuantities({});
                       setPurchaseRequestNotes('');
                     }}
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
@@ -1825,7 +1910,8 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                   </button>
                   <button
                     onClick={async () => {
-                      if (selectedPurchaseProducts.length === 0) {
+                      const selectedBoxes = Object.entries(boxQuantities).filter(([_, qty]) => qty > 0);
+                      if (selectedBoxes.length === 0) {
                         alert('Please select at least one product');
                         return;
                       }
@@ -1838,7 +1924,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                           body: JSON.stringify({
                             storeId: data.store.storeId,
                             storeName: data.store.storeName,
-                            productSkus: selectedPurchaseProducts,
+                            boxQuantities,
                             notes: purchaseRequestNotes,
                             contactName: data.store.ownerName || data.store.adminName,
                             contactEmail: data.store.ownerEmail || data.store.adminEmail,
@@ -1847,9 +1933,9 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                         });
 
                         if (res.ok) {
-                          alert('✅ Purchase request sent to VitaDreamz! They will contact you soon.');
+                          alert('✅ Wholesale order request sent to VitaDreamz! They will contact you soon with shipping details and payment information.');
                           setShowPurchaseRequest(false);
-                          setSelectedPurchaseProducts([]);
+                          setBoxQuantities({});
                           setPurchaseRequestNotes('');
                         } else {
                           throw new Error('Failed to send request');
@@ -1861,10 +1947,10 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                         setSendingPurchaseRequest(false);
                       }
                     }}
-                    disabled={sendingPurchaseRequest || selectedPurchaseProducts.length === 0}
+                    disabled={sendingPurchaseRequest || Object.values(boxQuantities).every(q => q === 0)}
                     className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
                   >
-                    {sendingPurchaseRequest ? 'Sending...' : `Send Request (${selectedPurchaseProducts.length} products)`}
+                    {sendingPurchaseRequest ? 'Sending...' : 'Send Wholesale Order Request'}
                   </button>
                 </div>
               </>

@@ -70,12 +70,15 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
           if (data.orgId) {
             console.log('[Activate] Fetching products for orgId:', data.orgId);
             const productsRes = await fetch(`/api/products?orgId=${data.orgId}`);
+            console.log('[Activate] Products response status:', productsRes.status);
             if (productsRes.ok) {
               const productsData = await productsRes.json();
+              console.log('[Activate] Products data:', productsData);
               console.log('[Activate] Products fetched:', productsData.products?.length || 0);
               setProducts(productsData.products || []);
             } else {
-              console.error('[Activate] Products fetch failed:', productsRes.status);
+              const errorText = await productsRes.text();
+              console.error('[Activate] Products fetch failed:', productsRes.status, errorText);
             }
           } else {
             console.warn('[Activate] No orgId in brand data');

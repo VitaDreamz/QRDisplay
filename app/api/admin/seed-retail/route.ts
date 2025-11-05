@@ -14,13 +14,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Find VitaDreamz organization
-    const org = await prisma.organization.findFirst({
-      where: { name: 'VitaDreamz' }
-    });
+    // Determine target organization
+    const targetOrgId = searchParams.get('orgId') || undefined;
+    let org = null as any;
+    if (targetOrgId) {
+      org = await prisma.organization.findFirst({ where: { orgId: targetOrgId } });
+    } else {
+      org = await prisma.organization.findFirst({ where: { name: 'VitaDreamz' } });
+    }
     
     if (!org) {
-      return NextResponse.json({ error: 'VitaDreamz organization not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Target organization not found' }, { status: 404 });
     }
     
     const retailProducts = [

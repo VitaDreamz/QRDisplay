@@ -35,6 +35,8 @@ type Customer = {
   redeemed: boolean;
   promoRedeemed: boolean;
   requestedAt: Date;
+  redeemedAt?: Date | null;
+  promoRedeemedAt?: Date | null;
 };
 
 type DashboardData = {
@@ -139,7 +141,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
   });
 
   // Sorting state for customers table
-  const [customerSortField, setCustomerSortField] = useState<'name' | 'phone' | 'sample' | 'status' | 'requestedAt'>('requestedAt');
+  const [customerSortField, setCustomerSortField] = useState<'name' | 'phone' | 'sample' | 'status' | 'requestedAt' | 'redeemTime' | 'purchaseTime' | 'lastActivity'>('requestedAt');
   const [customerSortDirection, setCustomerSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Sort customers based on selected column
@@ -165,6 +167,24 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
         aVal = score(a);
         bVal = score(b);
         break;
+      case 'redeemTime': {
+        const aMs = a.redeemedAt ? (new Date(a.redeemedAt).getTime() - new Date(a.requestedAt).getTime()) : Number.POSITIVE_INFINITY;
+        const bMs = b.redeemedAt ? (new Date(b.redeemedAt).getTime() - new Date(b.requestedAt).getTime()) : Number.POSITIVE_INFINITY;
+        aVal = aMs; bVal = bMs; break;
+      }
+      case 'purchaseTime': {
+        const aStart = a.redeemedAt || a.requestedAt;
+        const bStart = b.redeemedAt || b.requestedAt;
+        const aMs = a.promoRedeemedAt ? (new Date(a.promoRedeemedAt).getTime() - new Date(aStart).getTime()) : Number.POSITIVE_INFINITY;
+        const bMs = b.promoRedeemedAt ? (new Date(b.promoRedeemedAt).getTime() - new Date(bStart).getTime()) : Number.POSITIVE_INFINITY;
+        aVal = aMs; bVal = bMs; break;
+      }
+      case 'lastActivity': {
+        const aLast = new Date(a.promoRedeemedAt || a.redeemedAt || a.requestedAt).getTime();
+        const bLast = new Date(b.promoRedeemedAt || b.redeemedAt || b.requestedAt).getTime();
+        // For last activity, more recent first when desc
+        aVal = aLast; bVal = bLast; break;
+      }
       case 'requestedAt':
       default:
         aVal = new Date(a.requestedAt).getTime();
@@ -205,6 +225,17 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
     return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  // Format a duration (ms) like 2d 3h or 45m
+  const formatDuration = (ms: number) => {
+    if (ms <= 0 || !isFinite(ms)) return '—';
+    const mins = Math.floor(ms / 60000);
+    if (mins < 60) return `${mins}m`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ${mins % 60}m`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ${hours % 24}h`;
   };
 
   const savePromo = async (e: React.FormEvent) => {
@@ -894,6 +925,23 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                   </div>
                   <div className="text-sm text-gray-600">{customer.sampleChoice}</div>
                   <div className="text-xs text-gray-500 mt-1">{formatRelativeTime(customer.requestedAt)}</div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    {(() => {
+                      const redeemMs = customer.redeemedAt ? (new Date(customer.redeemedAt).getTime() - new Date(customer.requestedAt).getTime()) : 0;
+                      const startForPurchase = (customer.redeemedAt || customer.requestedAt) as Date;
+                      const purchaseMs = customer.promoRedeemedAt ? (new Date(customer.promoRedeemedAt).getTime() - new Date(startForPurchase).getTime()) : 0;
+                      const last = new Date((customer.promoRedeemedAt || customer.redeemedAt || customer.requestedAt) as Date);
+                      const lastMs = Date.now() - last.getTime();
+                      return (
+                        <span>
+                          {customer.redeemed ? `Redeem: ${formatDuration(redeemMs)}` : 'Redeem: —'}
+                          {' • '}
+                          {customer.promoRedeemed ? `1st: ${formatDuration(purchaseMs)}` : '1st: —'}
+                          {' • Last: '}{formatDuration(lastMs)} ago
+                        </span>
+                      );
+                    })()}
+                  </div>
                 </div>
               ))}
             </div>
@@ -936,6 +984,30 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                       </div>
                     </th>
                     <th
+                      onClick={() => handleCustomerSort('redeemTime')}
+                      className="px-4 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-100 select-none"
+                    >
+                      <div className="flex items-center gap-1">
+                        Redeem Time {customerSortField === 'redeemTime' && (<span>{customerSortDirection === 'asc' ? '↑' : '↓'}</span>)}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleCustomerSort('purchaseTime')}
+                      className="px-4 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-100 select-none"
+                    >
+                      <div className="flex items-center gap-1">
+                        1st Purchase {customerSortField === 'purchaseTime' && (<span>{customerSortDirection === 'asc' ? '↑' : '↓'}</span>)}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleCustomerSort('lastActivity')}
+                      className="px-4 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-100 select-none"
+                    >
+                      <div className="flex items-center gap-1">
+                        Last Activity {customerSortField === 'lastActivity' && (<span>{customerSortDirection === 'asc' ? '↑' : '↓'}</span>)}
+                      </div>
+                    </th>
+                    <th
                       onClick={() => handleCustomerSort('requestedAt')}
                       className="px-4 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-100 select-none"
                     >
@@ -946,7 +1018,13 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {sortedCustomers.map((customer) => (
+                  {sortedCustomers.map((customer) => {
+                    const redeemMs = customer.redeemedAt ? (new Date(customer.redeemedAt).getTime() - new Date(customer.requestedAt).getTime()) : 0;
+                    const startForPurchase = (customer.redeemedAt || customer.requestedAt) as Date;
+                    const purchaseMs = customer.promoRedeemedAt ? (new Date(customer.promoRedeemedAt).getTime() - new Date(startForPurchase).getTime()) : 0;
+                    const last = new Date((customer.promoRedeemedAt || customer.redeemedAt || customer.requestedAt) as Date);
+                    const lastMs = Date.now() - last.getTime();
+                    return (
                     <tr key={customer.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm">{customer.firstName} {customer.lastName}</td>
                       <td className="px-4 py-3 text-sm">{customer.phone}</td>
@@ -966,11 +1044,14 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                           </span>
                         )}
                       </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{customer.redeemed ? formatDuration(redeemMs) : '—'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{customer.promoRedeemed ? formatDuration(purchaseMs) : '—'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">{formatDuration(lastMs)} ago</td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {formatRelativeTime(customer.requestedAt)}
                       </td>
                     </tr>
-                  ))}
+                  )})}
                 </tbody>
               </table>
             </div>

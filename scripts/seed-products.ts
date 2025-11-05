@@ -8,7 +8,18 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  const orgId = 'ORG-VITADREAMZ';
+  // Fetch the actual VitaDreamz organization
+  const organization = await prisma.organization.findFirst({
+    where: { name: 'VitaDreamz' }
+  });
+  
+  if (!organization) {
+    console.error('❌ VitaDreamz organization not found!');
+    process.exit(1);
+  }
+  
+  const orgId = organization.orgId;
+  console.log(`✓ Found VitaDreamz organization: ${orgId}\n`);
   
   const products = [
     {

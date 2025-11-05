@@ -508,6 +508,10 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
         const productsData = await res.json();
         console.log('✅ [Products Tab] Products received:', productsData.products?.length || 0);
         console.log('🔍 [Products Tab] Products data:', productsData.products);
+        // Log detailed info about each product
+        productsData.products?.forEach((p: any) => {
+          console.log(`📦 Product: ${p.sku} | Type: ${p.productType} | Active: ${p.active} | Name: ${p.name}`);
+        });
         setProducts(productsData.products || []);
       } else {
         console.error('❌ [Products Tab] API response not ok:', await res.text());

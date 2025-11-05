@@ -1223,7 +1223,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                 <div>
                   <h2 className="text-xl font-bold">Full-Size Products</h2>
                   <p className="text-sm text-gray-600 mt-1">
-                    Select which products your store will offer to customers
+                    These are the full-size products customers can purchase
                   </p>
                 </div>
                 <button
@@ -1231,7 +1231,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold flex items-center gap-2"
                 >
                   <span>+</span>
-                  Create Purchase Order
+                  Request Wholesale Order
                 </button>
               </div>
 
@@ -1244,7 +1244,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {products
-                  .filter((product: any) => product.productType !== 'wholesale-box')
+                  .filter((product: any) => product.productType === 'retail')
                   .map((product: any) => {
                   const isOffered = (data.store as any).availableProducts?.includes(product.sku) || false;
                   

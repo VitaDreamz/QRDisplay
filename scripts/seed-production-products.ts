@@ -74,7 +74,7 @@ async function seedProductionProducts() {
       name: 'Berry Chill - 60ct',
       description: 'D9 THC + Herbals - ChillOut Chewz',
       category: 'ChillOut',
-      price: 69.95,
+      price: 59.99,
       imageUrl: '/images/products/60ct-ChillOutChewz-Bag.png',
       active: true,
       featured: false

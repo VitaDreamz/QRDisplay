@@ -229,12 +229,13 @@ export async function POST(req: NextRequest) {
     });
 
     // If a setup photo was uploaded during the wizard on the display, carry it over to the store
+    let updatedStore = store;
     try {
       const displayPhoto = (await prisma.display.findUnique({
         where: { displayId },
       })) as any;
       if (displayPhoto && displayPhoto.setupPhotoUrl) {
-        await prisma.store.update({
+        updatedStore = await prisma.store.update({
           where: { storeId: store.storeId },
           data: {
             setupPhotoUrl: displayPhoto.setupPhotoUrl,
@@ -253,14 +254,14 @@ export async function POST(req: NextRequest) {
       where: { displayId },
       data: {
         status: 'active',
-        storeId: store.storeId,
+        storeId: updatedStore.storeId,
         activatedAt: new Date(),
       },
     });
 
     // Use permanent login link for store dashboard
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
-    const loginUrl = `${baseUrl}/store/login/${store.storeId}`;
+    const loginUrl = `${baseUrl}/store/login/${updatedStore.storeId}`;
 
     // Send activation email (non-blocking for overall activation)
     try {
@@ -281,10 +282,10 @@ export async function POST(req: NextRequest) {
             contactEmail: adminEmail,
             contactName: adminName,
             storeName,
-            storeId: store.storeId,
+            storeId: updatedStore.storeId,
             // Optional: photo info for enhanced template
-            setupPhotoUrl: (store as any).setupPhotoUrl,
-            setupPhotoCredit: (store as any).setupPhotoCredit,
+            setupPhotoUrl: (updatedStore as any).setupPhotoUrl,
+            setupPhotoCredit: (updatedStore as any).setupPhotoCredit,
           },
           display: { displayId },
           settings: {
@@ -314,8 +315,8 @@ export async function POST(req: NextRequest) {
               state,
               zipCode: zip,
               // Optional: photo info for enhanced template
-              setupPhotoUrl: (store as any).setupPhotoUrl,
-              setupPhotoCredit: (store as any).setupPhotoCredit,
+              setupPhotoUrl: (updatedStore as any).setupPhotoUrl,
+              setupPhotoCredit: (updatedStore as any).setupPhotoCredit,
             },
             display: { displayId },
             settings: { staffPin: pin },
@@ -356,7 +357,7 @@ export async function POST(req: NextRequest) {
 
       // 2. SMS to brand owner (if exists and has phone)
       if (brandOwner && brandOwner.phone) {
-        const ownerMessage = `New store activated! ${storeName} (${store.storeId}) in ${city}, ${state}. Contact: ${adminName} ${adminPhone}`;
+        const ownerMessage = `New store activated! ${storeName} (${updatedStore.storeId}) in ${city}, ${state}. Contact: ${adminName} ${adminPhone}`;
         
         await client.messages.create({
           to: brandOwner.phone,

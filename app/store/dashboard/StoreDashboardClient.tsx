@@ -37,6 +37,8 @@ type Customer = {
   requestedAt: Date;
   redeemedAt?: Date | null;
   promoRedeemedAt?: Date | null;
+  currentStage: string;
+  stageChangedAt: Date;
 };
 
 type DashboardData = {
@@ -141,7 +143,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
   });
 
   // Sorting state for customers table
-  const [customerSortField, setCustomerSortField] = useState<'name' | 'phone' | 'sample' | 'status' | 'requestedAt' | 'redeemTime' | 'purchaseTime' | 'lastActivity'>('requestedAt');
+  const [customerSortField, setCustomerSortField] = useState<'name' | 'phone' | 'sample' | 'status' | 'requestedAt' | 'redeemTime' | 'purchaseTime' | 'lastActivity' | 'followupDue' | 'daysInStage'>('requestedAt');
   const [customerSortDirection, setCustomerSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Sort customers based on selected column
@@ -184,6 +186,27 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
         const bLast = new Date(b.promoRedeemedAt || b.redeemedAt || b.requestedAt).getTime();
         // For last activity, more recent first when desc
         aVal = aLast; bVal = bLast; break;
+      }
+      case 'followupDue': {
+        // Calculate follow-up due date based on stage and followupDays
+        const getFollowupDate = (c: Customer) => {
+          const stage = c.currentStage;
+          const followupIndex = stage === 'pending' ? 0 : stage === 'redeemed' ? 1 : -1;
+          if (followupIndex === -1) return Number.POSITIVE_INFINITY; // No follow-up for purchased/repeat
+          
+          const daysToAdd = data.store.followupDays[followupIndex] || 0;
+          const baseDate = stage === 'pending' ? new Date(c.requestedAt) : new Date(c.redeemedAt || c.requestedAt);
+          return baseDate.getTime() + (daysToAdd * 24 * 60 * 60 * 1000);
+        };
+        aVal = getFollowupDate(a);
+        bVal = getFollowupDate(b);
+        break;
+      }
+      case 'daysInStage': {
+        // Time since entering current stage
+        aVal = new Date(a.stageChangedAt).getTime();
+        bVal = new Date(b.stageChangedAt).getTime();
+        break;
       }
       case 'requestedAt':
       default:
@@ -942,6 +965,37 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                       );
                     })()}
                   </div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    {(() => {
+                      const stage = customer.currentStage;
+                      const followupIndex = stage === 'pending' ? 0 : stage === 'redeemed' ? 1 : -1;
+                      const daysInStage = formatDuration(Date.now() - new Date(customer.stageChangedAt).getTime());
+                      
+                      if (followupIndex === -1) {
+                        return <span>Stage: {daysInStage}</span>;
+                      }
+                      
+                      const daysToAdd = data.store.followupDays[followupIndex] || 0;
+                      const baseDate = stage === 'pending' ? new Date(customer.requestedAt) : new Date(customer.redeemedAt || customer.requestedAt);
+                      const dueDate = new Date(baseDate.getTime() + (daysToAdd * 24 * 60 * 60 * 1000));
+                      const now = new Date();
+                      const diffMs = dueDate.getTime() - now.getTime();
+                      const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+                      
+                      let followupText = '';
+                      if (diffMs < 0) {
+                        followupText = `Follow-up: Overdue ${formatDuration(Math.abs(diffMs))}`;
+                      } else if (diffDays === 0) {
+                        followupText = 'Follow-up: Today';
+                      } else if (diffDays === 1) {
+                        followupText = 'Follow-up: Tomorrow';
+                      } else {
+                        followupText = `Follow-up: In ${diffDays}d`;
+                      }
+                      
+                      return <span>{followupText} • Stage: {daysInStage}</span>;
+                    })()}
+                  </div>
                 </div>
               ))}
             </div>
@@ -1008,6 +1062,22 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                       </div>
                     </th>
                     <th
+                      onClick={() => handleCustomerSort('followupDue')}
+                      className="px-4 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-100 select-none"
+                    >
+                      <div className="flex items-center gap-1">
+                        Follow-up Due {customerSortField === 'followupDue' && (<span>{customerSortDirection === 'asc' ? '↑' : '↓'}</span>)}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleCustomerSort('daysInStage')}
+                      className="px-4 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-100 select-none"
+                    >
+                      <div className="flex items-center gap-1">
+                        Days in Stage {customerSortField === 'daysInStage' && (<span>{customerSortDirection === 'asc' ? '↑' : '↓'}</span>)}
+                      </div>
+                    </th>
+                    <th
                       onClick={() => handleCustomerSort('requestedAt')}
                       className="px-4 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-100 select-none"
                     >
@@ -1047,6 +1117,35 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                       <td className="px-4 py-3 text-sm text-gray-700">{customer.redeemed ? formatDuration(redeemMs) : '—'}</td>
                       <td className="px-4 py-3 text-sm text-gray-700">{customer.promoRedeemed ? formatDuration(purchaseMs) : '—'}</td>
                       <td className="px-4 py-3 text-sm text-gray-700">{formatDuration(lastMs)} ago</td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {(() => {
+                          const stage = customer.currentStage;
+                          const followupIndex = stage === 'pending' ? 0 : stage === 'redeemed' ? 1 : -1;
+                          if (followupIndex === -1) return '—'; // No follow-up for purchased/repeat
+                          
+                          const daysToAdd = data.store.followupDays[followupIndex] || 0;
+                          const baseDate = stage === 'pending' ? new Date(customer.requestedAt) : new Date(customer.redeemedAt || customer.requestedAt);
+                          const dueDate = new Date(baseDate.getTime() + (daysToAdd * 24 * 60 * 60 * 1000));
+                          const now = new Date();
+                          const diffMs = dueDate.getTime() - now.getTime();
+                          const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+                          
+                          if (diffMs < 0) {
+                            return <span className="text-red-600 font-medium">Overdue {formatDuration(Math.abs(diffMs))}</span>;
+                          } else if (diffDays === 0) {
+                            return <span className="text-orange-600 font-medium">Today</span>;
+                          } else if (diffDays === 1) {
+                            return <span className="text-orange-500">Tomorrow</span>;
+                          } else if (diffDays <= 3) {
+                            return <span className="text-yellow-600">In {diffDays}d</span>;
+                          } else {
+                            return <span className="text-gray-600">In {diffDays}d</span>;
+                          }
+                        })()}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {formatDuration(Date.now() - new Date(customer.stageChangedAt).getTime())}
+                      </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {formatRelativeTime(customer.requestedAt)}
                       </td>

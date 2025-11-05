@@ -110,6 +110,9 @@ model Store {
   // Available sample products (stores choose which samples they carry)
   availableSamples String[] @default([])
   
+  // Available products for purchase (SKUs that this store carries)
+  availableProducts String[] @default([])
+  
   activatedAt  DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -238,6 +241,10 @@ model Customer {
   promoRedeemed    Boolean   @default(false)
   promoRedeemedAt  DateTime?
   
+  // Lifecycle stage tracking
+  currentStage     String    @default("pending") // pending, redeemed, purchased, repeat
+  stageChangedAt   DateTime  @default(now())
+  
   requestedAt  DateTime  @default(now())
   
   organization Organization @relation(fields: [orgId], references: [orgId])
@@ -245,6 +252,7 @@ model Customer {
   redeemedByStaff      Staff?  @relation("RedeemedByStaff", fields: [redeemedByStaffId], references: [id], onDelete: SetNull)
   promoRedeemedByStaff Staff?  @relation("PromoRedeemedByStaff", fields: [promoRedeemedByStaffId], references: [id], onDelete: SetNull)
   promoRedemptions PromoRedemption[]
+  purchaseIntents  PurchaseIntent[]
   
   @@map("customers")
 }
@@ -314,6 +322,69 @@ model Shortlink {
   usedAt      DateTime?
   
   @@map("shortlinks")
+}
+
+// Products (SKUs that brands sell)
+model Product {
+  id          String   @id @default(cuid())
+  sku         String   @unique
+  orgId       String   // Which brand owns this product
+  
+  name        String
+  description String?
+  category    String?
+  
+  price       Decimal  @db.Decimal(10, 2)
+  msrp        Decimal? @db.Decimal(10, 2)
+  
+  imageUrl    String?
+  
+  // Status flags
+  active      Boolean  @default(true)
+  featured    Boolean  @default(false)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  purchaseIntents PurchaseIntent[]
+  
+  @@map("products")
+}
+
+// Purchase Intents (customer selects product, store fulfills)
+model PurchaseIntent {
+  id          String   @id @default(cuid())
+  
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id])
+  
+  storeId     String
+  
+  productSku  String
+  product     Product  @relation(fields: [productSku], references: [sku])
+  
+  // Pricing at time of intent
+  originalPrice  Decimal  @db.Decimal(10, 2)
+  discountPercent Int     // e.g., 20 for 20% off
+  finalPrice     Decimal  @db.Decimal(10, 2)
+  
+  // Status tracking
+  status      String   @default("pending") // pending, fulfilled, cancelled
+  
+  // Verify link for in-store redemption
+  verifySlug  String   @unique
+  
+  fulfilledAt DateTime?
+  fulfilledBy String?  // Staff ID who completed the sale
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([customerId])
+  @@index([storeId])
+  @@index([productSku])
+  
+  @@map("purchase_intents")
 }
 
 // Promo Redemptions

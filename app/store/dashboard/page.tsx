@@ -107,7 +107,9 @@ export default async function StoreDashboardPage() {
       promoRedeemed: c.promoRedeemed,
       requestedAt: c.requestedAt,
       redeemedAt: c.redeemedAt,
-      promoRedeemedAt: c.promoRedeemedAt
+      promoRedeemedAt: c.promoRedeemedAt,
+      currentStage: c.currentStage,
+      stageChangedAt: c.stageChangedAt
     })),
     displays: displays,
     organization: organization,

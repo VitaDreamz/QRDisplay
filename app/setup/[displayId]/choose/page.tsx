@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { WizardLayout } from '@/components/wizard/WizardLayout';
 import { useWizardProgress } from '@/hooks/useWizardProgress';
 
@@ -38,7 +39,7 @@ export default function ChooseDisplayPage({ params }: { params: Promise<{ displa
       id: 'A' as DisplayOption,
       title: 'Display + Sample Stand',
       icon: '🏪',
-      image: '📱 + 🎣',
+      imagePath: '/images/displays/vitadreamz-display-assembled.jpg',
       bestFor: 'Counter/high-traffic areas',
       description: 'Full setup with QR display and sample product stand'
     },
@@ -46,7 +47,7 @@ export default function ChooseDisplayPage({ params }: { params: Promise<{ displa
       id: 'B' as DisplayOption,
       title: 'Just the Display',
       icon: '📱',
-      image: '📱',
+      imagePath: '/images/displays/vitadreamz-display-front.jpg',
       bestFor: 'Small counters/checkouts',
       description: 'Compact setup with display only'
     },
@@ -54,7 +55,7 @@ export default function ChooseDisplayPage({ params }: { params: Promise<{ displa
       id: 'C' as DisplayOption,
       title: 'Shelf Talker (POS Box)',
       icon: '🏷️',
-      image: '🏷️ + 📦',
+      imagePath: '/images/displays/vitadreamz-display-front.jpg',
       bestFor: 'Point-of-sale areas',
       description: 'Attach display to your POS box or shelf edge'
     }
@@ -106,10 +107,16 @@ export default function ChooseDisplayPage({ params }: { params: Promise<{ displa
               </div>
             </div>
             
-            {/* Image Placeholder */}
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-6 mb-3 text-center border border-gray-200">
-              <div className="text-4xl mb-2">{option.image}</div>
-              <div className="text-xs text-gray-500">Visual guide coming soon</div>
+            {/* Product Image */}
+            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg overflow-hidden mb-3 border border-gray-200">
+              <div className="relative w-full h-64">
+                <Image
+                  src={option.imagePath}
+                  alt={option.title}
+                  fill
+                  className="object-contain p-4"
+                />
+              </div>
             </div>
             
             {/* Best For */}

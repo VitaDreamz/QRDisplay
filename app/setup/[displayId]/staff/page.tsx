@@ -61,7 +61,7 @@ export default function AddStaffPage({ params }: { params: Promise<{ displayId: 
 
     try {
       // First, get the storeId from the display
-      const displayRes = await fetch(`/api/displays/${displayId}`);
+      const displayRes = await fetch(`/api/displays/${displayId}/info`);
       if (!displayRes.ok) {
         throw new Error('Could not find store');
       }
@@ -297,7 +297,7 @@ export default function AddStaffPage({ params }: { params: Promise<{ displayId: 
                 type="button"
                 onClick={() => {
                   // Get storeId and redirect to dashboard
-                  fetch(`/api/displays/${displayId}`)
+                  fetch(`/api/displays/${displayId}/info`)
                     .then(res => res.json())
                     .then(data => {
                       if (data.storeId) {

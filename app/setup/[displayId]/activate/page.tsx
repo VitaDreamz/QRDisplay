@@ -57,37 +57,23 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
     params.then(async (p) => {
       setDisplayId(p.displayId);
       
-      // Fetch brand info and products
+      // Simplified: Just fetch products directly for VitaDreamz
       try {
-        console.log('[Activate] Fetching brand info for display:', p.displayId);
-        const res = await fetch(`/api/displays/${p.displayId}/brand`);
-        if (res.ok) {
-          const data = await res.json();
-          console.log('[Activate] Brand info:', data);
-          setBrandInfo(data);
-          
-          // Fetch products for this brand
-          if (data.orgId) {
-            console.log('[Activate] Fetching products for orgId:', data.orgId);
-            const productsRes = await fetch(`/api/products?orgId=${data.orgId}`);
-            console.log('[Activate] Products response status:', productsRes.status);
-            if (productsRes.ok) {
-              const productsData = await productsRes.json();
-              console.log('[Activate] Products data:', productsData);
-              console.log('[Activate] Products fetched:', productsData.products?.length || 0);
-              setProducts(productsData.products || []);
-            } else {
-              const errorText = await productsRes.text();
-              console.error('[Activate] Products fetch failed:', productsRes.status, errorText);
-            }
-          } else {
-            console.warn('[Activate] No orgId in brand data');
-          }
+        console.log('[Activate] Fetching products for VitaDreamz');
+        const orgId = 'ORG-VITADREAMZ';
+        const productsRes = await fetch(`/api/products?orgId=${orgId}`);
+        console.log('[Activate] Products response status:', productsRes.status);
+        if (productsRes.ok) {
+          const productsData = await productsRes.json();
+          console.log('[Activate] Products data:', productsData);
+          console.log('[Activate] Products fetched:', productsData.products?.length || 0);
+          setProducts(productsData.products || []);
         } else {
-          console.error('[Activate] Brand fetch failed:', res.status);
+          const errorText = await productsRes.text();
+          console.error('[Activate] Products fetch failed:', productsRes.status, errorText);
         }
       } catch (err) {
-        console.error('[Activate] Failed to fetch brand info:', err);
+        console.error('[Activate] Failed to fetch products:', err);
       }
     });
   }, [params]);
@@ -518,11 +504,7 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
               Select which full-size products your store will carry. When customers redeem their promo code, they'll choose from these products. <span className="text-purple-600 font-medium">(Optional - you can add these later)</span>
             </p>
             
-            {!brandInfo ? (
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center text-gray-500 text-sm">
-                Loading brand information...
-              </div>
-            ) : products.length === 0 && brandInfo ? (
+            {products.length === 0 ? (
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center text-gray-500 text-sm">
                 <div>No products available yet.</div>
                 <div className="text-xs mt-2">You can add products later from your dashboard.</div>
@@ -543,6 +525,13 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
                       }}
                       className="w-5 h-5 mt-0.5 rounded border-gray-300 text-purple-600"
                     />
+                    {product.imageUrl && (
+                      <img 
+                        src={product.imageUrl} 
+                        alt={product.name}
+                        className="w-16 h-16 object-cover rounded border"
+                      />
+                    )}
                     <div className="flex-1 text-sm">
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{product.name}</span>

@@ -3,11 +3,10 @@ import prisma from '@/lib/prisma';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ displayId: string }> }
+  context: { params: Promise<{ displayId: string }> }
 ) {
-  const { displayId } = await params;
-
   try {
+    const { displayId } = await context.params;
     // Get display with organization info
     const display = (await prisma.display.findUnique({
       where: { displayId },

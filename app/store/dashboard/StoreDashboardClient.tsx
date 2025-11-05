@@ -112,6 +112,12 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
     data.store.availableSamples || []
   );
   
+  // Purchase Request state
+  const [showPurchaseRequest, setShowPurchaseRequest] = useState(false);
+  const [selectedPurchaseProducts, setSelectedPurchaseProducts] = useState<string[]>([]);
+  const [purchaseRequestNotes, setPurchaseRequestNotes] = useState('');
+  const [sendingPurchaseRequest, setSendingPurchaseRequest] = useState(false);
+  
   const [saving, setSaving] = useState(false);
   const [blasting, setBlasting] = useState(false);
 
@@ -1197,15 +1203,66 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
 
         {/* Products Tab */}
         {activeTab === 'products' && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6">
-              <div>
-                <h2 className="text-xl font-bold">Products</h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Select which products your store will offer to customers
-                </p>
+          <div className="space-y-6">
+            {/* Available Samples Section */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6">
+                <div>
+                  <h2 className="text-xl font-bold">Available Samples</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    These are the free sample options customers can choose from
+                  </p>
+                </div>
+                <button
+                  onClick={() => setEditingSamples(true)}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-semibold"
+                >
+                  Edit Samples
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {SAMPLE_OPTIONS.map((option) => {
+                  const isAvailable = (data.store.availableSamples || []).includes(option.value);
+                  return (
+                    <div
+                      key={option.value}
+                      className={`border-2 rounded-lg p-4 ${
+                        isAvailable ? 'border-purple-500 bg-purple-50' : 'border-gray-200 bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="text-3xl">🍬</div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-sm">{option.label}</h3>
+                          <p className="text-xs text-gray-600 mt-1">
+                            {isAvailable ? '✓ Currently Offered' : '✗ Not Offered'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
+
+            {/* Full-Size Products Section */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6">
+                <div>
+                  <h2 className="text-xl font-bold">Full-Size Products</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Select which products your store will offer to customers
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowPurchaseRequest(true)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold flex items-center gap-2"
+                >
+                  <span>🛒</span>
+                  Request Product Purchase
+                </button>
+              </div>
 
             {loadingProducts ? (
               <div className="text-center py-8 text-gray-500">Loading products...</div>
@@ -1307,6 +1364,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                 })}
               </div>
             )}
+            </div>
           </div>
         )}
 
@@ -1670,6 +1728,150 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
           )}
         </div>
       </div>
+
+      {/* Purchase Request Modal */}
+      {showPurchaseRequest && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-xl font-bold">Request Product Purchase</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Select products you'd like to order and send a purchase inquiry to VitaDreamz
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowPurchaseRequest(false);
+                  setSelectedPurchaseProducts([]);
+                  setPurchaseRequestNotes('');
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            {loadingProducts ? (
+              <div className="text-center py-8 text-gray-500">Loading products...</div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+                  {products.map((product: any) => {
+                    const isSelected = selectedPurchaseProducts.includes(product.sku);
+                    return (
+                      <label
+                        key={product.sku}
+                        className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                          isSelected ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedPurchaseProducts([...selectedPurchaseProducts, product.sku]);
+                            } else {
+                              setSelectedPurchaseProducts(selectedPurchaseProducts.filter(s => s !== product.sku));
+                            }
+                          }}
+                          className="w-5 h-5 mt-0.5 rounded border-gray-300 text-green-600"
+                        />
+                        {product.imageUrl && (
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            className="w-16 h-16 object-cover rounded"
+                          />
+                        )}
+                        <div className="flex-1">
+                          <div className="font-semibold text-sm">{product.name}</div>
+                          {product.description && (
+                            <div className="text-xs text-gray-600">{product.description}</div>
+                          )}
+                          <div className="text-sm font-bold text-green-600 mt-1">
+                            ${parseFloat(product.price).toFixed(2)}
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                <div className="mb-6">
+                  <label className="block text-sm font-medium mb-2">
+                    Additional Notes (Optional)
+                  </label>
+                  <textarea
+                    value={purchaseRequestNotes}
+                    onChange={(e) => setPurchaseRequestNotes(e.target.value)}
+                    placeholder="e.g., Interested in ordering 50 units of each, need pricing for bulk order..."
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 resize-none"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowPurchaseRequest(false);
+                      setSelectedPurchaseProducts([]);
+                      setPurchaseRequestNotes('');
+                    }}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (selectedPurchaseProducts.length === 0) {
+                        alert('Please select at least one product');
+                        return;
+                      }
+
+                      setSendingPurchaseRequest(true);
+                      try {
+                        const res = await fetch('/api/stores/purchase-request', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            storeId: data.store.storeId,
+                            storeName: data.store.storeName,
+                            productSkus: selectedPurchaseProducts,
+                            notes: purchaseRequestNotes,
+                            contactName: data.store.ownerName || data.store.adminName,
+                            contactEmail: data.store.ownerEmail || data.store.adminEmail,
+                            contactPhone: data.store.ownerPhone || data.store.adminPhone,
+                          })
+                        });
+
+                        if (res.ok) {
+                          alert('✅ Purchase request sent to VitaDreamz! They will contact you soon.');
+                          setShowPurchaseRequest(false);
+                          setSelectedPurchaseProducts([]);
+                          setPurchaseRequestNotes('');
+                        } else {
+                          throw new Error('Failed to send request');
+                        }
+                      } catch (err) {
+                        console.error('Failed to send purchase request:', err);
+                        alert('❌ Failed to send purchase request. Please try again.');
+                      } finally {
+                        setSendingPurchaseRequest(false);
+                      }
+                    }}
+                    disabled={sendingPurchaseRequest || selectedPurchaseProducts.length === 0}
+                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                  >
+                    {sendingPurchaseRequest ? 'Sending...' : `Send Request (${selectedPurchaseProducts.length} products)`}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Edit Promo Modal */}
       {editingPromo && (

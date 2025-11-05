@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     console.log('[Products API] GET request received');
     console.log('[Products API] orgId param:', orgId);
     
-    const where = orgId ? { orgId } : {};
+    const where = orgId ? { orgId, active: true } : { active: true };
     console.log('[Products API] where clause:', JSON.stringify(where));
     
     const products = await prisma.product.findMany({

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { put } from '@vercel/blob';
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,24 +15,25 @@ export async function POST(req: NextRequest) {
       );
     }
     
-  // Upload to storage (Vercel Blob, S3, Cloudinary, etc.)
-    // For now, we'll just log it and return success
+    // Upload to Vercel Blob Storage
     let photoUrl = '';
     try {
-      // TODO: Implement actual storage upload
-  // const { put } = await import('@vercel/blob');
-  // const blob = await put(`setup-photos/${displayId}-${Date.now()}.jpg`, photo, {
-  //   access: 'public',
-  // });
-  // photoUrl = blob.url;
+      console.log(`📸 Uploading photo for ${displayId}: ${photo.name}, size: ${photo.size} bytes`);
       
-      // For now, just acknowledge the upload
-      photoUrl = `setup-photo-${displayId}-${Date.now()}`;
-      console.log(`Photo uploaded: ${photo.name}, size: ${photo.size} bytes`);
+      // Upload to Vercel Blob with public access
+      const blob = await put(`setup-photos/${displayId}-${Date.now()}.${photo.name.split('.').pop()}`, photo, {
+        access: 'public',
+        addRandomSuffix: true,
+      });
+      
+      photoUrl = blob.url;
+      console.log(`✅ Photo uploaded successfully: ${photoUrl}`);
     } catch (uploadError) {
-      console.error('Upload error:', uploadError);
-      // Still return success - we got the photo
-      photoUrl = 'uploaded';
+      console.error('❌ Photo upload to Vercel Blob failed:', uploadError);
+      return NextResponse.json(
+        { success: false, error: 'Photo upload failed' },
+        { status: 500 }
+      );
     }
     
     // Save photo URL to database and mark credit

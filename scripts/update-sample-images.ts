@@ -12,7 +12,7 @@ async function main() {
     cd public/images && \
     cp "displays/4ct-SlumberBerry-Bag.png" "products/slumber-berry-sample.jpg" && \
     cp "displays/4ct-BlissBerry-Bag.png" "products/bliss-berry-sample.jpg" && \
-    cp "displays/20ct-ChillOut Chewz-Bag.png" "products/berry-chill-sample.jpg"
+    cp "displays/20ct-ChillOutChewz-Bag.png" "products/berry-chill-sample.jpg"
   `);
   
   console.log('✅ Images copied\n');

@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     // Update Berry Chill 4ct box
     await prisma.product.update({
       where: { sku: 'VD-CC-4-BX' },
-      data: { imageUrl: '/images/products/20ct-ChillOut Chewz-Bag.png' }
+      data: { imageUrl: '/images/products/20ct-ChillOutChewz-Bag.png' }
     });
     updates.push('Berry Chill 4ct bag');
 
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     if (berryChillBox) {
       await prisma.product.update({
         where: { sku: 'VD-CC-20-BX' },
-        data: { imageUrl: '/images/products/20ct-ChillOut Chewz-Bag.png' }
+        data: { imageUrl: '/images/products/20ct-ChillOutChewz-Bag.png' }
       });
       updates.push('Berry Chill 20ct box');
     }
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
       { sku: 'VD-SB-60', imageUrl: '/images/products/60ct-SlumberBerry-Bag.png', name: 'SB 60ct retail' },
       { sku: 'VD-BB-30', imageUrl: '/images/products/30ct-BlissBerry-Bag.png', name: 'BB 30ct retail' },
       { sku: 'VD-BB-60', imageUrl: '/images/products/60ct-BlissBerry-Bag.png', name: 'BB 60ct retail' },
-      { sku: 'VD-CC-20', imageUrl: '/images/products/20ct-ChillOut Chewz-Bag.png', name: 'CC 20ct retail' },
+      { sku: 'VD-CC-20', imageUrl: '/images/products/20ct-ChillOutChewz-Bag.png', name: 'CC 20ct retail' },
       { sku: 'VD-CC-60', imageUrl: '/images/products/60ct-ChillOutChewz-Bag.png', name: 'CC 60ct retail' },
     ];
 

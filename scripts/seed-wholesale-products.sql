@@ -20,7 +20,7 @@ ON CONFLICT (sku) DO NOTHING;
 -- Insert Berry Chill 20ct box
 INSERT INTO products (sku, name, description, category, price, msrp, "imageUrl", active, featured, "productType", "unitsPerBox", "wholesalePrice", "retailPrice", "orgId")
 VALUES 
-('VD-CC-20-BX', 'Berry Chill - 20ct Box', 'D9 THC + Herbals - ChillOut Chewz (Box of 10)', 'ChillOut', 24.95, 24.95, '/images/products/20ct-ChillOut Chewz-Bag.png', true, false, 'wholesale-box', 10, 150.00, 249.50, 'ORG-VITADREAMZ')
+('VD-CC-20-BX', 'Berry Chill - 20ct Box', 'D9 THC + Herbals - ChillOut Chewz (Box of 10)', 'ChillOut', 24.95, 24.95, '/images/products/20ct-ChillOutChewz-Bag.png', true, false, 'wholesale-box', 10, 150.00, 249.50, 'ORG-VITADREAMZ')
 ON CONFLICT (sku) DO NOTHING;
 
 -- Insert 4ct boxes (20 units per box)
@@ -28,7 +28,7 @@ INSERT INTO products (sku, name, description, category, price, msrp, "imageUrl",
 VALUES 
 ('VD-SB-4-BX', 'Slumber Berry - 4ct Box', 'CBD + Melatonin & Herbals - Sleep Gummies (Box of 20)', 'Sleep', 4.99, 4.99, '/images/products/4ct-SlumberBerry-Bag.png', true, false, 'wholesale-box', 20, 45.00, 99.80, 'ORG-VITADREAMZ'),
 ('VD-BB-4-BX', 'Bliss Berry - 4ct Box', 'Magnesium + Herbals - Relax & Sleep Gummies (Box of 20)', 'Relax', 3.99, 3.99, '/images/products/4ct-BlissBerry-Bag.png', true, false, 'wholesale-box', 20, 40.00, 79.80, 'ORG-VITADREAMZ'),
-('VD-CC-4-BX', 'Berry Chill - 4ct Box', 'D9 THC + Herbals - ChillOut Chewz (Box of 20)', 'ChillOut', 5.99, 5.99, '/images/products/20ct-ChillOut Chewz-Bag.png', true, false, 'wholesale-box', 20, 54.00, 119.80, 'ORG-VITADREAMZ')
+('VD-CC-4-BX', 'Berry Chill - 4ct Box', 'D9 THC + Herbals - ChillOut Chewz (Box of 20)', 'ChillOut', 5.99, 5.99, '/images/products/20ct-ChillOutChewz-Bag.png', true, false, 'wholesale-box', 20, 54.00, 119.80, 'ORG-VITADREAMZ')
 ON CONFLICT (sku) DO NOTHING;
 
 -- Verify the inserts

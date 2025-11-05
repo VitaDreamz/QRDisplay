@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
         description: 'D9 THC Gummies',
         category: 'ChillOut',
         price: 24.95,
-        imageUrl: '/images/displays/20ct-ChillOut Chewz-Bag.png'
+        imageUrl: '/images/displays/20ct-ChillOutChewz-Bag.png'
       },
       {
         sku: 'VD-CC-60',

@@ -10,7 +10,7 @@ async function main() {
     { sku: 'VD-LB-60', imageUrl: null },
     { sku: 'VD-BB-30', imageUrl: '/images/displays/30ct-BlissBerry-Bag.png' },
     { sku: 'VD-BB-60', imageUrl: '/images/displays/60ct-BlissBerry-Bag.png' },
-    { sku: 'VD-CC-20', imageUrl: '/images/displays/20ct-ChillOut Chewz-Bag.png' },
+    { sku: 'VD-CC-20', imageUrl: '/images/displays/20ct-ChillOutChewz-Bag.png' },
     { sku: 'VD-CC-60', imageUrl: '/images/displays/60ct-ChillOutChewz-Bag.png' },
   ];
   

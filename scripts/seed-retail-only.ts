@@ -1,10 +1,39 @@
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+// Allow overriding DB URL via CLI: --url "postgres://..."
+function getDbUrlFromArgs(): string | undefined {
+  const urlFlagIndex = process.argv.findIndex((a) => a === '--url');
+  if (urlFlagIndex >= 0 && process.argv[urlFlagIndex + 1]) {
+    return process.argv[urlFlagIndex + 1];
+  }
+  return undefined;
+}
+
+const cliUrl = getDbUrlFromArgs();
+const prisma = new PrismaClient(
+  cliUrl
+    ? { datasources: { db: { url: cliUrl } } }
+    : undefined
+);
 
 async function main() {
   const targetOrgId = process.env.ORG_ID || 'ORG-VITADREAMZ';
+  const effectiveDbUrl = cliUrl || process.env.DATABASE_URL || '(not set)';
   console.log(`Seeding retail products for orgId=${targetOrgId}`);
+  console.log(`Using DATABASE_URL: ${effectiveDbUrl.substring(0, 48)}...`);
+
+  // Sanity check DB connectivity early
+  try {
+    const dbInfo: any = await prisma.$queryRawUnsafe(
+      'select current_database() as db, current_user as user'
+    );
+    console.log(`Connected to DB='${dbInfo?.[0]?.db}' as user='${dbInfo?.[0]?.user}'`);
+  } catch (e) {
+    console.error('Failed to connect to the database.');
+    console.error('Hint: You can run with a specific URL:');
+    console.error("  npx tsx scripts/seed-retail-only.ts --url 'postgres://USER:PASSWORD@HOST:5432/DB?sslmode=require'");
+    throw e;
+  }
 
   const org = await prisma.organization.findFirst({ where: { orgId: targetOrgId } });
   if (!org) {

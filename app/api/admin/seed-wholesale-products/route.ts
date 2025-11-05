@@ -16,7 +16,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    console.log('🌱 Seeding wholesale products...\n');
+    console.log('🌱 Seeding all VitaDreamz products...\n');
 
     // Get VitaDreamz organization
     const org = await prisma.organization.findFirst({
@@ -27,6 +27,71 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'VitaDreamz organization not found' }, { status: 404 });
     }
 
+    // RETAIL PRODUCTS (for customer purchases via QR displays)
+    const retailProducts = [
+      {
+        sku: 'VD-SB-30',
+        name: 'Slumber Berry - 30ct',
+        description: 'CBD + Melatonin & Herbals - Sleep Gummies',
+        category: 'Sleep',
+        price: 29.99,
+        msrp: 29.99,
+        imageUrl: '/images/products/30ct-SlumberBerry-Bag.png',
+        active: true,
+        featured: true,
+        orgId: org.orgId
+      },
+      {
+        sku: 'VD-SB-60',
+        name: 'Slumber Berry - 60ct',
+        description: 'CBD + Melatonin & Herbals - Sleep Gummies',
+        category: 'Sleep',
+        price: 54.99,
+        msrp: 54.99,
+        imageUrl: '/images/products/60ct-SlumberBerry-Bag.png',
+        active: true,
+        featured: true,
+        orgId: org.orgId
+      },
+      {
+        sku: 'VD-BB-30',
+        name: 'Bliss Berry - 30ct',
+        description: 'Magnesium + Herbals - Relax & Sleep Gummies',
+        category: 'Relax',
+        price: 24.99,
+        msrp: 24.99,
+        imageUrl: '/images/products/30ct-BlissBerry-Bag.png',
+        active: true,
+        featured: false,
+        orgId: org.orgId
+      },
+      {
+        sku: 'VD-BB-60',
+        name: 'Bliss Berry - 60ct',
+        description: 'Magnesium + Herbals - Relax & Sleep Gummies',
+        category: 'Relax',
+        price: 44.99,
+        msrp: 44.99,
+        imageUrl: '/images/products/60ct-BlissBerry-Bag.png',
+        active: true,
+        featured: false,
+        orgId: org.orgId
+      },
+      {
+        sku: 'VD-CC-20',
+        name: 'Berry Chill - 20ct',
+        description: 'D9 THC + Herbals - ChillOut Chewz',
+        category: 'ChillOut',
+        price: 24.95,
+        msrp: 24.95,
+        imageUrl: '/images/products/20ct-ChillOut Chewz-Bag.png',
+        active: true,
+        featured: false,
+        orgId: org.orgId
+      }
+    ];
+
+    // WHOLESALE PRODUCTS (for store owners to order inventory)
     const wholesaleProducts = [
       // 30ct Boxes (8 units per box)
       {

@@ -68,6 +68,16 @@ async function seedProductionProducts() {
       imageUrl: '/images/products/20ct-ChillOut Chewz-Bag.png',
       active: true,
       featured: false
+    },
+    {
+      sku: 'VD-CC-60',
+      name: 'Berry Chill - 60ct',
+      description: 'D9 THC + Herbals - ChillOut Chewz',
+      category: 'ChillOut',
+      price: 69.95,
+      imageUrl: '/images/products/60ct-ChillOut Chewz-Bag.png',
+      active: true,
+      featured: false
     }
   ];
   
@@ -161,6 +171,19 @@ async function seedProductionProducts() {
       unitsPerBox: 10,
       wholesalePrice: 150,
       retailPrice: 249.50
+    },
+    {
+      sku: 'VD-CC-60-BX',
+      name: 'Berry Chill - 60ct Box',
+      description: 'Box of 6 units',
+      category: 'ChillOut',
+      price: 69.95,
+      msrp: 69.95,
+      imageUrl: '/images/products/60ct-ChillOut Chewz-Bag.png',
+      productType: 'wholesale-box',
+      unitsPerBox: 6,
+      wholesalePrice: 280,
+      retailPrice: 419.70
     },
     {
       sku: 'VD-SB-4-BX',

@@ -17,22 +17,22 @@ interface AssemblyStep {
 const assemblySteps: Record<DisplayOption, AssemblyStep[]> = {
   A: [
     {
-      title: 'Attach Bar to Sample Stand',
-      instruction: 'Match the 2 magnets on the straight attachment bar to the magnetic strips on top of the sample stand. The bar should click into place securely.',
+      title: 'Attach Straight Bar to Sample Stand',
+      instruction: 'Flip the Sample Stand over and match 2 of the magnets from the bar with 2 magnets on the side of the Stand you\'d like to attach the display. The bar should click into place securely.',
       image: '🎣 + 📏',
-      tips: ['Make sure magnets are aligned', 'You should feel a strong magnetic pull']
+      tips: ['Make sure magnets are facing the right direction', 'Bar should be on the "back" side of the Stand (hidden from the front)']
     },
     {
-      title: 'Attach Display to Bar',
-      instruction: 'Use the 2 magnets on the back of the QRDisplay to attach it to the straight bar. The display should be centered and face forward.',
+      title: 'Attach Display to Bar & Stand',
+      instruction: 'Place the display upright and level next to the Stand with bar and "click it" into place. It should attach firmly and straight.',
       image: '📱 → 📏',
-      tips: ['Display should be level', 'QR code should face customers']
+      tips: ['Display should be level', 'Make sure QR faces customers and the marketing insert is straight']
     },
     {
       title: 'Hang Sample Products',
-      instruction: 'Place the hook into the slot at the bottom of the display, then hang your sample products on the hook. Arrange them neatly for best presentation.',
+      instruction: 'Slide the square peg into the hook slat on the sample display, then hang your samples on the hook. Arrange them neatly for best presentation.',
       image: '💊 → 🎣',
-      tips: ['Samples should hang evenly', 'Keep products visible and accessible']
+      tips: ['Samples should hang evenly', 'Be sure to "pull up" when grabbing samples as pulling down on samples can flip the display']
     }
   ],
   B: [

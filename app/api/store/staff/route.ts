@@ -68,8 +68,10 @@ export async function POST(request: NextRequest) {
     const cookieStoreId = cookieStore.get('store-id')?.value;
     // Try to read header/body provided storeId for wizard context
     const headerStoreId = request.headers.get('x-store-id') || request.headers.get('X-Store-Id');
-    const bodyMaybe = await request.json().catch(() => null) as any;
-    const bodyStoreId = bodyMaybe?.storeId;
+    
+    // Parse body once and only once
+    const body = await request.json();
+    const bodyStoreId = body?.storeId;
     const storeId = (headerStoreId || bodyStoreId || cookieStoreId || '').toUpperCase();
 
     if (!storeId) {
@@ -95,8 +97,6 @@ export async function POST(request: NextRequest) {
   const storeInternalId = store.id;
   const storePublicId = store.storeId;
   const storeNameValue = store.storeName;
-    // Body was maybe already parsed; ensure we have the fields
-    const body = bodyMaybe ?? (await request.json());
     const {
       firstName,
       lastName,

@@ -136,3 +136,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to seed retail products', details: String(error) }, { status: 500 });
   }
 }
+
+// Convenience: allow GET for browser-triggered admin run (still requires ADMIN_SECRET)
+export async function GET(request: NextRequest) {
+  return POST(request);
+}

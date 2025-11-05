@@ -48,6 +48,10 @@ export function DashboardClient({ data }: { data: DashboardData }) {
   const [storeForm, setStoreForm] = useState<any>({});
   const [availableDisplays, setAvailableDisplays] = useState<any[]>([]);
   
+    // Sorting states
+    const [storeSortField, setStoreSortField] = useState<'storeId' | 'storeName' | 'city' | 'state' | 'displayId' | 'samples' | 'sales'>('storeId');
+    const [storeSortDirection, setStoreSortDirection] = useState<'asc' | 'desc'>('asc');
+
   // Database reset states
   const [showResetDatabaseConfirm, setShowResetDatabaseConfirm] = useState(false);
   const [resettingDatabase, setResettingDatabase] = useState(false);
@@ -237,7 +241,59 @@ export function DashboardClient({ data }: { data: DashboardData }) {
       if (!matchesName && !matchesId && !matchesAdmin && !matchesEmail && !matchesPhone && !matchesCity) return false;
     }
     return true;
-  });
+    }).sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      switch (storeSortField) {
+        case 'storeId':
+          aVal = a.storeId;
+          bVal = b.storeId;
+          break;
+        case 'storeName':
+          aVal = a.storeName.toLowerCase();
+          bVal = b.storeName.toLowerCase();
+          break;
+        case 'city':
+          aVal = a.city?.toLowerCase() || '';
+          bVal = b.city?.toLowerCase() || '';
+          break;
+        case 'state':
+          aVal = a.state?.toLowerCase() || '';
+          bVal = b.state?.toLowerCase() || '';
+          break;
+        case 'displayId':
+          aVal = a.displays?.[0]?.displayId || '';
+          bVal = b.displays?.[0]?.displayId || '';
+          break;
+        case 'samples':
+          aVal = a._count?.customers || 0;
+          bVal = b._count?.customers || 0;
+          break;
+        case 'sales':
+          aVal = data.customers.filter(c => c.storeId === a.storeId && c.promoRedeemed).length;
+          bVal = data.customers.filter(c => c.storeId === b.storeId && c.promoRedeemed).length;
+          break;
+        default:
+          return 0;
+      }
+
+      if (aVal < bVal) return storeSortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return storeSortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    // Handle column header click for sorting
+    const handleStoreSort = (field: typeof storeSortField) => {
+      if (storeSortField === field) {
+        // Toggle direction if same field
+        setStoreSortDirection(storeSortDirection === 'asc' ? 'desc' : 'asc');
+      } else {
+        // New field, default to ascending
+        setStoreSortField(field);
+        setStoreSortDirection('asc');
+      }
+    };
 
   // Filter customers
   const filteredCustomers = data.customers.filter(c => {
@@ -608,13 +664,84 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Store ID</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Store Name</th>
+                        <th 
+                          className="px-4 py-3 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none"
+                          onClick={() => handleStoreSort('storeId')}
+                        >
+                          <div className="flex items-center gap-1">
+                            Store ID
+                            {storeSortField === 'storeId' && (
+                              <span>{storeSortDirection === 'asc' ? '↑' : '↓'}</span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          className="px-4 py-3 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none"
+                          onClick={() => handleStoreSort('storeName')}
+                        >
+                          <div className="flex items-center gap-1">
+                            Store Name
+                            {storeSortField === 'storeName' && (
+                              <span>{storeSortDirection === 'asc' ? '↑' : '↓'}</span>
+                            )}
+                          </div>
+                        </th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Contact</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">City, State</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Samples</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Sales</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Display ID</th>
+                        <th 
+                          className="px-4 py-3 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none"
+                          onClick={() => handleStoreSort('city')}
+                        >
+                          <div className="flex items-center gap-1">
+                            City
+                            {storeSortField === 'city' && (
+                              <span>{storeSortDirection === 'asc' ? '↑' : '↓'}</span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          className="px-4 py-3 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none"
+                          onClick={() => handleStoreSort('state')}
+                        >
+                          <div className="flex items-center gap-1">
+                            State
+                            {storeSortField === 'state' && (
+                              <span>{storeSortDirection === 'asc' ? '↑' : '↓'}</span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          className="px-4 py-3 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none"
+                          onClick={() => handleStoreSort('samples')}
+                        >
+                          <div className="flex items-center gap-1">
+                            Samples
+                            {storeSortField === 'samples' && (
+                              <span>{storeSortDirection === 'asc' ? '↑' : '↓'}</span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          className="px-4 py-3 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none"
+                          onClick={() => handleStoreSort('sales')}
+                        >
+                          <div className="flex items-center gap-1">
+                            Sales
+                            {storeSortField === 'sales' && (
+                              <span>{storeSortDirection === 'asc' ? '↑' : '↓'}</span>
+                            )}
+                          </div>
+                        </th>
+                        <th 
+                          className="px-4 py-3 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none"
+                          onClick={() => handleStoreSort('displayId')}
+                        >
+                          <div className="flex items-center gap-1">
+                            Display ID
+                            {storeSortField === 'displayId' && (
+                              <span>{storeSortDirection === 'asc' ? '↑' : '↓'}</span>
+                            )}
+                          </div>
+                        </th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Brand</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Actions</th>
                     </tr>
@@ -640,12 +767,8 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                             )}
                             {!store.adminName && '—'}
                           </td>
-                          <td className="px-4 py-3 text-sm">
-                            {store.city && store.state 
-                              ? `${store.city}, ${store.state}`
-                              : store.city || store.state || store.streetAddress || '—'
-                            }
-                          </td>
+                            <td className="px-4 py-3 text-sm">{store.city || '—'}</td>
+                            <td className="px-4 py-3 text-sm">{store.state || '—'}</td>
                           <td className="px-4 py-3 text-sm">
                             {totalCustomers} <span className="text-gray-500">({redeemedCount} redeemed)</span>
                           </td>

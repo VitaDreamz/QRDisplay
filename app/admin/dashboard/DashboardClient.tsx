@@ -573,7 +573,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                       </div>
                       <div className="flex gap-2 mt-2">
                         <a
-                          href={`/store/login/${store.storeId}`}
+                          href={`/api/admin/store-access/${store.storeId}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
@@ -659,7 +659,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                           <td className="px-4 py-3">
                             <div className="flex gap-2">
                               <a
-                                href={`/store/login/${store.storeId}`}
+                                href={`/api/admin/store-access/${store.storeId}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 inline-block"

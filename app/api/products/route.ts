@@ -8,7 +8,11 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const orgId = searchParams.get('orgId');
     
+    console.log('[Products API] GET request received');
+    console.log('[Products API] orgId param:', orgId);
+    
     const where = orgId ? { orgId } : {};
+    console.log('[Products API] where clause:', JSON.stringify(where));
     
     const products = await prisma.product.findMany({
       where,
@@ -18,6 +22,16 @@ export async function GET(request: NextRequest) {
         { name: 'asc' }
       ]
     });
+    
+    console.log('[Products API] Found products:', products.length);
+    if (products.length === 0) {
+      // Check if any products exist at all
+      const allProducts = await prisma.product.findMany({});
+      console.log('[Products API] Total products in database:', allProducts.length);
+      if (allProducts.length > 0) {
+        console.log('[Products API] Sample product orgIds:', allProducts.slice(0, 3).map(p => p.orgId));
+      }
+    }
     
     return NextResponse.json({ products });
   } catch (error) {

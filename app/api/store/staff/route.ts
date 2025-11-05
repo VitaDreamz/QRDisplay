@@ -146,12 +146,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get count for staffId generation
-    const staffCount = await prisma.staff.count({
-      where: { storeId: storeInternalId }
-    });
+    // Get count for staffId generation (globally unique)
+    const staffCount = await prisma.staff.count();
 
-    const newStaffId = generateStaffId(staffCount);
+    // Generate unique staffId with retry logic in case of collision
+    let newStaffId = generateStaffId(staffCount);
+    let retries = 0;
+    while (retries < 10) {
+      const existing = await prisma.staff.findUnique({ where: { staffId: newStaffId } });
+      if (!existing) break;
+      retries++;
+      newStaffId = generateStaffId(staffCount + retries);
+    }
 
     const verificationToken = crypto.randomBytes(16).toString('hex');
     const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);

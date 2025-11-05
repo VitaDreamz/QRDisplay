@@ -60,7 +60,8 @@ export default async function StoreDashboardPage() {
   const organization = await prisma.organization.findUnique({
     where: { orgId: store?.orgId || '' },
     select: {
-      name: true
+      name: true,
+      orgId: true
     }
   });
 

@@ -56,8 +56,12 @@ type DashboardData = {
 
 export default function StoreDashboardClient({ initialData, role }: { initialData: DashboardData; role: 'owner' | 'staff' }) {
   const [data, setData] = useState(initialData);
-  const [activeTab, setActiveTab] = useState<'overview' | 'customers' | 'staff' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'customers' | 'products' | 'staff' | 'settings'>('overview');
   const [customerFilter, setCustomerFilter] = useState<'all' | 'pending' | 'redeemed' | 'promo-used'>('all');
+  
+  // Products state
+  const [products, setProducts] = useState<any[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
   
   // Modals
   const [editingPromo, setEditingPromo] = useState(false);
@@ -476,12 +480,36 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
     }
   };
 
+  // Fetch products from brand
+  const fetchProducts = async () => {
+    setLoadingProducts(true);
+    try {
+      const orgId = (data.organization as any)?.orgId;
+      if (!orgId) {
+        console.error('No orgId found');
+        setLoadingProducts(false);
+        return;
+      }
+      const res = await fetch(`/api/products?orgId=${orgId}`);
+      if (res.ok) {
+        const productsData = await res.json();
+        setProducts(productsData.products || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch products:', err);
+    }
+    setLoadingProducts(false);
+  };
+
   useEffect(() => {
     if (activeTab === 'staff') {
       fetchStaff();
     }
     if (activeTab === 'overview' && role === 'owner' && staff.length === 0) {
       fetchStaff();
+    }
+    if (activeTab === 'products') {
+      fetchProducts();
     }
   }, [activeTab]);
 
@@ -714,6 +742,16 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
             }`}
           >
             👥 Customers
+          </button>
+          <button
+            onClick={() => setActiveTab('products')}
+            className={`px-6 py-3 text-base font-medium transition-colors ${
+              activeTab === 'products'
+                ? 'text-purple-600 border-b-2 border-purple-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            🛍️ Products
           </button>
           {role === 'owner' && (
             <>
@@ -1157,6 +1195,121 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
           </div>
         )}
 
+        {/* Products Tab */}
+        {activeTab === 'products' && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6">
+              <div>
+                <h2 className="text-xl font-bold">Products</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Select which products your store will offer to customers
+                </p>
+              </div>
+            </div>
+
+            {loadingProducts ? (
+              <div className="text-center py-8 text-gray-500">Loading products...</div>
+            ) : products.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No products available from your brand yet
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {products.map((product: any) => {
+                  const isOffered = (data.store as any).availableProducts?.includes(product.sku) || false;
+                  
+                  return (
+                    <div
+                      key={product.sku}
+                      className={`relative border-2 rounded-lg overflow-hidden transition-all ${
+                        isOffered ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      {product.featured && (
+                        <div className="absolute top-2 right-2 bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded-full z-10">
+                          ⭐ Featured
+                        </div>
+                      )}
+                      
+                      {/* Product Image */}
+                      <div className="h-40 bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center p-4">
+                        {product.imageUrl ? (
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            className="max-h-full max-w-full object-contain"
+                          />
+                        ) : (
+                          <div className="text-center">
+                            <div className="text-4xl mb-2">🍬</div>
+                            <div className="text-sm text-gray-600">{product.category}</div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="p-4">
+                        <h3 className="font-bold text-sm text-gray-900 mb-1">
+                          {product.name}
+                        </h3>
+                        {product.description && (
+                          <p className="text-xs text-gray-600 mb-2">{product.description}</p>
+                        )}
+                        {product.category && (
+                          <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded mb-2">
+                            {product.category}
+                          </span>
+                        )}
+                        <div className="text-lg font-bold text-purple-600 mb-3">
+                          ${parseFloat(product.price).toFixed(2)}
+                        </div>
+                        
+                        <button
+                          onClick={async () => {
+                            const currentProducts = (data.store as any).availableProducts || [];
+                            const newProducts = isOffered
+                              ? currentProducts.filter((s: string) => s !== product.sku)
+                              : [...currentProducts, product.sku];
+                            
+                            try {
+                              const res = await fetch('/api/stores/update-products', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  storeId: data.store.storeId,
+                                  availableProducts: newProducts
+                                })
+                              });
+                              
+                              if (res.ok) {
+                                setData({
+                                  ...data,
+                                  store: {
+                                    ...data.store,
+                                    availableProducts: newProducts
+                                  } as any
+                                });
+                              }
+                            } catch (err) {
+                              console.error('Failed to update products:', err);
+                            }
+                          }}
+                          className={`w-full py-2 px-4 rounded-lg font-semibold transition-colors ${
+                            isOffered
+                              ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                              : 'bg-purple-600 text-white hover:bg-purple-700'
+                          }`}
+                        >
+                          {isOffered ? '✓ Offering' : '+ Offer This Product'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Staff Tab (Owner Only) */}
         {activeTab === 'staff' && role === 'owner' && (
           <>
@@ -1465,7 +1618,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
 
       {/* Mobile Bottom Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-area-inset-bottom">
-        <div className={`grid ${role === 'owner' ? 'grid-cols-4' : 'grid-cols-2'}`}>
+        <div className={`grid ${role === 'owner' ? 'grid-cols-5' : 'grid-cols-3'}`}>
           <button
             onClick={() => setActiveTab('overview')}
             className={`flex flex-col items-center justify-center h-14 space-y-1 ${
@@ -1473,7 +1626,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
             }`}
           >
             <span className="text-xl">📊</span>
-            <span className="text-xs font-medium">{role === 'staff' ? 'My Stats' : 'Overview'}</span>
+            <span className="text-xs font-medium">{role === 'staff' ? 'Stats' : 'Home'}</span>
           </button>
           <button
             onClick={() => setActiveTab('customers')}
@@ -1483,6 +1636,15 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
           >
             <span className="text-xl">👥</span>
             <span className="text-xs font-medium">Customers</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('products')}
+            className={`flex flex-col items-center justify-center h-14 space-y-1 ${
+              activeTab === 'products' ? 'bg-purple-600 text-white' : 'text-gray-600'
+            }`}
+          >
+            <span className="text-xl">🛍️</span>
+            <span className="text-xs font-medium">Products</span>
           </button>
           {role === 'owner' && (
             <>

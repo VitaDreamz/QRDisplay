@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
       purchasingSameAsOwner,
       adminSameAsOwner,
       availableSamples,
+      availableProducts,
     } = body;
 
     // Validate required fields
@@ -92,6 +93,14 @@ export async function POST(req: NextRequest) {
     if (!availableSamples || !Array.isArray(availableSamples) || availableSamples.length === 0) {
       return NextResponse.json(
         { error: 'At least one sample product must be selected' },
+        { status: 400 }
+      );
+    }
+    
+    // Validate available products (require at least 1)
+    if (!availableProducts || !Array.isArray(availableProducts) || availableProducts.length === 0) {
+      return NextResponse.json(
+        { error: 'At least one product must be selected' },
         { status: 400 }
       );
     }
@@ -204,6 +213,7 @@ export async function POST(req: NextRequest) {
         purchasingPhone: purchasingSameAsOwner ? ownerPhone : purchasingPhone,
         purchasingEmail: purchasingSameAsOwner ? ownerEmail : purchasingEmail,
         availableSamples,
+        availableProducts,
       },
       update: {
         storeName,
@@ -225,6 +235,7 @@ export async function POST(req: NextRequest) {
         purchasingPhone: purchasingSameAsOwner ? ownerPhone : purchasingPhone,
         purchasingEmail: purchasingSameAsOwner ? ownerEmail : purchasingEmail,
         availableSamples,
+        availableProducts,
       },
     });
 

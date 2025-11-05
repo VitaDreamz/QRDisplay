@@ -54,6 +54,10 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
   
   // Available Samples
   const [availableSamples, setAvailableSamples] = useState<string[]>([]);
+  
+  // Available Products
+  const [availableProducts, setAvailableProducts] = useState<string[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
 
     // Unwrap params Promise and fetch brand info
     useEffect(() => {
@@ -66,6 +70,15 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
           if (res.ok) {
             const data = await res.json();
             setBrandInfo(data);
+            
+            // Fetch products for this brand
+            if (data.orgId) {
+              const productsRes = await fetch(`/api/products?orgId=${data.orgId}`);
+              if (productsRes.ok) {
+                const productsData = await productsRes.json();
+                setProducts(productsData.products || []);
+              }
+            }
           }
         } catch (err) {
           console.error('Failed to fetch brand info:', err);
@@ -140,6 +153,13 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
       setLoading(false);
       return;
     }
+    
+    // Validate available products (require at least 1)
+    if (availableProducts.length === 0) {
+      setError('Please select at least one product that your store will sell');
+      setLoading(false);
+      return;
+    }
 
     try {
       const promoOffer = `${promoPercentage}% Off In-Store Purchase`;
@@ -167,6 +187,7 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
           purchasingPhone: purchasingSameAsOwner ? ownerPhone : purchasingPhone,
           purchasingEmail: purchasingSameAsOwner ? ownerEmail : purchasingEmail,
           availableSamples,
+          availableProducts,
         }),
       });
 
@@ -526,6 +547,66 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
                 <span>💡</span>
                 <span>You can update these selections later in your dashboard</span>
               </p>
+            </div>
+
+            {/* Product Selection */}
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Product Selection</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Which products will your store sell? Check all that apply. When customers redeem their promo, they'll choose from these products.
+              </p>
+              
+              {products.length === 0 ? (
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                  <p className="text-gray-500">Loading products...</p>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-3 border-2 border-gray-200 rounded-lg p-4 bg-gray-50 max-h-96 overflow-y-auto">
+                    {products.map(product => (
+                      <label 
+                        key={product.sku} 
+                        className="flex items-start gap-3 cursor-pointer hover:bg-white p-3 rounded-md transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={availableProducts.includes(product.sku)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setAvailableProducts([...availableProducts, product.sku]);
+                            } else {
+                              setAvailableProducts(availableProducts.filter(s => s !== product.sku));
+                            }
+                          }}
+                          className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-900">{product.name}</span>
+                            {product.featured && (
+                              <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">⭐ Featured</span>
+                            )}
+                          </div>
+                          {product.description && (
+                            <p className="text-xs text-gray-600 mt-1">{product.description}</p>
+                          )}
+                          <div className="flex items-center gap-2 mt-1">
+                            {product.category && (
+                              <span className="text-xs text-gray-500">{product.category}</span>
+                            )}
+                            <span className="text-xs font-semibold text-gray-900">${parseFloat(product.price).toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  
+                  <p className="text-xs text-gray-500 mt-3 flex items-center gap-1">
+                    <span>💡</span>
+                    <span>You can update these selections later in your dashboard</span>
+                  </p>
+                </>
+              )}
             </div>
 
             {/* Settings */}

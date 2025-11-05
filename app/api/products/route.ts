@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     
     console.log('[Products API] GET request received');
     console.log('[Products API] orgId param:', orgId);
+    console.log('[Products API] DATABASE_URL:', process.env.DATABASE_URL?.substring(0, 50) + '...');
     
     // Return ALL products for orgId - let frontend filter by productType
     const where = orgId ? { orgId } : {};
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest) {
     });
     
     console.log('[Products API] Found products:', products.length);
+    console.log('[Products API] Product SKUs:', products.map(p => p.sku).join(', '));
     if (products.length === 0) {
       // Check if any products exist at all
       const allProducts = await prisma.product.findMany({});

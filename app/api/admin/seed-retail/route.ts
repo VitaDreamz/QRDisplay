@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // POST /api/admin/seed-retail - Create retail products
 export async function POST(request: NextRequest) {
   try {
+    // Optional protection: require admin secret if configured
+    const { searchParams } = new URL(request.url);
+    const secret = searchParams.get('secret');
+    if (process.env.ADMIN_SECRET && secret !== process.env.ADMIN_SECRET) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // Find VitaDreamz organization
     const org = await prisma.organization.findFirst({
       where: { name: 'VitaDreamz' }
@@ -82,7 +92,7 @@ export async function POST(request: NextRequest) {
       }
     ];
     
-    const results = [];
+    const results: Array<{ sku: string; action: 'created' | 'updated' }> = [];
     for (const product of retailProducts) {
       const existing = await prisma.product.findUnique({
         where: { sku: product.sku }

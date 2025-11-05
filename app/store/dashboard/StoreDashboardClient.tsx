@@ -1244,7 +1244,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {products
-                  .filter((product: any) => product.productType === 'retail')
+                  .filter((product: any) => product.productType !== 'wholesale-box')
                   .map((product: any) => {
                   const isOffered = (data.store as any).availableProducts?.includes(product.sku) || false;
                   

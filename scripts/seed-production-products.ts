@@ -90,7 +90,11 @@ async function seedProductionProducts() {
     if (existing) {
       await prisma.product.update({
         where: { sku: product.sku },
-        data: { imageUrl: product.imageUrl }
+        data: { 
+          imageUrl: product.imageUrl,
+          productType: 'retail',
+          price: product.price
+        }
       });
       console.log(`  ✓ Updated ${product.sku} - ${product.name}`);
     } else {
@@ -98,7 +102,8 @@ async function seedProductionProducts() {
         data: {
           ...product,
           orgId: org.orgId,
-          msrp: null
+          msrp: null,
+          productType: 'retail'
         }
       });
       console.log(`  ✓ Created ${product.sku} - ${product.name}`);

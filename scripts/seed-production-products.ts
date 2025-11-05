@@ -93,7 +93,8 @@ async function seedProductionProducts() {
         data: { 
           imageUrl: product.imageUrl,
           productType: 'retail',
-          price: product.price
+          price: product.price,
+          active: true
         }
       });
       console.log(`  ✓ Updated ${product.sku} - ${product.name}`);
@@ -241,7 +242,8 @@ async function seedProductionProducts() {
       await prisma.product.update({
         where: { sku: product.sku },
         data: { 
-          imageUrl: product.imageUrl
+          imageUrl: product.imageUrl,
+          active: false
         }
       });
       console.log(`  ✓ Updated ${product.sku} - ${product.name}`);

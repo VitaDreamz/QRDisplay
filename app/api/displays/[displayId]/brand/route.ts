@@ -25,6 +25,7 @@ export async function GET(
     }
 
     return NextResponse.json({
+      orgId: display.organization.orgId,
       name: display.organization.name,
       logoUrl: display.organization.logoUrl,
       supportEmail: display.organization.supportEmail || 'support@qrdisplay.com',

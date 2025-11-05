@@ -97,13 +97,11 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // Validate available products (require at least 1)
-    if (!availableProducts || !Array.isArray(availableProducts) || availableProducts.length === 0) {
-      return NextResponse.json(
-        { error: 'At least one product must be selected' },
-        { status: 400 }
-      );
-    }
+    // Available products are optional (stores can add them later in dashboard)
+    // Default to empty array if not provided
+    const productsToStore = availableProducts && Array.isArray(availableProducts) 
+      ? availableProducts 
+      : [];
 
     // Validate ZIP (5 digits)
     const zipRegex = /^\d{5}$/;

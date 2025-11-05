@@ -2,17 +2,32 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { WizardLayout } from '@/components/wizard/WizardLayout';
 import { useWizardProgress } from '@/hooks/useWizardProgress';
+import Image from 'next/image';
 
 export default function SetupWelcomePage({ params }: { params: Promise<{ displayId: string }> }) {
   const router = useRouter();
   const [displayId, setDisplayId] = useState<string>('');
-  const { progress, saveProgress } = useWizardProgress(displayId);
+  const [brandInfo, setBrandInfo] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const { saveProgress } = useWizardProgress(displayId);
   
   useEffect(() => {
-    params.then(p => {
+    params.then(async (p) => {
       setDisplayId(p.displayId);
+      
+      // Fetch brand/organization info
+      try {
+        const res = await fetch(`/api/displays/${p.displayId}/brand`);
+        if (res.ok) {
+          const data = await res.json();
+          setBrandInfo(data);
+        }
+      } catch (err) {
+        console.error('Failed to load brand info:', err);
+      } finally {
+        setLoading(false);
+      }
       
       // Check for saved progress
       const stored = localStorage.getItem(`qrdisplay-wizard-progress-${p.displayId}`);
@@ -33,113 +48,143 @@ export default function SetupWelcomePage({ params }: { params: Promise<{ display
     });
   }, [params, router]);
   
-  const handleStart = () => {
+  const handleStartWizard = () => {
     if (displayId) {
       saveProgress({ currentStep: 1, timestamp: new Date().toISOString() });
       router.push(`/setup/${displayId}/unbox`);
     }
   };
   
-  if (!displayId) {
+  const handleSkipToActivation = () => {
+    if (displayId) {
+      router.push(`/setup/${displayId}/activate`);
+    }
+  };
+  
+  if (loading || !displayId) {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-gray-600">Loading...</div>
     </div>;
   }
   
   return (
-    <WizardLayout
-      currentStep={1}
-      totalSteps={8}
-      stepLabel="Welcome"
-      displayId={displayId}
-      showBack={false}
-      showNext={false}
-    >
-      {/* Hero Section */}
-      <div className="text-center mb-8">
-        <div className="text-6xl mb-4">📱</div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Welcome to QRDisplay!
-        </h1>
-        <p className="text-gray-600">
-          Let's get your display set up in minutes
-        </p>
-      </div>
-      
-      {/* Display ID Badge */}
-      <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4 mb-6">
-        <div className="text-sm text-purple-700 font-medium mb-1">Your Display ID</div>
-        <div className="text-2xl font-mono font-bold text-purple-900">{displayId}</div>
-      </div>
-      
-      {/* What You'll Need */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-        <h2 className="font-semibold text-lg mb-4">What you'll need:</h2>
-        <div className="space-y-3">
-          <div className="flex items-start gap-3">
-            <div className="text-2xl">📱</div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Header with Organization Branding */}
+      <div className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-4xl mx-auto px-4 py-6">
+          <div className="flex items-center gap-4">
+            {brandInfo?.logoUrl && (
+              <div className="relative w-16 h-16 flex-shrink-0">
+                <Image
+                  src={brandInfo.logoUrl}
+                  alt={brandInfo.name || 'Brand Logo'}
+                  fill
+                  className="object-contain"
+                />
+              </div>
+            )}
             <div>
-              <div className="font-medium">Smartphone</div>
-              <div className="text-sm text-green-600">✓ You have it!</div>
-            </div>
-          </div>
-          
-          <div className="flex items-start gap-3">
-            <div className="text-2xl">🌐</div>
-            <div>
-              <div className="font-medium">Internet connection</div>
-              <div className="text-sm text-gray-500">WiFi or cellular data</div>
-            </div>
-          </div>
-          
-          <div className="flex items-start gap-3">
-            <div className="text-2xl">⏱️</div>
-            <div>
-              <div className="font-medium">5 minutes</div>
-              <div className="text-sm text-gray-500">Quick and easy setup</div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {brandInfo?.name || 'QRDisplay'} Display Activation
+              </h1>
+              <p className="text-sm text-gray-600">Display ID: <span className="font-mono font-semibold">{displayId}</span></p>
             </div>
           </div>
         </div>
       </div>
-      
-      {/* What We'll Do */}
-      <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-6 mb-8">
-        <h3 className="font-semibold mb-3">What we'll do together:</h3>
-        <ul className="space-y-2 text-sm">
-          <li className="flex items-center gap-2">
-            <span className="text-blue-600">▶</span>
-            <span>Unbox and identify components</span>
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="text-blue-600">▶</span>
-            <span>Choose your display setup</span>
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="text-blue-600">▶</span>
-            <span>Assemble your display</span>
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="text-blue-600">▶</span>
-            <span>Activate your store</span>
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="text-blue-600">▶</span>
-            <span>Start collecting samples!</span>
-          </li>
-        </ul>
+
+      {/* Main Content */}
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        {/* Intro Text */}
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-gray-900 mb-3">
+            How would you like to get started?
+          </h2>
+          <p className="text-gray-600 text-lg">
+            Choose the setup experience that works best for you
+          </p>
+        </div>
+
+        {/* Two Choice Cards */}
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          {/* Option 1: Start Wizard */}
+          <button
+            onClick={handleStartWizard}
+            className="bg-white rounded-xl shadow-lg border-2 border-gray-200 hover:border-purple-500 hover:shadow-xl transition-all p-8 text-left group"
+          >
+            <div className="text-5xl mb-4">🧭</div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-purple-600 transition-colors">
+              Start Setup Wizard
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Step-by-step guided walkthrough to set up your display
+            </p>
+            <div className="space-y-2 text-sm text-gray-500">
+              <div className="flex items-center gap-2">
+                <span className="text-purple-600">✓</span>
+                <span>Unbox and assemble instructions</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-purple-600">✓</span>
+                <span>Upload a setup photo for $10 credit</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-purple-600">✓</span>
+                <span>Add staff members</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-purple-600">✓</span>
+                <span>Complete store activation</span>
+              </div>
+            </div>
+            <div className="mt-6 text-purple-600 font-semibold group-hover:translate-x-1 transition-transform inline-block">
+              Start Wizard →
+            </div>
+          </button>
+
+          {/* Option 2: Skip to Activation */}
+          <button
+            onClick={handleSkipToActivation}
+            className="bg-white rounded-xl shadow-lg border-2 border-gray-200 hover:border-blue-500 hover:shadow-xl transition-all p-8 text-left group"
+          >
+            <div className="text-5xl mb-4">⚡</div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors">
+              Skip to Activation
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Already know what you're doing? Jump straight to activation
+            </p>
+            <div className="space-y-2 text-sm text-gray-500">
+              <div className="flex items-center gap-2">
+                <span className="text-blue-600">✓</span>
+                <span>Quick and direct</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-blue-600">✓</span>
+                <span>Enter store details</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-blue-600">✓</span>
+                <span>Activate immediately</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-blue-600">✓</span>
+                <span>Go live in under 2 minutes</span>
+              </div>
+            </div>
+            <div className="mt-6 text-blue-600 font-semibold group-hover:translate-x-1 transition-transform inline-block">
+              Go to Activation →
+            </div>
+          </button>
+        </div>
+
+        {/* Help Text */}
+        <div className="text-center">
+          <p className="text-sm text-gray-500">
+            Need assistance? Contact {brandInfo?.supportEmail || 'support'} or call {brandInfo?.supportPhone || 'us'} anytime.
+          </p>
+        </div>
       </div>
-      
-      {/* Big Start Button */}
-      <button
-        onClick={handleStart}
-        className="w-full py-4 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg font-bold text-lg shadow-lg hover:from-purple-700 hover:to-purple-800 transition-all hover:scale-105"
-      >
-        Let's Go! 🚀
-      </button>
-      
-      <p className="text-center text-sm text-gray-500 mt-4">
-        Need help? Click the chat bubble anytime →
-      </p>
-    </WizardLayout>
+    </div>
   );
 }

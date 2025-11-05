@@ -23,7 +23,8 @@ export default async function StoreAuthTokenPage({ params }: { params: { token: 
   await prisma.magicLink.update({ where: { token }, data: { used: true, usedAt: new Date() } });
 
   // 3. Set a session cookie for the store owner (simulate login)
-  cookies().set('store-id', magicLink.storeId, { path: '/', httpOnly: true, sameSite: 'lax' });
+  const cookieStore = await cookies();
+  cookieStore.set('store-id', magicLink.storeId, { path: '/', httpOnly: true, sameSite: 'lax' });
 
   // 4. Redirect to the store dashboard
   redirect(`/store/dashboard/${magicLink.storeId}`);

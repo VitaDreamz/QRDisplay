@@ -2,8 +2,8 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import prisma from '@/lib/prisma';
 
-export default async function StoreAuthTokenPage({ params }: { params: { token: string } }) {
-  const { token } = params;
+export default async function StoreAuthTokenPage({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
 
   // 1. Look up the magic link token
   const magicLink = await prisma.magicLink.findUnique({ where: { token } });

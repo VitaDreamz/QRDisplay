@@ -496,18 +496,24 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
     setLoadingProducts(true);
     try {
       const orgId = (data.organization as any)?.orgId;
+      console.log('🔍 [Products Tab] Fetching products for orgId:', orgId);
       if (!orgId) {
-        console.error('No orgId found');
+        console.error('❌ [Products Tab] No orgId found');
         setLoadingProducts(false);
         return;
       }
       const res = await fetch(`/api/products?orgId=${orgId}`);
+      console.log('🔍 [Products Tab] API response status:', res.status);
       if (res.ok) {
         const productsData = await res.json();
+        console.log('✅ [Products Tab] Products received:', productsData.products?.length || 0);
+        console.log('🔍 [Products Tab] Products data:', productsData.products);
         setProducts(productsData.products || []);
+      } else {
+        console.error('❌ [Products Tab] API response not ok:', await res.text());
       }
     } catch (err) {
-      console.error('Failed to fetch products:', err);
+      console.error('❌ [Products Tab] Failed to fetch products:', err);
     }
     setLoadingProducts(false);
   };
@@ -1243,8 +1249,13 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {products
-                  .filter((product: any) => product.productType !== 'wholesale-box')
+                {(() => {
+                  const filtered = products.filter((product: any) => product.productType !== 'wholesale-box');
+                  console.log('🔍 [Products Tab] Total products:', products.length);
+                  console.log('🔍 [Products Tab] Filtered products (non-wholesale):', filtered.length);
+                  console.log('🔍 [Products Tab] Filtered SKUs:', filtered.map((p: any) => p.sku).join(', '));
+                  return filtered;
+                })()
                   .map((product: any) => {
                   const isOffered = (data.store as any).availableProducts?.includes(product.sku) || false;
                   

@@ -119,7 +119,7 @@ async function seedProductionProducts() {
       category: 'Sleep',
       price: 29.99,
       msrp: 29.99,
-      imageUrl: '/images/products/30ct-SlumberBerry-BOXof8.jpg',
+      imageUrl: '/images/products/30ct-SlumberBerry-BOXof8.png',
       productType: 'wholesale-box',
       unitsPerBox: 8,
       wholesalePrice: 160,
@@ -132,7 +132,7 @@ async function seedProductionProducts() {
       category: 'Relax',
       price: 24.99,
       msrp: 24.99,
-      imageUrl: '/images/products/30ct-BlissBerry-BOXof8.jpg',
+      imageUrl: '/images/products/30ct-BlissBerry-BOXof8.png',
       productType: 'wholesale-box',
       unitsPerBox: 8,
       wholesalePrice: 128,
@@ -145,7 +145,7 @@ async function seedProductionProducts() {
       category: 'Sleep',
       price: 54.99,
       msrp: 54.99,
-      imageUrl: '/images/products/60ct-SlumberBerry-BOXof6.jpg',
+      imageUrl: '/images/products/60ct-SlumberBerry-BOXof6.png',
       productType: 'wholesale-box',
       unitsPerBox: 6,
       wholesalePrice: 210,
@@ -158,7 +158,7 @@ async function seedProductionProducts() {
       category: 'Relax',
       price: 44.99,
       msrp: 44.99,
-      imageUrl: '/images/products/60ct-BlissBerry-BOXof6.jpg',
+      imageUrl: '/images/products/60ct-BlissBerry-BOXof6.png',
       productType: 'wholesale-box',
       unitsPerBox: 6,
       wholesalePrice: 168,
@@ -231,14 +231,20 @@ async function seedProductionProducts() {
     }
   ];
   
-  console.log('\n📦 Seeding wholesale products...');
+  console.log('\n📦 Seeding/updating wholesale products...');
   for (const product of wholesaleProducts) {
     const existing = await prisma.product.findUnique({
       where: { sku: product.sku }
     });
     
     if (existing) {
-      console.log(`  ⊘ ${product.sku} already exists - ${product.name}`);
+      await prisma.product.update({
+        where: { sku: product.sku },
+        data: { 
+          imageUrl: product.imageUrl
+        }
+      });
+      console.log(`  ✓ Updated ${product.sku} - ${product.name}`);
     } else {
       await prisma.product.create({
         data: {

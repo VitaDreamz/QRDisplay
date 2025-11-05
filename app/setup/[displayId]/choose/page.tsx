@@ -55,7 +55,7 @@ export default function ChooseDisplayPage({ params }: { params: Promise<{ displa
       id: 'C' as DisplayOption,
       title: 'Shelf Talker (POS Box)',
       icon: '🏷️',
-      imagePath: '/images/displays/vitadreamz-display-front.jpg',
+      imagePath: '/images/displays/vitadreamz-display-shelftalker.jpg',
       bestFor: 'Point-of-sale areas',
       description: 'Attach display to your POS box or shelf edge'
     }

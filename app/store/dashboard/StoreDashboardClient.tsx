@@ -138,6 +138,53 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
     return true;
   });
 
+  // Sorting state for customers table
+  const [customerSortField, setCustomerSortField] = useState<'name' | 'phone' | 'sample' | 'status' | 'requestedAt'>('requestedAt');
+  const [customerSortDirection, setCustomerSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  // Sort customers based on selected column
+  const sortedCustomers = [...filteredCustomers].sort((a, b) => {
+    let aVal: any;
+    let bVal: any;
+    switch (customerSortField) {
+      case 'name':
+        aVal = `${a.firstName} ${a.lastName}`.toLowerCase();
+        bVal = `${b.firstName} ${b.lastName}`.toLowerCase();
+        break;
+      case 'phone':
+        aVal = a.phone || '';
+        bVal = b.phone || '';
+        break;
+      case 'sample':
+        aVal = a.sampleChoice?.toLowerCase() || '';
+        bVal = b.sampleChoice?.toLowerCase() || '';
+        break;
+      case 'status':
+        // promo-used (2), redeemed (1), pending (0)
+        const score = (c: any) => (c.promoRedeemed ? 2 : c.redeemed ? 1 : 0);
+        aVal = score(a);
+        bVal = score(b);
+        break;
+      case 'requestedAt':
+      default:
+        aVal = new Date(a.requestedAt).getTime();
+        bVal = new Date(b.requestedAt).getTime();
+        break;
+    }
+    if (aVal < bVal) return customerSortDirection === 'asc' ? -1 : 1;
+    if (aVal > bVal) return customerSortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const handleCustomerSort = (field: typeof customerSortField) => {
+    if (customerSortField === field) {
+      setCustomerSortDirection(customerSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setCustomerSortField(field);
+      setCustomerSortDirection('asc');
+    }
+  };
+
   // Count for blast audience
   const getAudienceCount = (audience: string) => {
     if (audience === 'all') return data.customers.length;
@@ -856,15 +903,50 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
               <table className="w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Customer</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Phone</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Sample</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Status</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Requested</th>
+                    <th
+                      onClick={() => handleCustomerSort('name')}
+                      className="px-4 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-100 select-none"
+                    >
+                      <div className="flex items-center gap-1">
+                        Customer {customerSortField === 'name' && (<span>{customerSortDirection === 'asc' ? '↑' : '↓'}</span>)}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleCustomerSort('phone')}
+                      className="px-4 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-100 select-none"
+                    >
+                      <div className="flex items-center gap-1">
+                        Phone {customerSortField === 'phone' && (<span>{customerSortDirection === 'asc' ? '↑' : '↓'}</span>)}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleCustomerSort('sample')}
+                      className="px-4 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-100 select-none"
+                    >
+                      <div className="flex items-center gap-1">
+                        Sample {customerSortField === 'sample' && (<span>{customerSortDirection === 'asc' ? '↑' : '↓'}</span>)}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleCustomerSort('status')}
+                      className="px-4 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-100 select-none"
+                    >
+                      <div className="flex items-center gap-1">
+                        Status {customerSortField === 'status' && (<span>{customerSortDirection === 'asc' ? '↑' : '↓'}</span>)}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleCustomerSort('requestedAt')}
+                      className="px-4 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-100 select-none"
+                    >
+                      <div className="flex items-center gap-1">
+                        Requested {customerSortField === 'requestedAt' && (<span>{customerSortDirection === 'asc' ? '↑' : '↓'}</span>)}
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {filteredCustomers.map((customer) => (
+                  {sortedCustomers.map((customer) => (
                     <tr key={customer.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm">{customer.firstName} {customer.lastName}</td>
                       <td className="px-4 py-3 text-sm">{customer.phone}</td>

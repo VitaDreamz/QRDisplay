@@ -52,6 +52,10 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     const [storeSortField, setStoreSortField] = useState<'storeId' | 'storeName' | 'city' | 'state' | 'displayId' | 'samples' | 'sales'>('storeId');
     const [storeSortDirection, setStoreSortDirection] = useState<'asc' | 'desc'>('asc');
 
+  // Displays sorting state
+  const [displaySortField, setDisplaySortField] = useState<'displayId' | 'status' | 'brand' | 'store' | 'activatedAt'>('displayId');
+  const [displaySortDirection, setDisplaySortDirection] = useState<'asc' | 'desc'>('asc');
+
   // Database reset states
   const [showResetDatabaseConfirm, setShowResetDatabaseConfirm] = useState(false);
   const [resettingDatabase, setResettingDatabase] = useState(false);
@@ -224,7 +228,46 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     if (displayFilters.brand !== 'all' && d.organization?.orgId !== displayFilters.brand) return false;
     if (searchQuery && !d.displayId.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
+  }).sort((a, b) => {
+    let aVal: any;
+    let bVal: any;
+    switch (displaySortField) {
+      case 'displayId':
+        aVal = a.displayId;
+        bVal = b.displayId;
+        break;
+      case 'status':
+        aVal = a.status;
+        bVal = b.status;
+        break;
+      case 'brand':
+        aVal = a.organization?.name?.toLowerCase() || '';
+        bVal = b.organization?.name?.toLowerCase() || '';
+        break;
+      case 'store':
+        aVal = a.store?.storeName?.toLowerCase() || '';
+        bVal = b.store?.storeName?.toLowerCase() || '';
+        break;
+      case 'activatedAt':
+        aVal = a.activatedAt ? new Date(a.activatedAt).getTime() : 0;
+        bVal = b.activatedAt ? new Date(b.activatedAt).getTime() : 0;
+        break;
+      default:
+        return 0;
+    }
+    if (aVal < bVal) return displaySortDirection === 'asc' ? -1 : 1;
+    if (aVal > bVal) return displaySortDirection === 'asc' ? 1 : -1;
+    return 0;
   });
+
+  const handleDisplaySort = (field: typeof displaySortField) => {
+    if (displaySortField === field) {
+      setDisplaySortDirection(displaySortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setDisplaySortField(field);
+      setDisplaySortDirection('asc');
+    }
+  };
 
   // Filter stores
   const filteredStores = data.stores.filter(s => {
@@ -525,11 +568,46 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Display ID</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Brand</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Store</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Activated</th>
+                      <th
+                        onClick={() => handleDisplaySort('displayId')}
+                        className="px-4 py-3 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none"
+                      >
+                        <div className="flex items-center gap-1">
+                          Display ID {displaySortField === 'displayId' && (<span>{displaySortDirection === 'asc' ? '↑' : '↓'}</span>)}
+                        </div>
+                      </th>
+                      <th
+                        onClick={() => handleDisplaySort('status')}
+                        className="px-4 py-3 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none"
+                      >
+                        <div className="flex items-center gap-1">
+                          Status {displaySortField === 'status' && (<span>{displaySortDirection === 'asc' ? '↑' : '↓'}</span>)}
+                        </div>
+                      </th>
+                      <th
+                        onClick={() => handleDisplaySort('brand')}
+                        className="px-4 py-3 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none"
+                      >
+                        <div className="flex items-center gap-1">
+                          Brand {displaySortField === 'brand' && (<span>{displaySortDirection === 'asc' ? '↑' : '↓'}</span>)}
+                        </div>
+                      </th>
+                      <th
+                        onClick={() => handleDisplaySort('store')}
+                        className="px-4 py-3 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none"
+                      >
+                        <div className="flex items-center gap-1">
+                          Store {displaySortField === 'store' && (<span>{displaySortDirection === 'asc' ? '↑' : '↓'}</span>)}
+                        </div>
+                      </th>
+                      <th
+                        onClick={() => handleDisplaySort('activatedAt')}
+                        className="px-4 py-3 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none"
+                      >
+                        <div className="flex items-center gap-1">
+                          Activated {displaySortField === 'activatedAt' && (<span>{displaySortDirection === 'asc' ? '↑' : '↓'}</span>)}
+                        </div>
+                      </th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Actions</th>
                     </tr>
                   </thead>

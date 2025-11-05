@@ -77,7 +77,8 @@ export default function AddStaffPage({ params }: { params: Promise<{ displayId: 
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Cookie': `store-id=${storeId}` // Simulate being logged in as store owner
+          // Pass storeId explicitly for wizard context; API will also accept cookies when in dashboard
+          'x-store-id': storeId
         },
         body: JSON.stringify({
           firstName,
@@ -85,9 +86,9 @@ export default function AddStaffPage({ params }: { params: Promise<{ displayId: 
           phone: cleanPhone,
           email,
           type: role,
-          onCallDays: onCallDays.join(','),
-          onCallStart: startTime,
-          onCallEnd: endTime,
+          onCallDays: onCallDays,
+          onCallHoursStart: startTime,
+          onCallHoursStop: endTime,
         }),
       });
 

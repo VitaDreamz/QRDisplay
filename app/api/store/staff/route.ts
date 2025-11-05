@@ -14,7 +14,10 @@ function generateStaffId(count: number): string {
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const storeId = cookieStore.get('store-id')?.value;
+    const cookieStoreId = cookieStore.get('store-id')?.value;
+    const headerStoreId = request.headers.get('x-store-id') || request.headers.get('X-Store-Id');
+    const urlStoreId = new URL(request.url).searchParams.get('storeId');
+    const storeId = (headerStoreId || urlStoreId || cookieStoreId || '').toUpperCase();
 
     if (!storeId) {
       return NextResponse.json(
@@ -62,7 +65,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const storeId = cookieStore.get('store-id')?.value;
+    const cookieStoreId = cookieStore.get('store-id')?.value;
+    // Try to read header/body provided storeId for wizard context
+    const headerStoreId = request.headers.get('x-store-id') || request.headers.get('X-Store-Id');
+    const bodyMaybe = await request.json().catch(() => null) as any;
+    const bodyStoreId = bodyMaybe?.storeId;
+    const storeId = (headerStoreId || bodyStoreId || cookieStoreId || '').toUpperCase();
 
     if (!storeId) {
       return NextResponse.json(
@@ -87,8 +95,8 @@ export async function POST(request: NextRequest) {
   const storeInternalId = store.id;
   const storePublicId = store.storeId;
   const storeNameValue = store.storeName;
-
-    const body = await request.json();
+    // Body was maybe already parsed; ensure we have the fields
+    const body = bodyMaybe ?? (await request.json());
     const {
       firstName,
       lastName,
@@ -161,13 +169,13 @@ export async function POST(request: NextRequest) {
         verified: false,
         verificationToken,
         verificationExpiry,
-        onCallDays: onCallDays || [],
+        onCallDays: Array.isArray(onCallDays) ? onCallDays : (typeof onCallDays === 'string' && onCallDays.length ? onCallDays.split(',') : []),
         onCallHoursStart: onCallHoursStart || '09:00',
         onCallHoursStop: onCallHoursStop || '17:00',
         hireDate: hireDate ? new Date(hireDate) : new Date(),
         status: 'pending',
         notes
-      }
+      } as any
     });
 
     // Send welcome notifications (best-effort)

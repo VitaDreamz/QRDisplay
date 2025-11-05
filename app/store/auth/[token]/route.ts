@@ -73,8 +73,8 @@ export async function GET(
     maxAge: 60 * 60 * 24 * 30 // 30 days
   });
 
-  // 4. Redirect to the store dashboard
+  // 4. Redirect to the store dashboard (reads storeId from cookie)
   return NextResponse.redirect(
-    new URL(`/store/dashboard/${magicLink.storeId}`, request.url)
+    new URL('/store/dashboard', request.url)
   );
 }

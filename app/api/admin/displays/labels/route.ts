@@ -2,6 +2,33 @@ import { NextRequest, NextResponse } from 'next/server';
 import { jsPDF } from 'jspdf';
 import prisma from '@/lib/prisma';
 
+/**
+ * LABEL ADJUSTMENT GUIDE:
+ * 
+ * If labels are misaligned on physical sheet:
+ * 
+ * 1. QR TOO BIG/SMALL:
+ *    - Adjust: QR_SIZE (currently 24mm)
+ * 
+ * 2. LABELS TOO FAR LEFT/RIGHT:
+ *    - Adjust: LEFT_MARGIN (currently 19.84mm)
+ *    - Or adjust: COL_PITCH (currently 46.04mm)
+ * 
+ * 3. LABELS TOO HIGH/LOW:
+ *    - Adjust: TOP_MARGIN (currently 12.7mm)
+ *    - Or adjust: ROW_PITCH (currently 43.18mm)
+ * 
+ * 4. QR CODE POSITION WITHIN LABEL:
+ *    - Move QR up/down: QR_TOP_PADDING (currently 3mm)
+ *    - Move QR left/right: QR_SIDE_PADDING (currently 7.05mm)
+ * 
+ * 5. TEXT POSITION:
+ *    - URL closer/farther from QR: URL_OFFSET (currently 2mm)
+ *    - ID closer/farther from URL: ID_OFFSET (currently 2.5mm)
+ * 
+ * All measurements in millimeters (mm)
+ */
+
 // OL2681 specifications (4 columns × 6 rows)
 const PAGE_WIDTH = 215.9;     // 8.5"
 const PAGE_HEIGHT = 279.4;    // 11"
@@ -21,13 +48,14 @@ const TOP_MARGIN = 12.7;      // 0.5"
 const COL_PITCH = 46.04;      // 1.8125"
 const ROW_PITCH = 43.18;      // 1.7"
 
-// Corner radius
-const CORNER_RADIUS = 0.794;  // 0.03125"
+// QR Code sizing - ADJUSTED TO FIT BETTER
+const QR_SIZE = 24;           // Reduced to 24mm (4mm less than original 28mm)
+const QR_TOP_PADDING = 3;     // Space from top of label to QR
+const QR_SIDE_PADDING = 7.05; // Center horizontally: (38.1 - 24) / 2 = 7.05mm
 
-// QR Code layout with symmetrical padding
-const QR_PADDING_SIDES = 3;   // Equal padding on top, left, right (3mm)
-const QR_PADDING_BOTTOM = 8;  // Extra padding at bottom for text (8mm)
-const QR_SIZE = 32;           // 32mm QR code (maximized within symmetrical constraints)
+// Text spacing (all relative to QR code bottom)
+const URL_OFFSET = 2;         // Space between QR bottom and URL text
+const ID_OFFSET = 2.5;        // Space between URL and ID text
 
 export async function POST(request: NextRequest) {
   try {
@@ -71,10 +99,9 @@ export async function POST(request: NextRequest) {
       const x = LEFT_MARGIN + (col * COL_PITCH);
       const y = TOP_MARGIN + (row * ROW_PITCH);
       
-      // QR Code with symmetrical padding (3mm top/left/right, 8mm bottom)
-      // QR centered horizontally, positioned near top with equal side margins
-      const qrX = x + QR_PADDING_SIDES;
-      const qrY = y + QR_PADDING_SIDES;
+      // QR Code positioned with padding
+      const qrX = x + QR_SIDE_PADDING;
+      const qrY = y + QR_TOP_PADDING;
       
       doc.addImage(display.qrPngUrl, 'PNG', qrX, qrY, QR_SIZE, QR_SIZE);
       
@@ -84,7 +111,7 @@ export async function POST(request: NextRequest) {
       doc.text(
         'qrdisplay.com/d/',
         x + LABEL_WIDTH / 2,
-        qrY + QR_SIZE + 3,
+        qrY + QR_SIZE + URL_OFFSET,
         { align: 'center' }
       );
       
@@ -95,7 +122,7 @@ export async function POST(request: NextRequest) {
       doc.text(
         display.displayId,
         x + LABEL_WIDTH / 2,
-        qrY + QR_SIZE + 6.5,
+        qrY + QR_SIZE + URL_OFFSET + ID_OFFSET,
         { align: 'center' }
       );
       

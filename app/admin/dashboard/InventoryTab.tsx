@@ -86,7 +86,7 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
 
       const a = document.createElement('a');
       a.href = url;
-      a.download = `qr-labels-OL854-${displayIds.length}.pdf`;
+      a.download = `qr-labels-OL2681-${displayIds.length}.pdf`;
       a.click();
       
       URL.revokeObjectURL(url);

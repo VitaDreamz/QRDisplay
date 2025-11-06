@@ -2,27 +2,32 @@ import { NextRequest, NextResponse } from 'next/server';
 import { jsPDF } from 'jspdf';
 import prisma from '@/lib/prisma';
 
-// OL854 CORRECT specifications (5 columns × 7 rows)
+// OL2681 specifications (6 columns × 4 rows)
 const PAGE_WIDTH = 215.9;     // 8.5"
 const PAGE_HEIGHT = 279.4;    // 11"
-const COLS = 5;               // 5 columns (NOT 7!)
-const ROWS = 7;               // 7 rows (NOT 5!)
-const LABELS_PER_PAGE = 35;   // 5 × 7 = 35
+const COLS = 6;               // 6 columns
+const ROWS = 4;               // 4 rows
+const LABELS_PER_PAGE = 24;   // 6 × 4 = 24
 
 // Label dimensions (inches to mm)
-const LABEL_WIDTH = 31.75;    // 1.25"
-const LABEL_HEIGHT = 31.75;   // 1.25"
+const LABEL_WIDTH = 38.1;     // 1.5"
+const LABEL_HEIGHT = 38.1;    // 1.5"
 
 // Margins (inches to mm)
-const LEFT_MARGIN = 22.225;   // 0.875"
-const TOP_MARGIN = 19.05;     // 0.75"
+const LEFT_MARGIN = 19.84;    // 0.7812"
+const TOP_MARGIN = 12.7;      // 0.5"
 
 // Pitch (center-to-center spacing, inches to mm)
-const COL_PITCH = 34.925;     // 1.375"
-const ROW_PITCH = 34.925;     // 1.375"
+const COL_PITCH = 46.04;      // 1.8125"
+const ROW_PITCH = 43.18;      // 1.7"
 
 // Corner radius
-const CORNER_RADIUS = 3.175;  // 0.125"
+const CORNER_RADIUS = 0.794;  // 0.03125"
+
+// QR Code layout with symmetrical padding
+const QR_PADDING_SIDES = 3;   // Equal padding on top, left, right (3mm)
+const QR_PADDING_BOTTOM = 8;  // Extra padding at bottom for text (8mm)
+const QR_SIZE = 32;           // 32mm QR code (maximized within symmetrical constraints)
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,11 +56,11 @@ export async function POST(request: NextRequest) {
     for (const display of displays) {
       if (!display.qrPngUrl) continue;
       
-      // Calculate position on sheet (5 columns × 7 rows)
+      // Calculate position on sheet (6 columns × 4 rows)
       const page = Math.floor(labelIndex / LABELS_PER_PAGE);
       const posOnPage = labelIndex % LABELS_PER_PAGE;
-      const col = posOnPage % COLS;  // 5 columns
-      const row = Math.floor(posOnPage / COLS);  // 7 rows
+      const col = posOnPage % COLS;  // 6 columns
+      const row = Math.floor(posOnPage / COLS);  // 4 rows
       
       // Add new page if needed
       if (page > 0 && posOnPage === 0) {
@@ -66,33 +71,33 @@ export async function POST(request: NextRequest) {
       const x = LEFT_MARGIN + (col * COL_PITCH);
       const y = TOP_MARGIN + (row * ROW_PITCH);
       
-          // QR Code (0.9" = 22.86mm, centered)
-    const qrSize = 22.86;
-    const qrX = x + (LABEL_WIDTH - qrSize) / 2;
-    const qrY = y + 1.5;
+      // QR Code with symmetrical padding (3mm top/left/right, 8mm bottom)
+      // QR centered horizontally, positioned near top with equal side margins
+      const qrX = x + QR_PADDING_SIDES;
+      const qrY = y + QR_PADDING_SIDES;
       
-      doc.addImage(display.qrPngUrl, 'PNG', qrX, qrY, qrSize, qrSize);
+      doc.addImage(display.qrPngUrl, 'PNG', qrX, qrY, QR_SIZE, QR_SIZE);
       
-          // Short URL (6pt, gray)
-    doc.setFontSize(6);
-    doc.setTextColor(100, 100, 100);
-    doc.text(
-      'qrdisplay.com/d/',
-      x + LABEL_WIDTH / 2,
-      qrY + qrSize + 2.5,
-      { align: 'center' }
-    );
-    
-    // Display ID (8pt, bold, black)
-    doc.setFontSize(8);
-    doc.setTextColor(0, 0, 0);
-    doc.setFont('helvetica', 'bold');
-    doc.text(
-      display.displayId,
-      x + LABEL_WIDTH / 2,
-      qrY + qrSize + 5.5,
-      { align: 'center' }
-    );
+      // Short URL (7pt, gray, centered below QR)
+      doc.setFontSize(7);
+      doc.setTextColor(100, 100, 100);
+      doc.text(
+        'qrdisplay.com/d/',
+        x + LABEL_WIDTH / 2,
+        qrY + QR_SIZE + 3,
+        { align: 'center' }
+      );
+      
+      // Display ID (9pt, bold, black, centered below short URL)
+      doc.setFontSize(9);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'bold');
+      doc.text(
+        display.displayId,
+        x + LABEL_WIDTH / 2,
+        qrY + QR_SIZE + 6.5,
+        { align: 'center' }
+      );
       
       labelIndex++;
     }
@@ -103,7 +108,7 @@ export async function POST(request: NextRequest) {
     return new Response(pdfBlob, {
     headers: {
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="qr-labels-OL854-${displays.length}.pdf"`
+      'Content-Disposition': `attachment; filename="qr-labels-OL2681-${displays.length}.pdf"`
     }
   });
   } catch (error) {

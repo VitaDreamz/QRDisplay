@@ -1,18 +1,22 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { WizardLayout } from '@/components/wizard/WizardLayout';
+import { useWizardProgress } from '@/hooks/useWizardProgress';
 
 const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const ROLES = ['Sales', 'Cashier', 'Manager', 'Marketing', 'Other'];
 
 export default function AddStaffPage({ params }: { params: Promise<{ displayId: string }> }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [displayId, setDisplayId] = useState<string>('');
+  const [storeId, setStoreId] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState(false);
+  const { saveProgress } = useWizardProgress(displayId);
 
   // Form state
   const [firstName, setFirstName] = useState('');
@@ -28,7 +32,11 @@ export default function AddStaffPage({ params }: { params: Promise<{ displayId: 
     params.then(p => {
       setDisplayId(p.displayId);
     });
-  }, [params]);
+    const storeIdParam = searchParams.get('storeId');
+    if (storeIdParam) {
+      setStoreId(storeIdParam);
+    }
+  }, [params, searchParams]);
 
   const toggleDay = (day: string) => {
     if (onCallDays.includes(day)) {
@@ -122,10 +130,15 @@ export default function AddStaffPage({ params }: { params: Promise<{ displayId: 
 
   const isFormValid = firstName && lastName && phone && email && role;
 
+  const handleSkip = () => {
+    saveProgress({ staffAdded: false, currentStep: 9 });
+    router.push(`/setup/${displayId}/success${storeId ? `?storeId=${storeId}` : ''}`);
+  };
+
   return (
     <WizardLayout
       currentStep={8}
-      totalSteps={8}
+      totalSteps={9}
       stepLabel="Add Staff"
       displayId={displayId}
       showNext={false}
@@ -281,17 +294,26 @@ export default function AddStaffPage({ params }: { params: Promise<{ displayId: 
           {/* Submit Buttons */}
           <div className="space-y-3">
             {!success && (
-              <button
-                type="submit"
-                disabled={loading || !isFormValid}
-                className={`w-full py-4 rounded-lg font-bold text-lg transition-all ${
-                  loading || !isFormValid
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800 shadow-lg'
-                }`}
-              >
-                {loading ? 'Adding...' : '+ Add Staff Member'}
-              </button>
+              <>
+                <button
+                  type="submit"
+                  disabled={loading || !isFormValid}
+                  className={`w-full py-4 rounded-lg font-bold text-lg transition-all ${
+                    loading || !isFormValid
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800 shadow-lg'
+                  }`}
+                >
+                  {loading ? 'Adding...' : '+ Add Staff Member'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSkip}
+                  className="w-full py-3 text-gray-600 hover:text-gray-800 font-medium transition-colors"
+                >
+                  Skip This Step →
+                </button>
+              </>
             )}
 
             {success && (
@@ -311,18 +333,12 @@ export default function AddStaffPage({ params }: { params: Promise<{ displayId: 
                 <button
                   type="button"
                   onClick={() => {
-                    // Get storeId and redirect to dashboard
-                    fetch(`/api/displays/${displayId}/info`)
-                      .then(res => res.json())
-                      .then(data => {
-                        if (data.storeId) {
-                          router.push(`/store/login/${data.storeId}`);
-                        }
-                      });
+                    saveProgress({ staffAdded: true, currentStep: 9 });
+                    router.push(`/setup/${displayId}/success${storeId ? `?storeId=${storeId}` : ''}`);
                   }}
                   className="w-full py-3 border-2 border-purple-600 text-purple-600 rounded-lg font-medium hover:bg-purple-50 transition-colors"
                 >
-                  Done - Go to Dashboard →
+                  Continue to Success →
                 </button>
               </>
             )}

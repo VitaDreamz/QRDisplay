@@ -22,6 +22,7 @@ export interface WizardProgress {
   followupDays?: { day4: boolean; day8: boolean; day12: boolean; day16: boolean; day20: boolean };
   retentionDays?: { day15: boolean; day30: boolean; day45: boolean; day60: boolean; day90: boolean };
   pin?: string;
+  staffAdded?: boolean;
   ownerName?: string;
   ownerPhone?: string;
   ownerEmail?: string;

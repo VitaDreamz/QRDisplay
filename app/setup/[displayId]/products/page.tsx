@@ -134,13 +134,14 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
         setLoading(false);
         return;
       }
-      // On success, go to success page (step 8)
+      // On success, go to staff page (step 8)
       const result = await response.json();
       console.log('[Activation Success]', result);
       
-      // Clear wizard progress and go to success page
-      clearProgress();
-      router.push(`/setup/${displayId}/success`);
+      // Save store ID and go to staff page
+      const storeId = result.storeId;
+      saveProgress({ currentStep: 8 });
+      router.push(`/setup/${displayId}/staff${storeId ? `?storeId=${storeId}` : ''}`);
     } catch (e) {
       console.error('[Activation Exception]', e);
       setError(e instanceof Error ? e.message : 'Activation failed.');

@@ -28,8 +28,8 @@ export default function SuccessPage({ params }: { params: Promise<{ displayId: s
 
   return (
     <WizardLayout
-      currentStep={7}
-      totalSteps={8}
+      currentStep={9}
+      totalSteps={9}
       stepLabel="Success"
       displayId={displayId}
       showBack={false}
@@ -66,6 +66,18 @@ export default function SuccessPage({ params }: { params: Promise<{ displayId: s
               ✓
             </div>
             <span className="text-green-900 font-medium">Ready for customers</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+              progress?.staffAdded 
+                ? 'bg-green-600 text-white' 
+                : 'bg-gray-300 text-gray-600'
+            }`}>
+              {progress?.staffAdded ? '✓' : '○'}
+            </div>
+            <span className={progress?.staffAdded ? 'text-green-900 font-medium' : 'text-gray-600 font-medium'}>
+              {progress?.staffAdded ? 'Staff added' : 'Staff setup - skipped'}
+            </span>
           </div>
         </div>
       </div>
@@ -110,34 +122,36 @@ export default function SuccessPage({ params }: { params: Promise<{ displayId: s
         </div>
       )}
 
-      {/* Staff Option */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-        <div className="text-center">
-          <div className="text-3xl mb-3">👥</div>
-          <h3 className="font-semibold text-lg mb-2">
-            Want to add staff members?
-          </h3>
-          <p className="text-sm text-gray-600 mb-4">
-            Add your team now or do it later from your dashboard
-          </p>
-          <div className="flex flex-col gap-3">
-            <button
-              onClick={() => router.push(`/setup/${displayId}/staff`)}
-              className="w-full py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors"
-            >
-              Add Staff Now
-            </button>
-            {storeId && (
-              <a
-                href={`/store/login/${storeId}`}
-                className="w-full py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors text-center block"
+      {/* Staff Option - Only show if they skipped */}
+      {!progress?.staffAdded && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="text-center">
+            <div className="text-3xl mb-3">👥</div>
+            <h3 className="font-semibold text-lg mb-2">
+              Want to add staff members?
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Add your team now or do it later from your dashboard
+            </p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => router.push(`/setup/${displayId}/staff${storeId ? `?storeId=${storeId}` : ''}`)}
+                className="w-full py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors"
               >
-                I'll Do This Later
-              </a>
-            )}
+                Add Staff Now
+              </button>
+              {storeId && (
+                <a
+                  href={`/store/login/${storeId}`}
+                  className="w-full py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors text-center block"
+                >
+                  I'll Do This Later
+                </a>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Next Steps */}
       <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg border border-purple-200 p-5">

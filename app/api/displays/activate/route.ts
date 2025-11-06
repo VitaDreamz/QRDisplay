@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
       promoOffer,
       returningCustomerPromo,
       followupDays,
+      postPurchaseFollowupDays,
       pin,
       ownerName,
       ownerPhone,
@@ -41,26 +42,28 @@ export async function POST(req: NextRequest) {
     } = body;
 
     // Validate required fields
-    if (
-      !displayId ||
-      !storeName ||
-      !adminName ||
-      !adminEmail ||
-      !adminPhone ||
-      !address ||
-      !city ||
-      !state ||
-      !zip ||
-      !timezone ||
-      !pin ||
-      !followupDays ||
-      !Array.isArray(followupDays) ||
-      !ownerName ||
-      !ownerPhone ||
-      !ownerEmail
-    ) {
+    const missingFields = [];
+    if (!displayId) missingFields.push('displayId');
+    if (!storeName) missingFields.push('storeName');
+    if (!adminName) missingFields.push('adminName');
+    if (!adminEmail) missingFields.push('adminEmail');
+    if (!adminPhone) missingFields.push('adminPhone');
+    if (!address) missingFields.push('address');
+    if (!city) missingFields.push('city');
+    if (!state) missingFields.push('state');
+    if (!zip) missingFields.push('zip');
+    if (!timezone) missingFields.push('timezone');
+    if (!pin) missingFields.push('pin');
+    if (!followupDays) missingFields.push('followupDays');
+    if (!Array.isArray(followupDays)) missingFields.push('followupDays (not array)');
+    if (!ownerName) missingFields.push('ownerName');
+    if (!ownerPhone) missingFields.push('ownerPhone');
+    if (!ownerEmail) missingFields.push('ownerEmail');
+    
+    if (missingFields.length > 0) {
+      console.error('❌ Missing required fields:', missingFields);
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: `Missing required fields: ${missingFields.join(', ')}` },
         { status: 400 }
       );
     }
@@ -209,8 +212,8 @@ export async function POST(req: NextRequest) {
         zipCode: zip,
         timezone,
         promoOffer: promoOffer || '20% Off In-Store Purchase',
-        returningCustomerPromo: returningCustomerPromo || '10% Off In-Store Purchase',
         followupDays,
+        postPurchaseFollowupDays: postPurchaseFollowupDays || [45, 90],
         staffPin: pin,
         orgId: orgId,
         ownerName,
@@ -233,8 +236,8 @@ export async function POST(req: NextRequest) {
         zipCode: zip,
         timezone,
         promoOffer: promoOffer || '20% Off In-Store Purchase',
-        returningCustomerPromo: returningCustomerPromo || '10% Off In-Store Purchase',
         followupDays,
+        postPurchaseFollowupDays: postPurchaseFollowupDays || [45, 90],
         staffPin: pin,
         ownerName,
         ownerPhone,

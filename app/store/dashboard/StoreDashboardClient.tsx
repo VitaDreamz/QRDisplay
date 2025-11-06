@@ -47,6 +47,17 @@ type DashboardData = {
   displays: any[];
   organization: any;
   role: 'owner' | 'staff';
+  purchaseIntents?: Array<{
+    id: string;
+    status: 'pending' | 'ready' | 'fulfilled' | string;
+    verifySlug: string;
+    createdAt: Date;
+    originalPrice: number;
+    discountPercent: number;
+    finalPrice: number;
+    product: { sku: string; name: string; imageUrl?: string | null };
+    customer: { firstName: string; lastName: string; phone: string };
+  }>;
   staffMember?: {
     staffId: string;
     firstName: string;
@@ -71,6 +82,29 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
   const [sendingBlast, setSendingBlast] = useState(false);
   const [sendingStaffMsg, setSendingStaffMsg] = useState(false);
   const [editingSamples, setEditingSamples] = useState(false);
+
+  // Purchase intents state
+  const [purchaseIntents, setPurchaseIntents] = useState(initialData.purchaseIntents || []);
+  const pendingIntents = purchaseIntents.filter(i => i.status === 'pending');
+  const readyIntents = purchaseIntents.filter(i => i.status === 'ready');
+  const fulfilledIntents = purchaseIntents.filter(i => i.status === 'fulfilled');
+
+  async function notifyReady(verifySlug: string) {
+    try {
+      const res = await fetch('/api/purchase-intent/ready', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ verifySlug })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to notify');
+      // Update local state
+      setPurchaseIntents(prev => prev.map(i => i.verifySlug === verifySlug ? { ...i, status: 'ready' } : i));
+      alert('Customer notified.');
+    } catch (e: any) {
+      alert(e.message || 'Failed to notify');
+    }
+  }
   
   // Staff Management
   const [staff, setStaff] = useState<any[]>([]);
@@ -730,7 +764,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
             <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
               <div className="text-xs text-gray-600 font-medium">Total Sales</div>
               <div className="text-2xl md:text-3xl font-bold text-purple-600 mt-1">
-                ${data.customers.filter((c: any) => c.promoRedeemed).reduce((sum: number, c: any) => sum + (parseFloat(c.saleAmount || '0')), 0).toFixed(2)}
+                ${purchaseIntents.filter(i => i.status === 'fulfilled').reduce((sum, i) => sum + (Number(i.finalPrice) || 0), 0).toFixed(2)}
               </div>
               <div className="text-xs text-gray-500 mt-2">💰 Revenue</div>
             </div>
@@ -808,6 +842,40 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <>
+            {/* Pending Purchase Requests */}
+            {(pendingIntents.length > 0 || readyIntents.length > 0 || fulfilledIntents.length > 0) && (
+              <div className="bg-white rounded-lg shadow">
+                <div className="p-4 border-b flex items-center justify-between">
+                  <h2 className="text-xl font-bold">Purchase Requests</h2>
+                  <div className="text-sm text-gray-600">
+                    Pending: {pendingIntents.length} • Ready: {readyIntents.length} • Fulfilled: {fulfilledIntents.length}
+                  </div>
+                </div>
+                <div className="divide-y">
+                  {[...readyIntents, ...pendingIntents, ...fulfilledIntents].slice(0,5).map((i) => (
+                    <div key={i.id} className="p-4 flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold">{i.customer.firstName} {i.customer.lastName}</div>
+                        <div className="text-sm text-gray-600">{i.product.name}</div>
+                        <div className="text-xs text-gray-500">{new Date(i.createdAt).toLocaleString()} • {i.status.toUpperCase()}</div>
+                      </div>
+                      {i.status === 'pending' && role === 'owner' && (
+                        <button onClick={() => notifyReady(i.verifySlug)} className="px-3 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700">Notify Ready</button>
+                      )}
+                      {i.status === 'ready' && (
+                        <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded">Customer Notified</span>
+                      )}
+                      {i.status === 'fulfilled' && (
+                        <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">Fulfilled</span>
+                      )}
+                    </div>
+                  ))}
+                  {pendingIntents.length + readyIntents.length > 5 && (
+                    <div className="p-3 text-xs text-gray-600">And more…</div>
+                  )}
+                </div>
+              </div>
+            )}
             {/* Current Promo Offer Card */}
             {role === 'owner' && (
               <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl shadow p-6">
@@ -906,6 +974,33 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
         {/* Customers Tab */}
         {activeTab === 'customers' && (
           <div className="bg-white rounded-lg shadow">
+            {(pendingIntents.length > 0 || readyIntents.length > 0 || fulfilledIntents.length > 0) && (
+              <div className="p-4 border-b bg-purple-50/40">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-bold">Purchase Requests</h2>
+                  <div className="text-sm text-gray-700">Pending: {pendingIntents.length} • Ready: {readyIntents.length} • Fulfilled: {fulfilledIntents.length}</div>
+                </div>
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {[...readyIntents, ...pendingIntents, ...fulfilledIntents].slice(0,6).map(i => (
+                    <div key={i.id} className="border rounded-lg p-3 flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold">{i.customer.firstName} {i.customer.lastName}</div>
+                        <div className="text-sm text-gray-600">{i.product.name}</div>
+                      </div>
+                      {i.status === 'pending' && role === 'owner' && (
+                        <button onClick={() => notifyReady(i.verifySlug)} className="px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700">Notify Ready</button>
+                      )}
+                      {i.status === 'ready' && (
+                        <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded">Ready</span>
+                      )}
+                      {i.status === 'fulfilled' && (
+                        <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">Fulfilled</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="p-4 border-b flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
               <div className="flex items-center gap-3 w-full md:w-auto">
                 <h2 className="text-xl font-bold flex-1">Your Customers ({filteredCustomers.length})</h2>

@@ -29,10 +29,8 @@ export async function GET(
       return NextResponse.json({ ok: false, expired: true }, { status: 400 });
     }
 
-    // Check if already used
-    if (shortlink.redeemed || shortlink.usedAt) {
-      return NextResponse.json({ ok: false, used: true }, { status: 400 });
-    }
+    // Note: We don't check usedAt here because customers should be able to revisit the promo page
+    // The purchase intent endpoint handles duplicate prevention
 
     // Get customer
     const customer = await prisma.customer.findFirst({
@@ -61,6 +59,36 @@ export async function GET(
       return NextResponse.json({ ok: false, error: 'Store not found' }, { status: 404 });
     }
 
+    // Get store's available products
+    const storeWithProducts = await prisma.store.findUnique({
+      where: { storeId: shortlink.storeId },
+      select: {
+        availableProducts: true
+      }
+    });
+
+    const products = await prisma.product.findMany({
+      where: {
+        sku: {
+          in: storeWithProducts?.availableProducts || []
+        },
+        active: true
+      },
+      select: {
+        sku: true,
+        name: true,
+        description: true,
+        category: true,
+        price: true,
+        msrp: true,
+        imageUrl: true,
+        featured: true
+      },
+      orderBy: {
+        name: 'asc'
+      }
+    });
+
     return NextResponse.json({
       ok: true,
       storeName: store.storeName,
@@ -73,7 +101,12 @@ export async function GET(
         state: store.state,
         zipCode: store.zipCode,
         adminPhone: store.adminPhone,
-      }
+      },
+      products: products.map(p => ({
+        ...p,
+        price: parseFloat(p.price.toString()),
+        msrp: p.msrp ? parseFloat(p.msrp.toString()) : null
+      }))
     });
   } catch (err) {
     console.error('Error fetching promo:', err);

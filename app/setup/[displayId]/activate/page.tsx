@@ -11,7 +11,7 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
   const [displayId, setDisplayId] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
-  const { saveProgress, clearProgress } = useWizardProgress(displayId);
+  const { progress, saveProgress, clearProgress } = useWizardProgress(displayId);
 
   // Form state - using same structure as existing activation
   const [storeName, setStoreName] = useState('');
@@ -45,13 +45,36 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
   const [purchasingEmail, setPurchasingEmail] = useState('');
   const [purchasingSameAsOwner, setPurchasingSameAsOwner] = useState(false);
   
-  const [availableSamples, setAvailableSamples] = useState<string[]>(
-    SAMPLE_OPTIONS.map(s => s.value) // Default to all samples
-  );
-  
-  const [availableProducts, setAvailableProducts] = useState<string[]>([]);
+  // Products are now selected on the next step (Products page)
   const [products, setProducts] = useState<any[]>([]);
   const [brandInfo, setBrandInfo] = useState<any>(null);
+
+  // Load saved progress and pre-fill form fields
+  useEffect(() => {
+    if (progress) {
+      console.log('📋 Loading saved progress:', progress);
+      if (progress.storeName) setStoreName(progress.storeName);
+      if (progress.address) setAddress(progress.address);
+      if (progress.city) setCity(progress.city);
+      if (progress.state) setState(progress.state);
+      if (progress.zip) setZip(progress.zip);
+      if (progress.timezone) setTimezone(progress.timezone);
+      if (progress.promoPercentage) setPromoPercentage(progress.promoPercentage);
+      if (progress.followupDays) setFollowupDays(progress.followupDays);
+      if (progress.pin) setPin(progress.pin);
+      if (progress.ownerName) setOwnerName(progress.ownerName);
+      if (progress.ownerPhone) setOwnerPhone(progress.ownerPhone);
+      if (progress.ownerEmail) setOwnerEmail(progress.ownerEmail);
+      if (progress.adminName) setAdminName(progress.adminName);
+      if (progress.adminPhone) setAdminPhone(progress.adminPhone);
+      if (progress.adminEmail) setAdminEmail(progress.adminEmail);
+      if (progress.adminSameAsOwner !== undefined) setAdminSameAsOwner(progress.adminSameAsOwner);
+      if (progress.purchasingManager) setPurchasingManager(progress.purchasingManager);
+      if (progress.purchasingPhone) setPurchasingPhone(progress.purchasingPhone);
+      if (progress.purchasingEmail) setPurchasingEmail(progress.purchasingEmail);
+      if (progress.purchasingSameAsOwner !== undefined) setPurchasingSameAsOwner(progress.purchasingSameAsOwner);
+    }
+  }, [progress]);
 
   useEffect(() => {
     params.then(async (p) => {
@@ -65,7 +88,6 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
         console.log('[Activate] Products response status:', productsRes.status);
         if (productsRes.ok) {
           const productsData = await productsRes.json();
-          console.log('[Activate] Products data:', productsData);
           console.log('[Activate] Products fetched:', productsData.products?.length || 0);
           setProducts(productsData.products || []);
         } else {
@@ -77,116 +99,33 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
       }
     });
   }, [params]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    // Validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const adminEmailToUse = adminSameAsOwner ? ownerEmail : adminEmail;
-    if (!emailRegex.test(adminEmailToUse)) {
-      setError('Please enter a valid admin email address');
-      setLoading(false);
-      return;
-    }
-
-    const phoneRegex = /^[\+\d\s\-\(\)]{10,15}$/;
-    const adminPhoneToUse = adminSameAsOwner ? ownerPhone : adminPhone;
-    if (!phoneRegex.test(adminPhoneToUse)) {
-      setError('Please enter a valid admin phone number');
-      setLoading(false);
-      return;
-    }
-
-    const pinRegex = /^\d{4}$/;
-    if (!pinRegex.test(pin)) {
-      setError('PIN must be exactly 4 digits');
-      setLoading(false);
-      return;
-    }
-
-    const zipRegex = /^\d{5}$/;
-    if (!zipRegex.test(zip)) {
-      setError('Please enter a valid 5-digit ZIP code');
-      setLoading(false);
-      return;
-    }
-
-    const stateRegex = /^[A-Z]{2}$/;
-    if (!stateRegex.test(state.toUpperCase())) {
-      setError('Please enter a valid 2-letter state code');
-      setLoading(false);
-      return;
-    }
-
-    // Build selected follow-up days from UI
-    const selectedFollowupDays: number[] = [];
-    if (followupDays.day4) selectedFollowupDays.push(4);
-    if (followupDays.day8) selectedFollowupDays.push(8);
-    if (followupDays.day12) selectedFollowupDays.push(12);
-    if (followupDays.day16) selectedFollowupDays.push(16);
-    if (followupDays.day20) selectedFollowupDays.push(20);
-
-    if (selectedFollowupDays.length === 0) {
-      setError('Please select at least one follow-up day');
-      setLoading(false);
-      return;
-    }
-
-    if (availableSamples.length === 0) {
-      setError('Please select at least one sample product');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const promoOffer = `${promoPercentage}% Off In-Store Purchase`;
-      const response = await fetch('/api/displays/activate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          displayId,
-          storeName,
-          address,
-          city,
-          state: state.toUpperCase(),
-          zip,
-          timezone,
-          promoOffer,
-          followupDays: selectedFollowupDays,
-          pin,
-          ownerName,
-          ownerPhone,
-          ownerEmail,
-          adminName: adminSameAsOwner ? ownerName : adminName,
-          adminPhone: adminSameAsOwner ? ownerPhone : adminPhone,
-          adminEmail: adminSameAsOwner ? ownerEmail : adminEmail,
-          purchasingManager: purchasingSameAsOwner ? ownerName : purchasingManager,
-          purchasingPhone: purchasingSameAsOwner ? ownerPhone : purchasingPhone,
-          purchasingEmail: purchasingSameAsOwner ? ownerEmail : purchasingEmail,
-          availableSamples,
-          availableProducts,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || 'Failed to activate display');
-        setLoading(false);
-        return;
-      }
-
-      // Success - clear wizard progress and go to success page
-      saveProgress({ currentStep: 6, activated: true });
-      clearProgress();
-      router.push(`/setup/${displayId}/success?storeId=${data.storeId}`);
-    } catch (err) {
-      setError('An error occurred while activating the display');
-      setLoading(false);
-    }
+  // Move activation submit to next step; this page now only collects store/admin details
+  const goToProductsStep = () => {
+    // Persist current form fields to progress and navigate
+    saveProgress({
+      currentStep: 7,
+      storeName,
+      address,
+      city,
+      state,
+      zip,
+      timezone,
+      promoPercentage,
+      followupDays,
+      pin,
+      ownerName,
+      ownerPhone,
+      ownerEmail,
+      adminName,
+      adminPhone,
+      adminEmail,
+      adminSameAsOwner,
+      purchasingManager,
+      purchasingPhone,
+      purchasingEmail,
+      purchasingSameAsOwner,
+    });
+    router.push(`/setup/${displayId}/products`);
   };
 
   if (!displayId) {
@@ -200,8 +139,8 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
   return (
     <WizardLayout
       currentStep={6}
-      totalSteps={8}
-      stepLabel="Activate"
+      totalSteps={9}
+      stepLabel="Store Details"
       displayId={displayId}
       showNext={false}
     >
@@ -222,7 +161,7 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+  <form className="space-y-6">
           {/* Store Info */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <h2 className="font-semibold text-lg mb-4">Store Information</h2>
@@ -466,97 +405,7 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
             </div>
           </div>
 
-          {/* Sample Selection */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <h2 className="font-semibold text-lg mb-4">Available Samples</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Select which sample products your store will offer:
-            </p>
-            
-            <div className="space-y-2">
-              {SAMPLE_OPTIONS.map((sample) => (
-                <label key={sample.value} className="flex items-start gap-3 p-3 rounded-lg border cursor-pointer hover:bg-gray-50">
-                  <input
-                    type="checkbox"
-                    checked={availableSamples.includes(sample.value)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setAvailableSamples([...availableSamples, sample.value]);
-                      } else {
-                        setAvailableSamples(availableSamples.filter(s => s !== sample.value));
-                      }
-                    }}
-                    className="w-5 h-5 mt-0.5 rounded border-gray-300 text-purple-600"
-                  />
-                  <div className="text-sm">
-                    <div className="font-medium">{sample.label.split(' - ')[0]}</div>
-                    <div className="text-gray-500">{sample.label.split(' - ')[1]}</div>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Product Selection */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <h2 className="font-semibold text-lg mb-4">Available Products for Purchase</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Select which full-size products your store will carry. When customers redeem their promo code, they'll choose from these products. <span className="text-purple-600 font-medium">(Optional - you can add these later)</span>
-            </p>
-            
-            {products.length === 0 ? (
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center text-gray-500 text-sm">
-                <div>No products available yet.</div>
-                <div className="text-xs mt-2">You can add products later from your dashboard.</div>
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-80 overflow-y-auto">
-                {products.map((product) => (
-                  <label key={product.sku} className="flex items-start gap-3 p-3 rounded-lg border cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="checkbox"
-                      checked={availableProducts.includes(product.sku)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setAvailableProducts([...availableProducts, product.sku]);
-                        } else {
-                          setAvailableProducts(availableProducts.filter(s => s !== product.sku));
-                        }
-                      }}
-                      className="w-5 h-5 mt-0.5 rounded border-gray-300 text-purple-600"
-                    />
-                    {product.imageUrl && (
-                      <img 
-                        src={product.imageUrl} 
-                        alt={product.name}
-                        className="w-16 h-16 object-cover rounded border"
-                      />
-                    )}
-                    <div className="flex-1 text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{product.name}</span>
-                        {product.featured && (
-                          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">⭐ Featured</span>
-                        )}
-                      </div>
-                      {product.description && (
-                        <div className="text-gray-600 mt-0.5">{product.description}</div>
-                      )}
-                      <div className="flex items-center gap-2 mt-1">
-                        {product.category && (
-                          <span className="text-xs text-gray-500">{product.category}</span>
-                        )}
-                        <span className="text-xs font-semibold text-gray-900">${parseFloat(product.price).toFixed(2)}</span>
-                      </div>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            )}
-            <p className="text-xs text-gray-500 mt-3">
-              💡 You can manage your product offerings later from your store dashboard
-            </p>
-          </div>
+          {/* Samples and Products moved to next step */}
 
           {/* Display Settings */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
@@ -648,17 +497,18 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
             </div>
           </div>
 
-          {/* Submit Button */}
+          {/* Next Button to Products Step */}
           <button
-            type="submit"
+            type="button"
             disabled={loading || !isFormValid}
+            onClick={goToProductsStep}
             className={`w-full py-4 rounded-lg font-bold text-lg transition-all ${
               loading || !isFormValid
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 : 'bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800 shadow-lg'
             }`}
           >
-            {loading ? 'Activating...' : '🚀 Activate My Display'}
+            Set-up Your Products
           </button>
         </form>
       </div>

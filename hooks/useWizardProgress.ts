@@ -10,6 +10,29 @@ export interface WizardProgress {
   activated: boolean;
   timestamp: string;
   assemblySteps?: Record<string, boolean>;
+  // Optional activation fields persisted across steps
+  storeName?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  timezone?: string;
+  promoPercentage?: string; // e.g. '20'
+  followupDays?: { day4: boolean; day8: boolean; day12: boolean; day16: boolean; day20: boolean };
+  pin?: string;
+  ownerName?: string;
+  ownerPhone?: string;
+  ownerEmail?: string;
+  adminName?: string;
+  adminPhone?: string;
+  adminEmail?: string;
+  adminSameAsOwner?: boolean;
+  purchasingManager?: string;
+  purchasingPhone?: string;
+  purchasingEmail?: string;
+  purchasingSameAsOwner?: boolean;
+  availableSamples?: string[];
+  availableProducts?: string[];
 }
 
 const STORAGE_KEY = 'qrdisplay-wizard-progress';

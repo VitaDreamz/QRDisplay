@@ -75,12 +75,20 @@ export async function POST(req: NextRequest) {
     let sent = 0;
     let failed = 0;
 
+    // Fetch all opted-out phone numbers
+    const optOuts = await prisma.optOut.findMany({ select: { phone: true } });
+    const optOutSet = new Set(optOuts.map(o => o.phone));
+
     for (const customer of customers) {
+      // Skip if opted out
+      if (optOutSet.has(customer.phone)) {
+        continue;
+      }
       try {
         await client.messages.create({
           to: customer.phone,
           from: process.env.TWILIO_PHONE_NUMBER,
-          body: message
+          body: message + ' Reply STOP to opt out.'
         });
 
         // Log successful send

@@ -65,6 +65,19 @@ export default async function StoreDashboardPage() {
     }
   });
 
+  // Fetch pending/ready purchase intents with customer and product details
+  const purchaseIntents = await prisma.purchaseIntent.findMany({
+    where: {
+      storeId: store.id,
+      status: { in: ['pending', 'ready', 'fulfilled'] }
+    },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      customer: true,
+      product: true
+    }
+  });
+
   if (!store) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -116,6 +129,26 @@ export default async function StoreDashboardPage() {
     })),
     displays: displays,
     organization: organization,
+    purchaseIntents: purchaseIntents.map((i: any) => ({
+      id: i.id,
+      status: i.status,
+      verifySlug: i.verifySlug,
+      createdAt: i.createdAt,
+      originalPrice: Number(i.originalPrice),
+      discountPercent: i.discountPercent,
+      finalPrice: Number(i.finalPrice),
+      fulfilledAt: i.fulfilledAt,
+      product: {
+        sku: i.product.sku,
+        name: i.product.name,
+        imageUrl: i.product.imageUrl
+      },
+      customer: {
+        firstName: i.customer.firstName,
+        lastName: i.customer.lastName,
+        phone: i.customer.phone
+      }
+    })),
     role: role,
     staffMember: staffMember ? {
       staffId: staffMember.staffId,

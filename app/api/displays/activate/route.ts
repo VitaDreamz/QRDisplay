@@ -11,6 +11,8 @@ function generateStoreId(nextIndex: number) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    console.log('🚀 Activation request received for displayId:', body.displayId);
+    
     const {
       displayId,
       storeName,
@@ -136,11 +138,14 @@ export async function POST(req: NextRequest) {
     })) as any;
 
     if (!display) {
+      console.error('❌ Display not found:', displayId);
       return NextResponse.json(
         { error: 'Display not found' },
         { status: 404 }
       );
     }
+    
+    console.log('✅ Display found:', displayId, 'Status:', display.status, 'OrgId:', display.ownerOrgId || display.assignedOrgId);
 
     // Check if display status is 'sold' or 'inventory'
     if (display.status !== 'sold' && display.status !== 'inventory') {
@@ -150,8 +155,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // For inventory displays, use ownerOrgId; for sold displays, use assignedOrgId
-    const orgId = display.status === 'inventory' ? display.ownerOrgId : display.assignedOrgId;
+    // For inventory displays, use ownerOrgId; for sold displays, use assignedOrgId (or fall back to ownerOrgId)
+    const orgId = display.status === 'inventory' 
+      ? display.ownerOrgId 
+      : (display.assignedOrgId || display.ownerOrgId);
     
     if (!orgId) {
       return NextResponse.json(
@@ -274,8 +281,10 @@ export async function POST(req: NextRequest) {
 
     // Send activation email (non-blocking for overall activation)
     try {
-      if (!display.organization) {
-        console.warn('Display organization missing; skipping email send');
+      if (!process.env.RESEND_API_KEY) {
+        console.warn('⚠️ RESEND_API_KEY not set; skipping activation email');
+      } else if (!display.organization) {
+        console.warn('⚠️ Display organization missing; skipping email send');
       } else {
         await sendActivationEmail({
           organization: {
@@ -426,9 +435,19 @@ export async function POST(req: NextRequest) {
       message: 'Display activated successfully',
     });
   } catch (error) {
-    console.error('Error activating display:', error);
+    console.error('❌ Error activating display:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+    }
     return NextResponse.json(
-      { error: 'An error occurred while activating the display' },
+      { 
+        error: 'An error occurred while activating the display',
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }

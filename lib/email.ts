@@ -450,6 +450,76 @@ export async function sendBrandSampleRedemptionEmail(data: {
   }
 }
 
+// Store Notification: New Purchase Intent
+export async function sendStorePurchaseIntentEmail(data: {
+  toEmail: string;
+  store: { storeName: string };
+  customer: { firstName: string; lastName: string };
+  product: { name: string; sku: string };
+  pricing: { originalPrice: number; discountPercent: number; finalPrice: number };
+}) {
+  const { toEmail, store, customer, product, pricing } = data;
+  const subject = `🛒 New Purchase Request – ${product.name}`;
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <h2>New Purchase Request</h2>
+      <p><strong>Store:</strong> ${store.storeName}</p>
+      <p><strong>Customer:</strong> ${customer.firstName} ${customer.lastName}</p>
+      <p><strong>Product:</strong> ${product.name} (${product.sku})</p>
+      <p><strong>Pricing:</strong> MSRP $${pricing.originalPrice.toFixed(2)} → Your Price $${pricing.finalPrice.toFixed(2)} (${pricing.discountPercent}% off)</p>
+      <p>Mark the order as ready in your dashboard to notify the customer with a pickup link.</p>
+    </div>
+  `;
+
+  try {
+    await resend.emails.send({
+      from: 'QRDisplay <noreply@qrdisplay.com>',
+      to: toEmail,
+      subject,
+      html
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Store purchase intent email failed:', error);
+    return { success: false, error };
+  }
+}
+
+// Brand Notification: New Purchase Intent
+export async function sendBrandPurchaseIntentEmail(data: {
+  toEmail: string;
+  brandName?: string;
+  store: { storeName: string };
+  customer: { firstName: string; lastName: string };
+  product: { name: string; sku: string };
+  pricing: { originalPrice: number; discountPercent: number; finalPrice: number };
+}) {
+  const { toEmail, brandName, store, customer, product, pricing } = data;
+  const subject = `🛒 New Purchase Request – ${store.storeName}`;
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <h2>${brandName || 'Brand'} – New Purchase Request</h2>
+      <p><strong>Store:</strong> ${store.storeName}</p>
+      <p><strong>Customer:</strong> ${customer.firstName} ${customer.lastName}</p>
+      <p><strong>Product:</strong> ${product.name} (${product.sku})</p>
+      <p><strong>Pricing:</strong> MSRP $${pricing.originalPrice.toFixed(2)} → Final $${pricing.finalPrice.toFixed(2)} (${pricing.discountPercent}% off)</p>
+    </div>
+  `;
+
+  try {
+    await resend.emails.send({
+      from: 'QRDisplay <noreply@qrdisplay.com>',
+      to: toEmail,
+      subject,
+      html
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Brand purchase intent email failed:', error);
+    return { success: false, error };
+  }
+}
+
 // Brand Notification: Promo Redemption
 export async function sendBrandPromoRedemptionEmail(data: {
   brandEmail: string;

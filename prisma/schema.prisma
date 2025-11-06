@@ -301,6 +301,7 @@ model Staff {
   store                Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
   customerRedemptions  Customer[] @relation("RedeemedByStaff")
   promoRedemptions     Customer[] @relation("PromoRedeemedByStaff")
+    purchaseIntents      PurchaseIntent[]
   
   @@map("staff")
 }
@@ -383,7 +384,11 @@ model PurchaseIntent {
   verifySlug  String   @unique
   
   fulfilledAt DateTime?
-  fulfilledBy String?  // Staff ID who completed the sale
+    fulfilledByStaffId String?  // Staff ID who completed the sale
+    fulfilledByStaff   Staff?   @relation(fields: [fulfilledByStaffId], references: [id], onDelete: SetNull)
+  
+    // When store notifies customer that order is ready
+    notifiedAt  DateTime?
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

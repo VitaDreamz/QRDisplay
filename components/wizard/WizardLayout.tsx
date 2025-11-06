@@ -67,36 +67,6 @@ export function WizardLayout({
         </div>
       </div>
       
-      {/* Navigation buttons */}
-      {(showBack || showNext) && (
-        <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 shadow-lg">
-          <div className="max-w-md mx-auto flex gap-3">
-            {showBack && currentStep > 1 && (
-              <button
-                onClick={handleBack}
-                className="px-6 py-3 border-2 border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                ← Back
-              </button>
-            )}
-            
-            {showNext && (
-              <button
-                onClick={handleNext}
-                disabled={nextDisabled}
-                className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors ${
-                  nextDisabled
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800 shadow-lg'
-                }`}
-              >
-                {nextLabel} →
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-      
       {/* Support chat bubble */}
       <SupportBubble />
     </div>

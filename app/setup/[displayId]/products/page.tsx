@@ -282,7 +282,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                 : 'bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 shadow-lg'
             }`}
           >
-            {loading ? 'Activating...' : '🚀 Activate My Display'}
+            {loading ? 'Activating...' : 'Continue →'}
           </button>
         </div>
       </div>

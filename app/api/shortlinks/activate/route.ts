@@ -30,14 +30,37 @@ export async function POST(req: NextRequest) {
     const customer = await prisma.customer.findUnique({ where: { memberId: short.memberId! } });
     if (!customer) return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
 
-    // If PIN required, validate
+    // If PIN required, validate against store admin PIN or any active staff PIN
+    let redeemedByStaffId: string | null = null;
     if (short.requiresPin) {
       const pinRegex = /^\d{4}$/;
       if (!pin || !pinRegex.test(pin)) {
         return NextResponse.json({ error: 'Invalid PIN' }, { status: 400 });
       }
-      if (!store.staffPin || store.staffPin !== pin) {
+      
+      // Check if it's the store admin PIN
+      const isAdminPin = store.staffPin === pin;
+      
+      // Check if it's a staff member PIN
+      let staffMember = null;
+      if (!isAdminPin) {
+        staffMember = await prisma.staff.findFirst({
+          where: {
+            storeId: store.id,
+            staffPin: pin,
+            status: 'active'
+          }
+        });
+      }
+      
+      // If neither admin nor staff PIN matches, reject
+      if (!isAdminPin && !staffMember) {
         return NextResponse.json({ error: 'Invalid PIN' }, { status: 403 });
+      }
+      
+      // Track which staff member redeemed it
+      if (staffMember) {
+        redeemedByStaffId = staffMember.id;
       }
     }
 
@@ -48,9 +71,23 @@ export async function POST(req: NextRequest) {
         redeemed: true, 
         redeemedAt: new Date(),
         currentStage: 'sampling',
-        stageChangedAt: new Date()
-      },
+        stageChangedAt: new Date(),
+        // Track which staff member redeemed the sample (if any)
+        ...(redeemedByStaffId ? { redeemedByStaffId } : {})
+      } as any,
     });
+    
+    // Increment staff member's samplesRedeemed counter for leaderboard
+    if (redeemedByStaffId) {
+      try {
+        await prisma.staff.update({
+          where: { id: redeemedByStaffId },
+          data: { samplesRedeemed: { increment: 1 } }
+        });
+      } catch (e) {
+        console.warn('Failed to increment staff samplesRedeemed:', e);
+      }
+    }
 
     // Mark shortlink used (and redeemed flags for audit)
     await prisma.shortlink.update({

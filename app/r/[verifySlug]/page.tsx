@@ -7,7 +7,8 @@ export default function RedeemPage({ params }: { params: Promise<{ verifySlug: s
   const router = useRouter();
   const [slug, setSlug] = useState('');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null); // Fatal errors with the link itself
+  const [pinError, setPinError] = useState<string | null>(null); // Inline PIN validation errors
   const [pin, setPin] = useState('');
   const [intent, setIntent] = useState<any>(null);
   const [store, setStore] = useState<any>(null);
@@ -21,13 +22,13 @@ export default function RedeemPage({ params }: { params: Promise<{ verifySlug: s
         const res = await fetch(`/api/purchase-intent?verifySlug=${p.verifySlug}`, { cache: 'no-store' });
         const json = await res.json();
         if (!res.ok || !json.intent) {
-          setError(json.error || 'Invalid link');
+          setLinkError(json.error || 'Invalid link');
         } else {
           setIntent(json.intent);
           setStore(json.store || null);
         }
       } catch (e) {
-        setError('Network error');
+        setLinkError('Network error');
       } finally {
         setLoading(false);
       }
@@ -38,7 +39,7 @@ export default function RedeemPage({ params }: { params: Promise<{ verifySlug: s
     e.preventDefault();
     if (!pin || pin.length !== 4) return;
     setSubmitting(true);
-    setError(null);
+    setPinError(null);
     try {
       const res = await fetch('/api/purchase-intent/redeem', {
         method: 'POST',
@@ -47,14 +48,14 @@ export default function RedeemPage({ params }: { params: Promise<{ verifySlug: s
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error || 'Failed to redeem');
+        setPinError(json.error || 'Failed to redeem');
         setSubmitting(false);
         return;
       }
   // Go to success screen
   router.replace(`/r/${slug}/success`);
     } catch (e) {
-      setError('Network error');
+      setPinError('Network error');
       setSubmitting(false);
     }
   };
@@ -67,12 +68,12 @@ export default function RedeemPage({ params }: { params: Promise<{ verifySlug: s
     );
   }
 
-  if (error) {
+  if (linkError) {
     return (
       <div className="min-h-svh flex items-center justify-center bg-gradient-to-br from-purple-700 to-purple-500 px-5">
         <div className="bg-white rounded-2xl p-6 max-w-md w-full text-center">
           <h1 className="text-xl font-bold text-[#2b2b2b] mb-2">Redemption Issue</h1>
-          <p className="text-[#6b6b6b]">{error}</p>
+          <p className="text-[#6b6b6b]">{linkError}</p>
         </div>
       </div>
     );
@@ -164,6 +165,11 @@ export default function RedeemPage({ params }: { params: Promise<{ verifySlug: s
         )}
 
         <form onSubmit={onSubmit} className="space-y-3">
+          {pinError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">
+              {pinError}
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-[#2b2b2b] mb-1">PIN</label>
             <input
@@ -174,16 +180,13 @@ export default function RedeemPage({ params }: { params: Promise<{ verifySlug: s
               onChange={(e) => {
                 const v = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
                 setPin(v);
+                setPinError(null); // Clear error when user types
               }}
               className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
               placeholder="••••"
               autoComplete="off"
             />
           </div>
-
-          {error && (
-            <div className="text-red-600 text-sm text-center p-3 bg-red-50 rounded-lg">{error}</div>
-          )}
 
           <button
             type="submit"

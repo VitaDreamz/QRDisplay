@@ -5,7 +5,8 @@ import { useEffect, useState } from 'react';
 export default function ActivateShortlinkPage({ params }: { params: Promise<{ slug: string }> }) {
   const [slug, setSlug] = useState('');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null); // Fatal errors with the link itself
+  const [pinError, setPinError] = useState<string | null>(null); // Inline PIN validation errors
   const [requiresPin, setRequiresPin] = useState(false);
   const [storeName, setStoreName] = useState<string>('');
   const [sampleChoice, setSampleChoice] = useState<string>('');
@@ -21,18 +22,18 @@ export default function ActivateShortlinkPage({ params }: { params: Promise<{ sl
         const res = await fetch(`/api/shortlinks/${p.slug}`, { cache: 'no-store' });
         const json = await res.json();
         if (!res.ok || !json.ok) {
-          setError(json.error || 'Invalid link');
+          setLinkError(json.error || 'Invalid link');
         } else if (json.expired) {
-          setError('Link expired, please request new sample');
+          setLinkError('Link expired, please request new sample');
         } else if (json.used) {
-          setError('Link already used');
+          setLinkError('Link already used');
         } else {
           setRequiresPin(!!json.requiresPin);
           setStoreName(json.storeName || 'the store');
           setSampleChoice(json.sampleChoice || 'your sample');
         }
       } catch (e) {
-        setError('Network error');
+        setLinkError('Network error');
       } finally {
         setLoading(false);
       }
@@ -43,7 +44,7 @@ export default function ActivateShortlinkPage({ params }: { params: Promise<{ sl
     e.preventDefault();
     if (submitting) return;
     setSubmitting(true);
-    setError(null);
+    setPinError(null);
 
     try {
       const res = await fetch('/api/shortlinks/activate', {
@@ -53,14 +54,13 @@ export default function ActivateShortlinkPage({ params }: { params: Promise<{ sl
       });
       const json = await res.json();
       if (!res.ok || !json.ok) {
-        setError(json.error || 'Invalid PIN');
+        setPinError(json.error || 'Invalid PIN');
         setSubmitting(false);
         return;
       }
       setSuccess({ storeName: json.storeName, sampleChoice: json.sampleChoice, memberId: json.memberId });
     } catch (e) {
-      setError('Network error');
-    } finally {
+      setPinError('Network error');
       setSubmitting(false);
     }
   }
@@ -73,12 +73,12 @@ export default function ActivateShortlinkPage({ params }: { params: Promise<{ sl
     );
   }
 
-  if (error) {
+  if (linkError) {
     return (
       <div className="min-h-svh flex items-center justify-center bg-gradient-to-br from-purple-700 to-purple-500 px-5">
         <div className="bg-white rounded-2xl p-6 max-w-md w-full text-center">
           <h1 className="text-xl font-bold text-[#2b2b2b] mb-2">Issue with Link</h1>
-          <p className="text-[#6b6b6b]">{error}</p>
+          <p className="text-[#6b6b6b]">{linkError}</p>
         </div>
       </div>
     );
@@ -86,17 +86,48 @@ export default function ActivateShortlinkPage({ params }: { params: Promise<{ sl
 
   if (success) {
     return (
-      <div className="min-h-svh flex items-center justify-center bg-gradient-to-br from-purple-700 to-purple-500 px-5">
-        <div className="bg-white rounded-2xl p-6 max-w-md w-full text-center">
-          <div className="mx-auto w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-3">
-            <span className="text-3xl text-emerald-500">✓</span>
+      <div className="min-h-svh bg-gradient-to-br from-emerald-500 to-green-600 flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-lg">
+          {/* Success Icon */}
+          <div className="flex justify-center mb-8">
+            <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-white flex items-center justify-center shadow-2xl">
+              <span className="text-6xl md:text-7xl">✓</span>
+            </div>
           </div>
-          <h1 className="text-2xl font-bold text-[#2b2b2b]">Sample Redeemed!</h1>
-          <p className="text-base mt-2 text-[#2b2b2b]">Show the item to the customer and mark as handed off.</p>
-          <div className="mt-4 text-left text-[#2b2b2b]">
-            <div><span className="font-semibold">Store:</span> {success.storeName}</div>
-            <div><span className="font-semibold">Sample:</span> {success.sampleChoice}</div>
-            <div><span className="font-semibold">Member:</span> <span className="font-mono">{success.memberId}</span></div>
+
+          {/* Main Message */}
+          <div className="text-center mb-8">
+            <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-4">
+              Sample Redeemed!
+            </h1>
+            <p className="text-xl md:text-2xl text-white/90">
+              Hand the item to the customer
+            </p>
+          </div>
+
+          {/* Details Card */}
+          <div className="bg-white/95 backdrop-blur rounded-3xl p-6 md:p-8 shadow-2xl">
+            <div className="space-y-4">
+              <div className="flex items-start justify-between py-3 border-b border-gray-200">
+                <span className="text-gray-600 font-medium">Store</span>
+                <span className="text-gray-900 font-bold text-right">{success.storeName}</span>
+              </div>
+              <div className="flex items-start justify-between py-3 border-b border-gray-200">
+                <span className="text-gray-600 font-medium">Sample</span>
+                <span className="text-gray-900 font-bold text-right">{success.sampleChoice}</span>
+              </div>
+              <div className="flex items-start justify-between py-3">
+                <span className="text-gray-600 font-medium">Member ID</span>
+                <span className="text-gray-900 font-mono font-bold text-right">{success.memberId}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Message */}
+          <div className="text-center mt-8">
+            <p className="text-white/80 text-sm">
+              Customer will receive a promo offer via SMS
+            </p>
           </div>
         </div>
       </div>
@@ -113,6 +144,11 @@ export default function ActivateShortlinkPage({ params }: { params: Promise<{ sl
 
         {requiresPin && (
           <form onSubmit={handleSubmit} className="space-y-4">
+            {pinError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">
+                {pinError}
+              </div>
+            )}
             <input
               type="text"
               className="w-full h-14 px-4 text-2xl tracking-widest text-center border-2 border-gray-300 rounded-xl focus:border-purple-600 focus:ring-2 focus:ring-purple-200 focus:outline-none"
@@ -124,6 +160,7 @@ export default function ActivateShortlinkPage({ params }: { params: Promise<{ sl
               onChange={(e) => {
                 const value = e.target.value.replace(/\D/g, '');
                 setPin(value);
+                setPinError(null); // Clear error when user types
               }}
             />
             <button

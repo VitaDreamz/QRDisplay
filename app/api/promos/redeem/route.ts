@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
     }
 
-    // 5. Get store and validate PIN
+    // 5. Get store and validate PIN (check admin PIN or staff PINs)
     const store = await prisma.store.findUnique({
       where: { storeId: shortlink.storeId }
     });
@@ -54,7 +54,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Store not found' }, { status: 404 });
     }
 
-    if (store.staffPin !== pin) {
+    // Check if it's the store admin PIN
+    const isAdminPin = store.staffPin === pin;
+    
+    // Check if it's a staff member PIN
+    let staffMember = null;
+    if (!isAdminPin) {
+      staffMember = await prisma.staff.findFirst({
+        where: {
+          storeId: store.id,
+          staffPin: pin,
+          status: 'active'
+        }
+      });
+    }
+    
+    // If neither admin nor staff PIN matches, reject
+    if (!isAdminPin && !staffMember) {
       return NextResponse.json({ error: 'Invalid PIN' }, { status: 400 });
     }
 
@@ -67,9 +83,11 @@ export async function POST(request: NextRequest) {
         promoOffer: store.promoOffer,
         promoSlug: slug,
         redeemedAt: new Date(),
-        redeemedBy: 'staff-pin',
+        redeemedBy: staffMember ? `staff-${staffMember.staffId}` : 'admin',
         purchaseAmount: purchaseAmount ? parseFloat(purchaseAmount) : null,
         discountAmount: discountAmount ? parseFloat(discountAmount) : null,
+        // Track which staff member redeemed (if applicable)
+        ...(staffMember ? { redeemedByStaffId: staffMember.id } as any : {})
       }
     });
 

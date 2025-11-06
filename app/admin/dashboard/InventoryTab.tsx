@@ -18,7 +18,7 @@ type Organization = {
 };
 
 export function InventoryTab({ displays, organizations }: { displays: Display[]; organizations: Organization[] }) {
-  const [quantity, setQuantity] = useState(35);
+  const [quantity, setQuantity] = useState(24);
   const [selected, setSelected] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Display | null>(null);
@@ -208,12 +208,12 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
               onChange={(e) => setQuantity(Number(e.target.value))}
               className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
             >
-              <option value="35">35 (1 sheet)</option>
-              <option value="70">70 (2 sheets)</option>
-              <option value="105">105 (3 sheets)</option>
-              <option value="175">175 (5 sheets)</option>
+              <option value="24">24 (1 sheet)</option>
+              <option value="48">48 (2 sheets)</option>
+              <option value="72">72 (3 sheets)</option>
+              <option value="120">120 (5 sheets)</option>
             </select>
-            <p className="text-xs text-gray-500 mt-1">5 columns × 7 rows per sheet</p>
+            <p className="text-xs text-gray-500 mt-1">6 columns × 4 rows per sheet</p>
           </div>
 
           <div>
@@ -241,7 +241,7 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
           <p className="text-sm text-blue-800">
             ✅ Creates displays in database<br />
             ✅ Generates QR codes<br />
-            ✅ Downloads PDF ready for OnlineLabels OL854
+            ✅ Downloads PDF ready for OnlineLabels OL2681
           </p>
         </div>
 
@@ -249,7 +249,7 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
         <details className="mt-4">
           <summary className="cursor-pointer text-sm font-medium text-gray-700">📋 Printing Tips</summary>
           <div className="mt-2 p-3 bg-gray-50 rounded text-sm text-gray-600">
-            • Use OnlineLabels.com OL854 (1.25" × 1.25" square, 5×7 grid)<br />
+            • Use OnlineLabels.com OL2681 (1.5" × 1.5" square, 6×4 grid)<br />
             • Print at 100% scale (do not "fit to page")<br />
             • Use high-quality laser printer for best results<br />
             • Let ink dry before handling<br />

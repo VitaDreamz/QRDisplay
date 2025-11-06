@@ -902,7 +902,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
   return (
     <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-4 md:py-5">
+      <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-2 md:py-5">
         <div className="flex flex-col items-center text-center">
           <h1 className="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 mb-1.5">
             {data.store.storeName}
@@ -920,45 +920,52 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
         </div>
       </div>
 
-      {/* Stats Cards - Hidden on Settings Tab */}
+      {/* Stats Cards - Hidden on Settings/Customers/Products tabs (mobile), Hidden on Settings only (desktop) */}
       {activeTab !== 'settings' && (
-        <div className="px-4 md:px-6 py-2 md:py-3">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
-            <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
+        <div className={`px-4 md:px-6 py-2 md:py-3 ${(activeTab === 'customers' || activeTab === 'products') ? 'hidden md:block' : ''}`}>
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-2 md:gap-4">
+            <div className="bg-white rounded-xl p-3 md:p-6 shadow-sm hover:shadow transition">
               <div className="text-xs text-gray-600 font-medium">Samples Requested</div>
               <div className="text-2xl md:text-3xl font-bold text-blue-600 mt-1">{data.customers.length}</div>
-              <div className="text-xs text-gray-500 mt-2">📋 Total requests</div>
+              <div className="text-xs text-gray-500 mt-1">📋 Total requests</div>
             </div>
-            <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
+            <div className="bg-white rounded-xl p-3 md:p-6 shadow-sm hover:shadow transition">
               <div className="text-xs text-gray-600 font-medium">Samples Redeemed</div>
               <div className="text-2xl md:text-3xl font-bold text-green-600 mt-1">{stats.samplesRedeemed}</div>
               <div className="text-xs text-gray-500 mt-1">✅ +{todayRedeemed} today</div>
-              <div className="text-xs text-emerald-600 font-semibold mt-1.5 pt-1.5 border-t border-gray-100">
+              <div className="text-xs text-emerald-600 font-semibold mt-1 pt-1 border-t border-gray-100">
                 {data.customers.length > 0 ? ((stats.samplesRedeemed / data.customers.length) * 100).toFixed(1) : 0}% conversion
               </div>
             </div>
-            <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
-              <div className="text-xs text-gray-600 font-medium">Total Orders</div>
-              <div className="text-2xl md:text-3xl font-bold text-indigo-600 mt-1">{fulfilledIntents.length}</div>
-              <div className="text-xs text-gray-500 mt-1">🛍️ Completed sales</div>
-              <div className="text-xs text-indigo-600 font-semibold mt-1.5 pt-1.5 border-t border-gray-100">
-                {stats.samplesRedeemed > 0 ? ((fulfilledIntents.length / stats.samplesRedeemed) * 100).toFixed(1) : 0}% conversion
+            <div className="bg-white rounded-xl p-3 md:p-6 shadow-sm hover:shadow transition">
+              <div className="text-xs text-gray-600 font-medium">Pending Orders</div>
+              <div className="text-2xl md:text-3xl font-bold text-amber-600 mt-1">{pendingIntents.length + readyIntents.length}</div>
+              <div className="text-xs text-gray-500 mt-1">
+                ⏳ {readyIntents.length} ready, {pendingIntents.length} requested
               </div>
             </div>
-            <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
+            <div className="bg-white rounded-xl p-3 md:p-6 shadow-sm hover:shadow transition">
               <div className="text-xs text-gray-600 font-medium">Pending Sales</div>
               <div className="text-2xl md:text-3xl font-bold text-orange-600 mt-1">
                 ${stats.pendingSales.toFixed(2)}
               </div>
-              <div className="text-xs text-gray-500 mt-2">⏳ {pendingIntents.length + readyIntents.length} orders</div>
+              <div className="text-xs text-gray-500 mt-1">💵 In progress</div>
             </div>
-            <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
+            <div className="bg-white rounded-xl p-3 md:p-6 shadow-sm hover:shadow transition">
+              <div className="text-xs text-gray-600 font-medium">Total Orders</div>
+              <div className="text-2xl md:text-3xl font-bold text-indigo-600 mt-1">{fulfilledIntents.length}</div>
+              <div className="text-xs text-gray-500 mt-1">🛍️ Completed sales</div>
+              <div className="text-xs text-indigo-600 font-semibold mt-1 pt-1 border-t border-gray-100">
+                {stats.samplesRedeemed > 0 ? ((fulfilledIntents.length / stats.samplesRedeemed) * 100).toFixed(1) : 0}% conversion
+              </div>
+            </div>
+            <div className="bg-white rounded-xl p-3 md:p-6 shadow-sm hover:shadow transition">
               <div className="text-xs text-gray-600 font-medium">Total Sales</div>
               <div className="text-2xl md:text-3xl font-bold text-purple-600 mt-1">
                 ${stats.totalSales.toFixed(2)}
               </div>
               <div className="text-xs text-gray-500 mt-1">💰 {fulfilledIntents.length} fulfilled</div>
-              <div className="text-xs text-purple-600 font-semibold mt-1.5 pt-1.5 border-t border-gray-100">
+              <div className="text-xs text-purple-600 font-semibold mt-1 pt-1 border-t border-gray-100">
                 {stats.samplesRedeemed > 0 ? ((stats.numberOfSales / stats.samplesRedeemed) * 100).toFixed(1) : 0}% conversion
               </div>
             </div>

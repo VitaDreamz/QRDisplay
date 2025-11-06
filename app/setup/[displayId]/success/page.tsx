@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { WizardLayout } from '@/components/wizard/WizardLayout';
+import { useWizardProgress } from '@/hooks/useWizardProgress';
 
 export default function SuccessPage({ params }: { params: Promise<{ displayId: string }> }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [displayId, setDisplayId] = useState<string>('');
   const [storeId, setStoreId] = useState<string>('');
+  const { progress } = useWizardProgress(displayId);
 
   useEffect(() => {
     params.then(p => {
@@ -85,14 +87,27 @@ export default function SuccessPage({ params }: { params: Promise<{ displayId: s
         </div>
       </div>
 
-      {/* Dashboard Button */}
+      {/* Dashboard Access */}
       {storeId && (
-        <a
-          href={`/store/login/${storeId}`}
-          className="block w-full py-4 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg font-bold text-lg text-center shadow-lg hover:from-purple-700 hover:to-purple-800 transition-all mb-6"
-        >
-          🎯 Go to Dashboard →
-        </a>
+        <div className="bg-white rounded-lg shadow-lg border-2 border-purple-200 p-6 mb-6">
+          <a
+            href={`/store/login/${storeId}`}
+            className="block w-full py-4 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg font-bold text-lg text-center shadow-lg hover:from-purple-700 hover:to-purple-800 transition-all mb-4"
+          >
+            Sign Into Dashboard
+          </a>
+          {progress?.pin && (
+            <div className="text-center">
+              <div className="text-sm text-gray-600 mb-1">Your PIN:</div>
+              <div className="text-3xl font-mono font-bold text-purple-600 tracking-wider">
+                {progress.pin}
+              </div>
+              <div className="text-xs text-gray-500 mt-2">
+                Keep this PIN safe - you'll need it to access your dashboard
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Staff Option */}

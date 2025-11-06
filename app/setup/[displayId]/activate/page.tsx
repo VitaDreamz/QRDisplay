@@ -30,6 +30,14 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
     day16: false,
     day20: false,
   });
+  // Retention follow-up timing: 15, 30, 45, 60, 90 days
+  const [retentionDays, setRetentionDays] = useState({
+    day15: false,
+    day30: false,
+    day45: true,
+    day60: false,
+    day90: true,
+  });
   const [pin, setPin] = useState('');
   
   const [ownerName, setOwnerName] = useState('');
@@ -63,6 +71,7 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
       if (progress.promoPercentage) setPromoPercentage(progress.promoPercentage);
       if (progress.returningPromoPercentage) setReturningPromoPercentage(progress.returningPromoPercentage);
       if (progress.followupDays) setFollowupDays(progress.followupDays);
+      if (progress.retentionDays) setRetentionDays(progress.retentionDays);
       if (progress.pin) setPin(progress.pin);
       if (progress.ownerName) setOwnerName(progress.ownerName);
       if (progress.ownerPhone) setOwnerPhone(progress.ownerPhone);
@@ -115,6 +124,7 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
       promoPercentage,
       returningPromoPercentage,
       followupDays,
+      retentionDays,
       pin,
       ownerName,
       ownerPhone,
@@ -522,12 +532,30 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
               <div>
                 <label className="block text-sm font-medium mb-1">Retention Follow-up Timing *</label>
                 <p className="text-sm text-gray-600 mb-2">Select when to send follow-up messages after a customer makes a purchase (select 2).</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      checked={true}
-                      disabled
+                      checked={retentionDays.day15}
+                      onChange={(e) => setRetentionDays({ ...retentionDays, day15: e.target.checked })}
+                      className="h-4 w-4 text-purple-600 border-gray-300 rounded"
+                    />
+                    <span className="text-sm">15 Days</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={retentionDays.day30}
+                      onChange={(e) => setRetentionDays({ ...retentionDays, day30: e.target.checked })}
+                      className="h-4 w-4 text-purple-600 border-gray-300 rounded"
+                    />
+                    <span className="text-sm">30 Days</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={retentionDays.day45}
+                      onChange={(e) => setRetentionDays({ ...retentionDays, day45: e.target.checked })}
                       className="h-4 w-4 text-purple-600 border-gray-300 rounded"
                     />
                     <span className="text-sm">45 Days</span>
@@ -535,14 +563,22 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      checked={true}
-                      disabled
+                      checked={retentionDays.day60}
+                      onChange={(e) => setRetentionDays({ ...retentionDays, day60: e.target.checked })}
+                      className="h-4 w-4 text-purple-600 border-gray-300 rounded"
+                    />
+                    <span className="text-sm">60 Days</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={retentionDays.day90}
+                      onChange={(e) => setRetentionDays({ ...retentionDays, day90: e.target.checked })}
                       className="h-4 w-4 text-purple-600 border-gray-300 rounded"
                     />
                     <span className="text-sm">90 Days</span>
                   </label>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Default: 45 & 90 days (can be changed later in dashboard)</p>
               </div>
             </div>
           </div>

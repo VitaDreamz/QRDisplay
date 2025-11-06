@@ -20,6 +20,7 @@ export interface WizardProgress {
   promoPercentage?: string; // e.g. '20'
   returningPromoPercentage?: string; // e.g. '10'
   followupDays?: { day4: boolean; day8: boolean; day12: boolean; day16: boolean; day20: boolean };
+  retentionDays?: { day15: boolean; day30: boolean; day45: boolean; day60: boolean; day90: boolean };
   pin?: string;
   ownerName?: string;
   ownerPhone?: string;

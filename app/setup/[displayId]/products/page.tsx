@@ -182,7 +182,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mb-6">
           <h2 className="font-semibold text-lg mb-4">Available Samples</h2>
           <p className="text-sm text-gray-600 mb-4">
-            Select which samples you received in your package and are available to hand out. You can always request the other samples later.
+            Select which samples you have available to hand out. You can always request the other samples later.
           </p>
           <div className="space-y-2">
             {SAMPLE_OPTIONS.map((sample) => (
@@ -206,7 +206,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
           <h2 className="font-semibold text-lg mb-4">Available Products for Purchase</h2>
           <p className="text-sm text-gray-600 mb-4">
-            Select the Full Size Products you would potentially like to offer to your customers. If they're interested, you will be notified which product they would like to come in to purchase.
+            Select the Full Size Products you would like to offer to your customers. If customer is interested, you will be notified before they come in which product they would like to buy.
           </p>
 
           {products.length === 0 ? (

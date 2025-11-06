@@ -56,6 +56,7 @@ type DashboardData = {
     originalPrice: number;
     discountPercent: number;
     finalPrice: number;
+    fulfilledAt?: Date | null;
     product: { sku: string; name: string; imageUrl?: string | null };
     customer: { firstName: string; lastName: string; phone: string };
   }>;
@@ -158,14 +159,14 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
 
   // Calculate stats
   const samplesRedeemed = data.customers.filter(c => c.redeemed).length;
-  const firstPurchases = data.customers.filter(c => c.promoRedeemed).length;
   
   // Calculate pending sales (purchase intents not yet fulfilled)
   const pendingSales = purchaseIntents
     .filter(i => i.status === 'pending' || i.status === 'ready')
     .reduce((sum, i) => sum + (Number(i.finalPrice) || 0), 0);
   
-  // Calculate total sales (fulfilled purchase intents)
+  // Calculate total sales count and amount (fulfilled purchase intents)
+  const numberOfSales = purchaseIntents.filter(i => i.status === 'fulfilled').length;
   const totalSales = purchaseIntents
     .filter(i => i.status === 'fulfilled')
     .reduce((sum, i) => sum + (Number(i.finalPrice) || 0), 0);
@@ -173,12 +174,12 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
   const stats = {
     samplesRequested: data.customers.length,
     samplesRedeemed,
-    firstPurchases,
+    numberOfSales,
     totalSales,
     pendingSales,
-    promosUsed: firstPurchases, // Keep for backward compatibility
+    promosUsed: numberOfSales, // Use number of sales for backward compatibility
     conversionRate: samplesRedeemed > 0
-      ? Math.round((firstPurchases / samplesRedeemed) * 100)
+      ? Math.round((numberOfSales / samplesRedeemed) * 100)
       : 0
   };
 
@@ -190,7 +191,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
   };
   const todayRequested = data.customers.filter(c => isToday(c.requestedAt)).length;
   const todayRedeemed = data.customers.filter(c => c.redeemed && isToday(c.requestedAt)).length;
-  const todayPromos = data.customers.filter(c => c.promoRedeemed && isToday(c.requestedAt)).length;
+  const todaySales = purchaseIntents.filter(i => i.status === 'fulfilled' && i.fulfilledAt && isToday(i.fulfilledAt)).length;
 
   // Filter customers
   const filteredCustomers = data.customers.filter(c => {
@@ -770,9 +771,9 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
               <div className="text-xs text-gray-500 mt-2">✅ +{todayRedeemed} today</div>
             </div>
             <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
-              <div className="text-xs text-gray-600 font-medium">Promos Redeemed</div>
-              <div className="text-2xl md:text-3xl font-bold text-emerald-600 mt-1">{stats.promosUsed}</div>
-              <div className="text-xs text-gray-500 mt-2">🎉 +{todayPromos} today</div>
+              <div className="text-xs text-gray-600 font-medium"># of Sales</div>
+              <div className="text-2xl md:text-3xl font-bold text-emerald-600 mt-1">{stats.numberOfSales}</div>
+              <div className="text-xs text-gray-500 mt-2">🎉 +{todaySales} today</div>
             </div>
             <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
               <div className="text-xs text-gray-600 font-medium">Pending Sales</div>

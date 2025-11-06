@@ -2112,8 +2112,8 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                           }}
                           className={`w-full py-2 px-4 rounded-lg font-semibold transition-colors ${
                             isOffered
-                              ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                              : 'bg-purple-600 text-white hover:bg-purple-700'
+                              ? 'bg-purple-600 text-white hover:bg-purple-700'
+                              : 'bg-red-100 text-red-700 hover:bg-red-200'
                           }`}
                         >
                           {isOffered ? '✓ Offering' : '+ Offer This Product'}

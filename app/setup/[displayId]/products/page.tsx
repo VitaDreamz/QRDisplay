@@ -105,7 +105,9 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
         zip: progress?.zip || '',
         timezone: progress?.timezone || '',
         promoOffer: progress?.promoPercentage ? `${progress.promoPercentage}% Off In-Store Purchase` : '20% Off In-Store Purchase',
+        returningCustomerPromo: progress?.returningPromoPercentage ? `${progress.returningPromoPercentage}% Off In-Store Purchase` : '10% Off In-Store Purchase',
         followupDays: selectedDays,
+        postPurchaseFollowupDays: [45, 90], // Default followup at 45 and 90 days after purchase
         pin: progress?.pin || '',
         ownerName: progress?.ownerName || '',
         ownerPhone: progress?.ownerPhone || '',

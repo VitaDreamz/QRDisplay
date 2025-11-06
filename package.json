@@ -4,11 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "npm run prisma:migrate:deploy && prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
     "prisma:seed": "ts-node prisma/seed/index.ts",
-    "prisma:migrate": "prisma migrate deploy",
+    "prisma:migrate:deploy": "DATABASE_URL=\"$DIRECT_DATABASE_URL\" prisma migrate deploy || echo 'Migrations already applied'",
     "postinstall": "prisma generate"
   },
   "primsa": {

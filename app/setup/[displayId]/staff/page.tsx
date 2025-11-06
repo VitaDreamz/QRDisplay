@@ -280,35 +280,51 @@ export default function AddStaffPage({ params }: { params: Promise<{ displayId: 
 
           {/* Submit Buttons */}
           <div className="space-y-3">
-            <button
-              type="submit"
-              disabled={loading || !isFormValid}
-              className={`w-full py-4 rounded-lg font-bold text-lg transition-all ${
-                loading || !isFormValid
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800 shadow-lg'
-              }`}
-            >
-              {loading ? 'Adding...' : '+ Add Staff Member'}
-            </button>
+            {!success && (
+              <button
+                type="submit"
+                disabled={loading || !isFormValid}
+                className={`w-full py-4 rounded-lg font-bold text-lg transition-all ${
+                  loading || !isFormValid
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800 shadow-lg'
+                }`}
+              >
+                {loading ? 'Adding...' : '+ Add Staff Member'}
+              </button>
+            )}
 
             {success && (
-              <button
-                type="button"
-                onClick={() => {
-                  // Get storeId and redirect to dashboard
-                  fetch(`/api/displays/${displayId}/info`)
-                    .then(res => res.json())
-                    .then(data => {
-                      if (data.storeId) {
-                        router.push(`/store/login/${data.storeId}`);
-                      }
-                    });
-                }}
-                className="w-full py-3 border-2 border-purple-600 text-purple-600 rounded-lg font-medium hover:bg-purple-50 transition-colors"
-              >
-                Done - Go to Dashboard →
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSuccess(false);
+                    setRole('Sales');
+                    setStartTime('09:00');
+                    setEndTime('17:00');
+                  }}
+                  className="w-full py-4 rounded-lg font-bold text-lg bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800 shadow-lg transition-all"
+                >
+                  + Add Another Staff Member
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Get storeId and redirect to dashboard
+                    fetch(`/api/displays/${displayId}/info`)
+                      .then(res => res.json())
+                      .then(data => {
+                        if (data.storeId) {
+                          router.push(`/store/login/${data.storeId}`);
+                        }
+                      });
+                  }}
+                  className="w-full py-3 border-2 border-purple-600 text-purple-600 rounded-lg font-medium hover:bg-purple-50 transition-colors"
+                >
+                  Done - Go to Dashboard →
+                </button>
+              </>
             )}
           </div>
         </form>

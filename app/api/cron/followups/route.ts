@@ -119,6 +119,21 @@ export async function GET(request: NextRequest) {
                   body: message
                 }
               });
+
+              // Update customer status to "undecided" after first follow-up
+              if (isFirstFollowup) {
+                try {
+                  await prisma.customer.update({
+                    where: { memberId: customer.memberId },
+                    data: {
+                      currentStage: 'undecided',
+                      stageChangedAt: new Date()
+                    }
+                  });
+                } catch (e) {
+                  console.warn('Failed to update customer status to undecided:', e);
+                }
+              }
             }
 
             totalSent++;

@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { audience = 'all', message = '', channel = 'sms' } = await req.json();
+    const { audience = 'all', message = '', channel = 'sms', customerId } = await req.json();
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
       return NextResponse.json({ success: false, error: 'Message required' }, { status: 400 });
     }
@@ -22,50 +22,43 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Store not found' }, { status: 404 });
     }
 
-    const where: any = { storeId: store.storeId };
-    if (audience === 'redeemed') where.redeemed = true;
-    if (audience === 'not-promo') where.AND = [{ redeemed: true }, { promoRedeemed: false }];
+    let customers;
+    
+    // Handle specific customer message
+    if (audience === 'specific' && customerId) {
+      const customer = await prisma.customer.findFirst({
+        where: { id: customerId, storeId: store.storeId },
+        select: { phone: true }
+      });
+      if (!customer) {
+        return NextResponse.json({ success: false, error: 'Customer not found' }, { status: 404 });
+      }
+      customers = [customer];
+    } else {
+      // Handle bulk messaging by status
+      const where: any = { storeId: store.storeId };
+      if (audience === 'undecided') where.currentStage = 'undecided';
+      if (audience === 'sampling') where.currentStage = 'sampling';
+      if (audience === 'purchased') where.currentStage = { in: ['purchased', 'repeat'] };
+      if (audience === 'ready_for_pickup') where.currentStage = 'ready_for_pickup';
 
-    const customers = await prisma.customer.findMany({ where, select: { phone: true, email: true } });
+      customers = await prisma.customer.findMany({ where, select: { phone: true } });
+    }
 
     let sent = 0;
     let failed = 0;
 
-    // SMS via Twilio
-    if (channel === 'sms' || channel === 'both') {
-      if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER) {
-        const twilio = require('twilio');
-        const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-        for (const c of customers) {
-          if (!c.phone) continue;
-          try {
-            await client.messages.create({ to: c.phone, from: process.env.TWILIO_PHONE_NUMBER, body: message });
-            sent++;
-          } catch {
-            failed++;
-          }
-        }
-      }
-    }
-
-    // Email via Resend
-    if (channel === 'email' || channel === 'both') {
-      if (process.env.RESEND_API_KEY) {
-        const { Resend } = require('resend');
-        const resend = new Resend(process.env.RESEND_API_KEY);
-        for (const c of customers) {
-          if (!c.email) continue;
-          try {
-            await resend.emails.send({
-              from: 'QRDisplay <noreply@qrdisplay.com>',
-              to: c.email,
-              subject: `${store.storeName}: Update`,
-              html: `<p>${message.replace(/\n/g, '<br/>')}</p>`
-            });
-            sent++;
-          } catch {
-            failed++;
-          }
+    // SMS via Twilio (only channel now)
+    if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER) {
+      const twilio = require('twilio');
+      const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+      for (const c of customers) {
+        if (!c.phone) continue;
+        try {
+          await client.messages.create({ to: c.phone, from: process.env.TWILIO_PHONE_NUMBER, body: message });
+          sent++;
+        } catch {
+          failed++;
         }
       }
     }

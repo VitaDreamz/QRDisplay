@@ -26,6 +26,7 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
   const [zip, setZip] = useState('');
   const [timezone, setTimezone] = useState('America/New_York');
   const [promoPercentage, setPromoPercentage] = useState('20');
+  const [returningPromoPercentage, setReturningPromoPercentage] = useState('10');
   const [followupDays, setFollowupDays] = useState({
     day2: false,
     day4: true,
@@ -52,6 +53,9 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
   const [purchasingEmail, setPurchasingEmail] = useState('');
   const [purchasingSameAsOwner, setPurchasingSameAsOwner] = useState(false);
   
+  // Additional Staff Members
+  const [additionalStaff, setAdditionalStaff] = useState<Array<{ name: string; phone: string; email: string }>>([]);
+  
   // Available Samples
   const [availableSamples, setAvailableSamples] = useState<string[]>([]);
   
@@ -59,6 +63,7 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
   const [availableProducts, setAvailableProducts] = useState<string[]>([]);
   const [products, setProducts] = useState<any[]>([]);
 
+    // Unwrap params Promise and fetch brand info
     // Unwrap params Promise and fetch brand info
     useEffect(() => {
       params.then(async (p) => {
@@ -85,6 +90,20 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
         }
       });
     }, [params]);
+
+  const addStaffMember = () => {
+    setAdditionalStaff([...additionalStaff, { name: '', phone: '', email: '' }]);
+  };
+
+  const removeStaffMember = (index: number) => {
+    setAdditionalStaff(additionalStaff.filter((_, i) => i !== index));
+  };
+
+  const updateStaffMember = (index: number, field: 'name' | 'phone' | 'email', value: string) => {
+    const updated = [...additionalStaff];
+    updated[index][field] = value;
+    setAdditionalStaff(updated);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,7 +181,8 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
     }
 
     try {
-      const promoOffer = `${promoPercentage}% Off In-Store Purchase`;
+      const promoOffer = promoPercentage === '0' ? 'No Promo' : `${promoPercentage}% Off In-Store Purchase`;
+      const returningCustomerPromo = returningPromoPercentage === '0' ? 'No Promo' : `${returningPromoPercentage}% Off In-Store Purchase`;
       const response = await fetch('/api/displays/activate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -175,6 +195,7 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
           zip,
           timezone,
           promoOffer,
+          returningCustomerPromo,
           followupDays: selectedFollowupDays,
           pin,
           ownerName,
@@ -186,6 +207,7 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
           purchasingManager: purchasingSameAsOwner ? ownerName : purchasingManager,
           purchasingPhone: purchasingSameAsOwner ? ownerPhone : purchasingPhone,
           purchasingEmail: purchasingSameAsOwner ? ownerEmail : purchasingEmail,
+          additionalStaff: additionalStaff.filter(s => s.name && s.phone && s.email),
           availableSamples,
           availableProducts,
         }),
@@ -636,7 +658,7 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
 
                 <div>
                   <label htmlFor="promoPercentage" className="block text-sm font-medium text-gray-700 mb-1">
-                    Discount Percentage *
+                    1st Purchase Promo *
                   </label>
                   <select
                     id="promoPercentage"
@@ -644,6 +666,8 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
                     onChange={(e) => setPromoPercentage(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                   >
+                    <option value="0">No Promo</option>
+                    <option value="5">5% Off In-Store Purchase</option>
                     <option value="10">10% Off In-Store Purchase</option>
                     <option value="15">15% Off In-Store Purchase</option>
                     <option value="20">20% Off In-Store Purchase</option>
@@ -651,7 +675,30 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
                     <option value="30">30% Off In-Store Purchase</option>
                   </select>
                   <p className="mt-1 text-sm text-gray-500">
-                    Choose the discount percentage customers receive on their first in-store purchase
+                    Choose the discount percentage for first-time customers
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="returningPromoPercentage" className="block text-sm font-medium text-gray-700 mb-1">
+                    Returning Customer Promo *
+                  </label>
+                  <select
+                    id="returningPromoPercentage"
+                    value={returningPromoPercentage}
+                    onChange={(e) => setReturningPromoPercentage(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="0">No Promo</option>
+                    <option value="5">5% Off In-Store Purchase</option>
+                    <option value="10">10% Off In-Store Purchase</option>
+                    <option value="15">15% Off In-Store Purchase</option>
+                    <option value="20">20% Off In-Store Purchase</option>
+                    <option value="25">25% Off In-Store Purchase</option>
+                    <option value="30">30% Off In-Store Purchase</option>
+                  </select>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Choose the discount percentage for returning customers
                   </p>
                 </div>
 

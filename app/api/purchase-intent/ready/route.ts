@@ -27,6 +27,19 @@ export async function POST(request: NextRequest) {
       data: { status: 'ready' }
     });
 
+    // Update customer status to "ready_for_pickup"
+    try {
+      await prisma.customer.update({
+        where: { id: intent.customerId },
+        data: {
+          currentStage: 'ready_for_pickup',
+          stageChangedAt: new Date()
+        }
+      });
+    } catch (e) {
+      console.warn('Failed to update customer status to ready_for_pickup:', e);
+    }
+
     // Send SMS to customer with redemption link (opt-out compliance)
     if (
       process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER

@@ -41,10 +41,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Mark customer redeemed
+    // Mark customer redeemed and update status to "sampling"
     const updated = await prisma.customer.update({
       where: { memberId: customer.memberId },
-      data: { redeemed: true, redeemedAt: new Date() },
+      data: { 
+        redeemed: true, 
+        redeemedAt: new Date(),
+        currentStage: 'sampling',
+        stageChangedAt: new Date()
+      },
     });
 
     // Mark shortlink used (and redeemed flags for audit)

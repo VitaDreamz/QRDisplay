@@ -99,7 +99,9 @@ model Store {
   
   timezone     String   @default("America/Los_Angeles")
   promoOffer   String   @default("20%-off 1st Purchase")
+  returningCustomerPromo String @default("10%-off In-Store Purchase")
   followupDays Int[]    @default([4, 12])
+  postPurchaseFollowupDays Int[] @default([45, 90])
   staffPin     String?
 
   // Wizard setup photo (if uploaded during setup)

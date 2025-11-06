@@ -161,7 +161,7 @@ Reply STOP to opt out.`;
   const storeMsg = `VitaDreamz Sample: ${sampleLabel} for ${first} ${lastInitial}. 
 
 Member: ${last4}
-Confirm: ${baseUrl}/r/${slugRedeem}`;
+Dashboard: qrdisplay.com/store/login/${display.store.storeId}`;
         await client.messages.create({
           to: display.store.adminPhone,
           from: process.env.TWILIO_PHONE_NUMBER,
@@ -186,6 +186,7 @@ Confirm: ${baseUrl}/r/${slugRedeem}`;
           },
           store: {
             storeName: display.store.storeName,
+            storeId: display.store.storeId,
           },
           requestedAt: customer.requestedAt,
         });

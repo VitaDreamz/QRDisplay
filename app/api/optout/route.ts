@@ -16,6 +16,24 @@ export async function POST(request: NextRequest) {
       update: { reason: reason || 'opt_out' }
     });
 
+    // Update customer status to "opted_out" if they exist
+    try {
+      const whereClause: any = { phone };
+      if (storeId) {
+        whereClause.storeId = storeId;
+      }
+      
+      await prisma.customer.updateMany({
+        where: whereClause,
+        data: {
+          currentStage: 'opted_out',
+          stageChangedAt: new Date()
+        }
+      });
+    } catch (e) {
+      console.warn('Failed to update customer status to opted_out:', e);
+    }
+
     return NextResponse.json({ ok: true, record });
   } catch (error) {
     console.error('[OptOut API] POST error:', error);

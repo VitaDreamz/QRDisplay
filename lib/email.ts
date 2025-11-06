@@ -331,10 +331,13 @@ export async function sendBrandSampleRequestEmail(data: {
   };
   store: {
     storeName: string;
+    storeId: string;
   };
   requestedAt: Date;
 }) {
   const { brandEmail, customer, store, requestedAt } = data;
+  
+  const dashboardUrl = `https://qrdisplay.com/store/login/${store.storeId}`;
   
   const html = `
     <!DOCTYPE html>
@@ -365,6 +368,12 @@ export async function sendBrandSampleRequestEmail(data: {
               <td style="padding: 12px; border: 1px solid #dee2e6;">${requestedAt.toLocaleString()}</td>
             </tr>
           </table>
+          
+          <div style="margin-top: 30px; text-align: center;">
+            <a href="${dashboardUrl}" style="display: inline-block; padding: 14px 28px; background: linear-gradient(to right, #6f42c1, #5a32a3); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+              🎯 View in Dashboard
+            </a>
+          </div>
         </div>
       </body>
     </html>
@@ -453,21 +462,28 @@ export async function sendBrandSampleRedemptionEmail(data: {
 // Store Notification: New Purchase Intent
 export async function sendStorePurchaseIntentEmail(data: {
   toEmail: string;
-  store: { storeName: string };
+  store: { storeName: string; storeId: string };
   customer: { firstName: string; lastName: string };
   product: { name: string; sku: string };
   pricing: { originalPrice: number; discountPercent: number; finalPrice: number };
 }) {
   const { toEmail, store, customer, product, pricing } = data;
+  const dashboardUrl = `https://qrdisplay.com/store/login/${store.storeId}`;
   const subject = `🛒 New Purchase Request – ${product.name}`;
   const html = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <h2>New Purchase Request</h2>
       <p><strong>Store:</strong> ${store.storeName}</p>
       <p><strong>Customer:</strong> ${customer.firstName} ${customer.lastName}</p>
       <p><strong>Product:</strong> ${product.name} (${product.sku})</p>
       <p><strong>Pricing:</strong> MSRP $${pricing.originalPrice.toFixed(2)} → Your Price $${pricing.finalPrice.toFixed(2)} (${pricing.discountPercent}% off)</p>
       <p>Mark the order as ready in your dashboard to notify the customer with a pickup link.</p>
+      
+      <div style="margin-top: 30px; text-align: center;">
+        <a href="${dashboardUrl}" style="display: inline-block; padding: 14px 28px; background: linear-gradient(to right, #6f42c1, #5a32a3); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+          🎯 View in Dashboard
+        </a>
+      </div>
     </div>
   `;
 

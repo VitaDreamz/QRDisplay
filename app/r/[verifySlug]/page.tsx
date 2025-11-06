@@ -79,29 +79,87 @@ export default function RedeemPage({ params }: { params: Promise<{ verifySlug: s
   }
 
   const productName = intent?.product?.name || 'Product';
-  const price = intent ? Number(intent.finalPrice) : null;
+  const productImage = intent?.product?.imageUrl || null;
+  const originalPrice = intent?.product?.msrp ? Number(intent.product.msrp) : null;
+  const finalPrice = intent ? Number(intent.finalPrice) : null;
+  const promoOffer = intent?.promoOffer || '20% Off';
   const storeAddress = store ? [store.streetAddress, [store.city, store.state].filter(Boolean).join(', '), store.zipCode].filter(Boolean).join(' • ') : null;
   const storePhone = store?.adminPhone || null;
+  const storeEmail = store?.adminEmail || null;
+  const storeName = store?.storeName || 'Store';
+  
+  // Create Google Maps link
+  const mapsLink = store ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${store.streetAddress}, ${store.city}, ${store.state} ${store.zipCode}`)}` : null;
 
   return (
     <div className="min-h-svh bg-gradient-to-br from-purple-700 to-purple-500 px-5 py-8">
       <div className="max-w-md mx-auto bg-white rounded-2xl p-6">
-        <h1 className="text-2xl font-bold text-[#2b2b2b] mb-1">Redeem Purchase</h1>
-        <p className="text-sm text-[#6b6b6b] mb-4">Enter your 4-digit PIN to confirm the sale.</p>
+        <h1 className="text-2xl font-bold text-[#2b2b2b] mb-1">Redeem Promo Offer</h1>
+        <p className="text-sm text-[#6b6b6b] mb-4">Speak to cashier for 4-digit PIN to confirm your order.</p>
 
-        <div className="border rounded-xl p-4 mb-4">
-          <div className="font-semibold text-[#2b2b2b]">{productName}</div>
-          {price !== null && (
-            <div className="text-sm text-[#6b6b6b]">Your Price: <span className="font-semibold text-purple-700">${price.toFixed(2)}</span></div>
-          )}
+        {/* Promo Badge */}
+        <div className="bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl p-4 mb-4 text-center">
+          <div className="text-sm opacity-90 mb-1">Store Promo Offer</div>
+          <div className="text-3xl font-bold">{promoOffer}</div>
         </div>
 
+        {/* Product Details */}
+        <div className="border rounded-xl p-4 mb-4">
+          {productImage && (
+            <div className="flex justify-center mb-4">
+              <img 
+                src={productImage} 
+                alt={productName}
+                className="w-40 h-40 object-cover rounded-lg"
+              />
+            </div>
+          )}
+          <div className="text-center mb-3">
+            <div className="font-bold text-lg text-[#2b2b2b] mb-2">{productName}</div>
+            {originalPrice !== null && (
+              <div className="text-sm text-gray-500 line-through mb-1">
+                Retail: ${originalPrice.toFixed(2)}
+              </div>
+            )}
+            {finalPrice !== null && (
+              <div className="text-3xl font-bold text-purple-600">
+                ${finalPrice.toFixed(2)}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Pickup Location */}
         {store && (
           <div className="border rounded-xl p-4 mb-4 bg-gray-50">
-            <div className="text-sm font-semibold text-[#2b2b2b]">Pickup at</div>
-            <div className="text-sm text-[#2b2b2b]">{store.storeName}</div>
-            {storeAddress && <div className="text-xs text-gray-600 mt-1">{storeAddress}</div>}
-            {storePhone && <div className="text-xs text-gray-600 mt-1">Phone: {storePhone}</div>}
+            <div className="text-sm font-semibold text-[#2b2b2b] mb-2">Pickup at</div>
+            <div className="font-bold text-[#2b2b2b]">{storeName}</div>
+            {storeAddress && mapsLink && (
+              <a 
+                href={mapsLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-purple-600 hover:text-purple-700 underline block mt-1"
+              >
+                {storeAddress}
+              </a>
+            )}
+            {storePhone && (
+              <a 
+                href={`tel:${storePhone}`}
+                className="text-sm text-purple-600 hover:text-purple-700 block mt-2"
+              >
+                Phone: {storePhone}
+              </a>
+            )}
+            {storeEmail && (
+              <a 
+                href={`mailto:${storeEmail}`}
+                className="text-sm text-purple-600 hover:text-purple-700 block mt-1"
+              >
+                Email: {storeEmail}
+              </a>
+            )}
           </div>
         )}
 
@@ -132,7 +190,7 @@ export default function RedeemPage({ params }: { params: Promise<{ verifySlug: s
             disabled={pin.length !== 4 || submitting}
             className="w-full py-3 text-lg font-bold bg-purple-600 text-white rounded-xl hover:bg-purple-700 disabled:opacity-50"
           >
-            {submitting ? 'Confirming…' : 'Confirm Sale'}
+            {submitting ? 'Confirming…' : 'Confirm Order'}
           </button>
         </form>
       </div>

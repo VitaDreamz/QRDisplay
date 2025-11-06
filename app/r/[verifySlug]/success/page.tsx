@@ -35,6 +35,7 @@ export default function RedeemSuccessPage({ params }: { params: Promise<{ verify
 
   const storeAddress = store ? [store.streetAddress, [store.city, store.state].filter(Boolean).join(', '), store.zipCode].filter(Boolean).join(' • ') : null;
   const productName = intent?.product?.name || 'Product';
+  const productImage = intent?.product?.imageUrl || null;
   const price = intent ? Number(intent.finalPrice) : null;
   const discount = intent ? Number(intent.discountPercent) : null;
 
@@ -92,10 +93,21 @@ export default function RedeemSuccessPage({ params }: { params: Promise<{ verify
       <div className="max-w-md mx-auto bg-white rounded-2xl p-6">
         {/* Header */}
         <div className="text-center mb-4">
-          <div className="text-3xl">✅</div>
+          <div className="text-5xl mb-2">✅</div>
           <h1 className="text-2xl font-bold text-[#2b2b2b]">Purchase Confirmed</h1>
           <p className="text-sm text-[#6b6b6b]">Thank you for shopping with {store?.storeName || 'the store'}.</p>
         </div>
+
+        {/* Product Image */}
+        {productImage && (
+          <div className="flex justify-center mb-4">
+            <img 
+              src={productImage} 
+              alt={productName}
+              className="w-40 h-40 object-cover rounded-lg border-2 border-purple-200"
+            />
+          </div>
+        )}
 
         {/* Receipt-style summary */}
         <div className="border rounded-xl p-4 bg-gray-50">

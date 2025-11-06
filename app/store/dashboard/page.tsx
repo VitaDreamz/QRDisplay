@@ -49,8 +49,10 @@ export default async function StoreDashboardPage() {
     take: 100,
     include: {
       purchaseIntents: {
-        where: { status: 'fulfilled' },
-        select: { finalPrice: true }
+        include: {
+          product: true
+        },
+        orderBy: { createdAt: 'desc' }
       }
     }
   });
@@ -100,7 +102,9 @@ export default async function StoreDashboardPage() {
       storeId: store.storeId,
       storeName: store.storeName,
       promoOffer: store.promoOffer,
+      returningCustomerPromo: store.returningCustomerPromo || '10%-off In-Store Purchase',
       followupDays: store.followupDays,
+      postPurchaseFollowupDays: store.postPurchaseFollowupDays || [45, 90],
       adminName: store.adminName,
       adminEmail: store.adminEmail,
       adminPhone: store.adminPhone,
@@ -132,7 +136,25 @@ export default async function StoreDashboardPage() {
       promoRedeemedAt: c.promoRedeemedAt,
       currentStage: c.currentStage,
       stageChangedAt: c.stageChangedAt,
-      totalPurchases: c.purchaseIntents.reduce((sum: number, pi: any) => sum + Number(pi.finalPrice), 0)
+      totalPurchases: c.purchaseIntents
+        .filter((pi: any) => pi.status === 'fulfilled')
+        .reduce((sum: number, pi: any) => sum + Number(pi.finalPrice), 0),
+      purchaseIntents: c.purchaseIntents.map((pi: any) => ({
+        id: pi.id,
+        status: pi.status,
+        verifySlug: pi.verifySlug,
+        createdAt: pi.createdAt,
+        originalPrice: Number(pi.originalPrice),
+        discountPercent: pi.discountPercent,
+        finalPrice: Number(pi.finalPrice),
+        fulfilledAt: pi.fulfilledAt,
+        product: pi.product ? {
+          sku: pi.product.sku,
+          name: pi.product.name,
+          price: Number(pi.product.price),
+          imageUrl: pi.product.imageUrl
+        } : null
+      }))
     })),
     displays: displays,
     organization: organization,

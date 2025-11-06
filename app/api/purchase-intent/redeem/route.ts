@@ -54,6 +54,19 @@ export async function POST(request: NextRequest) {
       } as any
     });
 
+    // Update customer status to "purchased"
+    try {
+      await prisma.customer.update({
+        where: { id: intent.customerId },
+        data: {
+          currentStage: 'purchased',
+          stageChangedAt: new Date()
+        }
+      });
+    } catch (e) {
+      console.warn('Failed to update customer status to purchased:', e);
+    }
+
     // Increment staff sales counter (for leaderboard) - only if it's a staff member
     if (staff) {
       try {

@@ -108,6 +108,19 @@ export default async function ActivationSuccess({
             </ol>
           </div>
 
+          {/* Dashboard Sign In Button */}
+          <div className="mb-6">
+            <a 
+              href="/store/login"
+              className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg text-center transition-colors shadow-md hover:shadow-lg"
+            >
+              🔐 Sign In to Your Store Dashboard
+            </a>
+            <p className="text-sm text-gray-500 text-center mt-2">
+              View samples, purchase requests, and customer activity
+            </p>
+          </div>
+
           {/* Help Section - Branded */}
           <div className="border-t border-gray-200 pt-6 pb-6 text-center">
             <p className="text-sm text-gray-600 mb-2">Questions or need help?</p>

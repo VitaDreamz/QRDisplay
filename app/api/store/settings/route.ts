@@ -31,7 +31,8 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
     const { 
       promoOffer, 
-      followupDays, 
+      followupDays,
+      postPurchaseFollowupDays, 
       adminEmail, 
       adminPhone, 
       adminName, 
@@ -49,6 +50,9 @@ export async function PATCH(req: NextRequest) {
     if (promoOffer !== undefined) updateData.promoOffer = String(promoOffer).trim();
     if (followupDays !== undefined && Array.isArray(followupDays)) {
       updateData.followupDays = followupDays.map(d => parseInt(d)).filter(d => d > 0);
+    }
+    if (postPurchaseFollowupDays !== undefined && Array.isArray(postPurchaseFollowupDays)) {
+      updateData.postPurchaseFollowupDays = postPurchaseFollowupDays.map(d => parseInt(d)).filter(d => d > 0);
     }
     if (adminEmail !== undefined) updateData.adminEmail = String(adminEmail).trim();
     if (adminPhone !== undefined) updateData.adminPhone = String(adminPhone).trim();

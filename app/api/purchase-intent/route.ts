@@ -122,6 +122,19 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Update customer status to "purchase_requested"
+    try {
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: {
+          currentStage: 'purchase_requested',
+          stageChangedAt: new Date()
+        }
+      });
+    } catch (e) {
+      console.warn('Failed to update customer status to purchase_requested:', e);
+    }
+
 
     // Fire notifications (best-effort, non-blocking)
     try {
@@ -136,7 +149,7 @@ export async function POST(request: NextRequest) {
             process.env.TWILIO_ACCOUNT_SID,
             process.env.TWILIO_AUTH_TOKEN
           );
-          const sms = `New purchase request at ${store.storeName}: ${productSku}\nMSRP $${parseFloat(originalPrice).toFixed(2)} → $${parseFloat(finalPrice).toFixed(2)} (${discountPercent}% off).`;
+          const sms = `New purchase request at ${store.storeName}: ${productSku}\nMSRP $${parseFloat(originalPrice).toFixed(2)} → $${parseFloat(finalPrice).toFixed(2)} (${discountPercent}% off)\n\nDashboard: qrdisplay.com/store/login/${store.storeId}`;
           await client.messages.create({
             to: store.adminPhone,
             from: process.env.TWILIO_PHONE_NUMBER,
@@ -180,7 +193,7 @@ export async function POST(request: NextRequest) {
           const prod = await prisma.product.findUnique({ where: { sku: productSku } });
           await sendStorePurchaseIntentEmail({
             toEmail: store.adminEmail,
-            store: { storeName: store.storeName },
+            store: { storeName: store.storeName, storeId: store.storeId },
             customer: { firstName: customer.firstName, lastName: customer.lastName },
             product: { name: prod?.name || productSku, sku: productSku },
             pricing: {
@@ -286,6 +299,7 @@ export async function GET(request: NextRequest) {
       where: { id: intent.storeId },
       select: {
         storeName: true,
+        adminEmail: true,
         adminPhone: true,
         streetAddress: true,
         city: true,

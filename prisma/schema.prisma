@@ -420,6 +420,7 @@ model PromoRedemption {
   
   redeemedAt    DateTime?
   redeemedBy    String?
+  redeemedByStaffId String?
   
   purchaseAmount Decimal?  @db.Decimal(10, 2)
   discountAmount Decimal?  @db.Decimal(10, 2)

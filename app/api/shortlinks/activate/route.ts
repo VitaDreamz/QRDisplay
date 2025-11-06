@@ -41,11 +41,23 @@ export async function POST(req: NextRequest) {
       
       // Check if it's the store admin PIN
       const isAdminPin = store.staffPin === pin;
+      console.log('[PIN_DEBUG] Store info:', { 
+        storePublicId: store.storeId, 
+        storeInternalId: store.id, 
+        storeName: store.storeName 
+      });
       console.log('[PIN_DEBUG] Admin PIN check:', { storePin: store.staffPin, inputPin: pin, match: isAdminPin });
       
       // Check if it's a staff member PIN
       let staffMember = null;
       if (!isAdminPin) {
+        // First, check how many staff exist for this store
+        const allStaffForStore = await prisma.staff.findMany({
+          where: { storeId: store.id },
+          select: { firstName: true, lastName: true, staffPin: true, status: true }
+        });
+        console.log('[PIN_DEBUG] All staff for this store:', allStaffForStore);
+        
         staffMember = await prisma.staff.findFirst({
           where: {
             storeId: store.id,

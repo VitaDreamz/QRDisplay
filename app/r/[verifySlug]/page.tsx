@@ -87,7 +87,7 @@ export default function RedeemPage({ params }: { params: Promise<{ verifySlug: s
     <div className="min-h-svh bg-gradient-to-br from-purple-700 to-purple-500 px-5 py-8">
       <div className="max-w-md mx-auto bg-white rounded-2xl p-6">
         <h1 className="text-2xl font-bold text-[#2b2b2b] mb-1">Redeem Purchase</h1>
-        <p className="text-sm text-[#6b6b6b] mb-4">Have staff enter their 4-digit PIN to confirm the sale.</p>
+        <p className="text-sm text-[#6b6b6b] mb-4">Enter your 4-digit PIN to confirm the sale.</p>
 
         <div className="border rounded-xl p-4 mb-4">
           <div className="font-semibold text-[#2b2b2b]">{productName}</div>
@@ -107,7 +107,7 @@ export default function RedeemPage({ params }: { params: Promise<{ verifySlug: s
 
         <form onSubmit={onSubmit} className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-[#2b2b2b] mb-1">Staff PIN</label>
+            <label className="block text-sm font-medium text-[#2b2b2b] mb-1">PIN</label>
             <input
               inputMode="numeric"
               pattern="\\d{4}"
@@ -118,9 +118,8 @@ export default function RedeemPage({ params }: { params: Promise<{ verifySlug: s
                 setPin(v);
               }}
               className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
-              placeholder="1234"
+              placeholder="••••"
             />
-            <div className="text-xs text-gray-500 mt-1">Staff PIN is the last 4 digits of their phone.</div>
           </div>
 
           {error && (

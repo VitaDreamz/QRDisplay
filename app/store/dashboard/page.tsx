@@ -46,7 +46,13 @@ export default async function StoreDashboardPage() {
   const customers = await prisma.customer.findMany({
     where: { storeId },
     orderBy: { requestedAt: 'desc' },
-    take: 100
+    take: 100,
+    include: {
+      purchaseIntents: {
+        where: { status: 'fulfilled' },
+        select: { finalPrice: true }
+      }
+    }
   });
   
   const displays = await prisma.display.findMany({
@@ -125,7 +131,8 @@ export default async function StoreDashboardPage() {
       redeemedAt: c.redeemedAt,
       promoRedeemedAt: c.promoRedeemedAt,
       currentStage: c.currentStage,
-      stageChangedAt: c.stageChangedAt
+      stageChangedAt: c.stageChangedAt,
+      totalPurchases: c.purchaseIntents.reduce((sum: number, pi: any) => sum + Number(pi.finalPrice), 0)
     })),
     displays: displays,
     organization: organization,

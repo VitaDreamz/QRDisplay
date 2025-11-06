@@ -4,6 +4,9 @@ async function resetTestData() {
   console.log('🗑️  Resetting test data...');
 
   // Delete in order (to respect foreign keys)
+  await prisma.purchaseIntent.deleteMany({});
+  console.log('✅ Cleared purchase intents');
+
   await prisma.promoRedemption.deleteMany({});
   console.log('✅ Cleared promo redemptions');
 

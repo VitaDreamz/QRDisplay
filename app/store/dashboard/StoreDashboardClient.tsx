@@ -39,6 +39,7 @@ type Customer = {
   promoRedeemedAt?: Date | null;
   currentStage: string;
   stageChangedAt: Date;
+  totalPurchases: number;
 };
 
 type DashboardData = {
@@ -158,15 +159,23 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
   // Calculate stats
   const samplesRedeemed = data.customers.filter(c => c.redeemed).length;
   const firstPurchases = data.customers.filter(c => c.promoRedeemed).length;
-  const totalSales = data.customers
-    .filter((c: any) => c.promoRedeemed)
-    .reduce((sum: number, c: any) => sum + parseFloat(c.saleAmount || '0'), 0);
+  
+  // Calculate pending sales (purchase intents not yet fulfilled)
+  const pendingSales = purchaseIntents
+    .filter(i => i.status === 'pending' || i.status === 'ready')
+    .reduce((sum, i) => sum + (Number(i.finalPrice) || 0), 0);
+  
+  // Calculate total sales (fulfilled purchase intents)
+  const totalSales = purchaseIntents
+    .filter(i => i.status === 'fulfilled')
+    .reduce((sum, i) => sum + (Number(i.finalPrice) || 0), 0);
 
   const stats = {
     samplesRequested: data.customers.length,
     samplesRedeemed,
     firstPurchases,
     totalSales,
+    pendingSales,
     promosUsed: firstPurchases, // Keep for backward compatibility
     conversionRate: samplesRedeemed > 0
       ? Math.round((firstPurchases / samplesRedeemed) * 100)
@@ -192,7 +201,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
   });
 
   // Sorting state for customers table
-  const [customerSortField, setCustomerSortField] = useState<'name' | 'phone' | 'sample' | 'status' | 'requestedAt' | 'redeemTime' | 'purchaseTime' | 'lastActivity' | 'followupDue' | 'daysInStage'>('requestedAt');
+  const [customerSortField, setCustomerSortField] = useState<'name' | 'phone' | 'sample' | 'status' | 'requestedAt' | 'redeemTime' | 'purchaseTime' | 'lastActivity' | 'followupDue' | 'daysInStage' | 'totalPurchases'>('requestedAt');
   const [customerSortDirection, setCustomerSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Sort customers based on selected column
@@ -257,6 +266,10 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
         bVal = new Date(b.stageChangedAt).getTime();
         break;
       }
+      case 'totalPurchases':
+        aVal = a.totalPurchases || 0;
+        bVal = b.totalPurchases || 0;
+        break;
       case 'requestedAt':
       default:
         aVal = new Date(a.requestedAt).getTime();
@@ -762,16 +775,18 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
               <div className="text-xs text-gray-500 mt-2">🎉 +{todayPromos} today</div>
             </div>
             <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
-              <div className="text-xs text-gray-600 font-medium">Total Sales</div>
-              <div className="text-2xl md:text-3xl font-bold text-purple-600 mt-1">
-                ${purchaseIntents.filter(i => i.status === 'fulfilled').reduce((sum, i) => sum + (Number(i.finalPrice) || 0), 0).toFixed(2)}
+              <div className="text-xs text-gray-600 font-medium">Pending Sales</div>
+              <div className="text-2xl md:text-3xl font-bold text-orange-600 mt-1">
+                ${stats.pendingSales.toFixed(2)}
               </div>
-              <div className="text-xs text-gray-500 mt-2">💰 Revenue</div>
+              <div className="text-xs text-gray-500 mt-2">⏳ {pendingIntents.length + readyIntents.length} orders</div>
             </div>
             <div className="bg-white rounded-xl p-4 md:p-6 shadow-sm min-h-32 hover:shadow transition">
-              <div className="text-xs text-gray-600 font-medium">Conv Rate</div>
-              <div className="text-2xl md:text-3xl font-bold text-blue-600 mt-1">{stats.conversionRate}%</div>
-              <div className="text-xs text-gray-500 mt-2">📈 Trend —</div>
+              <div className="text-xs text-gray-600 font-medium">Total Sales</div>
+              <div className="text-2xl md:text-3xl font-bold text-purple-600 mt-1">
+                ${stats.totalSales.toFixed(2)}
+              </div>
+              <div className="text-xs text-gray-500 mt-2">� {fulfilledIntents.length} fulfilled</div>
             </div>
           </div>
         </div>
@@ -854,20 +869,23 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                 <div className="divide-y">
                   {[...readyIntents, ...pendingIntents, ...fulfilledIntents].slice(0,5).map((i) => (
                     <div key={i.id} className="p-4 flex items-center justify-between">
-                      <div>
+                      <div className="flex-1">
                         <div className="font-semibold">{i.customer.firstName} {i.customer.lastName}</div>
                         <div className="text-sm text-gray-600">{i.product.name}</div>
                         <div className="text-xs text-gray-500">{new Date(i.createdAt).toLocaleString()} • {i.status.toUpperCase()}</div>
+                        <div className="text-sm font-semibold text-purple-600 mt-1">${Number(i.finalPrice).toFixed(2)}</div>
                       </div>
-                      {i.status === 'pending' && role === 'owner' && (
-                        <button onClick={() => notifyReady(i.verifySlug)} className="px-3 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700">Notify Ready</button>
-                      )}
-                      {i.status === 'ready' && (
-                        <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded">Customer Notified</span>
-                      )}
-                      {i.status === 'fulfilled' && (
-                        <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">Fulfilled</span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {i.status === 'pending' && role === 'owner' && (
+                          <button onClick={() => notifyReady(i.verifySlug)} className="px-3 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700">Notify Ready</button>
+                        )}
+                        {i.status === 'ready' && (
+                          <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded">Customer Notified</span>
+                        )}
+                        {i.status === 'fulfilled' && (
+                          <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">Fulfilled</span>
+                        )}
+                      </div>
                     </div>
                   ))}
                   {pendingIntents.length + readyIntents.length > 5 && (
@@ -982,20 +1000,25 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                 </div>
                 <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
                   {[...readyIntents, ...pendingIntents, ...fulfilledIntents].slice(0,6).map(i => (
-                    <div key={i.id} className="border rounded-lg p-3 flex items-center justify-between">
-                      <div>
-                        <div className="font-semibold">{i.customer.firstName} {i.customer.lastName}</div>
-                        <div className="text-sm text-gray-600">{i.product.name}</div>
+                    <div key={i.id} className="border rounded-lg p-3">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <div className="font-semibold">{i.customer.firstName} {i.customer.lastName}</div>
+                          <div className="text-sm text-gray-600">{i.product.name}</div>
+                          <div className="text-sm font-semibold text-purple-600 mt-1">${Number(i.finalPrice).toFixed(2)}</div>
+                        </div>
+                        <div>
+                          {i.status === 'pending' && role === 'owner' && (
+                            <button onClick={() => notifyReady(i.verifySlug)} className="px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 whitespace-nowrap">Notify Ready</button>
+                          )}
+                          {i.status === 'ready' && (
+                            <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded">Ready</span>
+                          )}
+                          {i.status === 'fulfilled' && (
+                            <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">Fulfilled</span>
+                          )}
+                        </div>
                       </div>
-                      {i.status === 'pending' && role === 'owner' && (
-                        <button onClick={() => notifyReady(i.verifySlug)} className="px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700">Notify Ready</button>
-                      )}
-                      {i.status === 'ready' && (
-                        <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded">Ready</span>
-                      )}
-                      {i.status === 'fulfilled' && (
-                        <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">Fulfilled</span>
-                      )}
                     </div>
                   ))}
                 </div>
@@ -1185,6 +1208,14 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                         Requested {customerSortField === 'requestedAt' && (<span>{customerSortDirection === 'asc' ? '↑' : '↓'}</span>)}
                       </div>
                     </th>
+                    <th
+                      onClick={() => handleCustomerSort('totalPurchases')}
+                      className="px-4 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-100 select-none"
+                    >
+                      <div className="flex items-center gap-1">
+                        Total Purchases {customerSortField === 'totalPurchases' && (<span>{customerSortDirection === 'asc' ? '↑' : '↓'}</span>)}
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -1248,6 +1279,9 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {formatRelativeTime(customer.requestedAt)}
+                      </td>
+                      <td className="px-4 py-3 text-sm font-semibold text-purple-600">
+                        ${(customer.totalPurchases || 0).toFixed(2)}
                       </td>
                     </tr>
                   )})}

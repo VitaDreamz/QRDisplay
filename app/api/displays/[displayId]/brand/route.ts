@@ -31,6 +31,7 @@ export async function GET(
       supportPhone: display.organization.supportPhone,
       storeName: display.store?.storeName || null,
       availableSamples: display.store?.availableSamples || [],
+      promoOffer: display.store?.promoOffer || '$5 deal',
     });
   } catch (error) {
     console.error('Error fetching brand info:', error);

@@ -12,6 +12,7 @@ type BrandInfo = {
   supportPhone?: string | null;
   storeName?: string | null;
   availableSamples?: string[];
+  promoOffer?: string;
 };
 
 export default function SampleRequestPage({ params }: { params: Promise<{ displayId: string }> }) {
@@ -130,18 +131,22 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
             <img src={brand.logoUrl} alt={brand?.name || 'Brand'} className="w-16 h-16 rounded-lg mx-auto mb-3 bg-white p-2" />
           ) : null}
           <h1 className="text-2xl font-bold leading-tight">{headerTitle}</h1>
-          <p className="text-sm mt-1 text-[#6b6b6b]">Free Sample Program</p>
+          <p className="text-lg font-semibold mt-2 text-purple-900">Free Sample Program</p>
         </div>
 
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-sm border border-purple-100 p-5">
-          <p className="text-base mb-4">Claim your free sample in 30 seconds</p>
+          <p className="text-base mb-5 text-gray-700 leading-relaxed">
+            Takes less than 30 seconds to claim a <span className="font-semibold text-purple-900">Free sample</span> and a <span className="font-semibold text-purple-900">{brand?.promoOffer || '$5 deal'}</span> off your 1st Purchase!
+          </p>
 
           {/* Form */}
           <form onSubmit={onSubmit} className="space-y-4">
             {/* First Name */}
             <div>
-              <label className="block text-sm mb-1">First Name</label>
+              <label className="block text-sm font-medium mb-1">
+                First Name <span className="text-red-600">*</span>
+              </label>
               <input
                 className="w-full h-12 px-4 text-base border-2 border-gray-300 rounded-lg focus:border-purple-600 focus:ring-2 focus:ring-purple-200 focus:outline-none"
                 placeholder="John"
@@ -150,13 +155,16 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
                 autoComplete="given-name"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
+                required
               />
               {errors.firstName && <p className="text-red-600 text-sm mt-1">{errors.firstName}</p>}
             </div>
 
             {/* Last Name */}
             <div>
-              <label className="block text-sm mb-1">Last Name</label>
+              <label className="block text-sm font-medium mb-1">
+                Last Name <span className="text-red-600">*</span>
+              </label>
               <input
                 className="w-full h-12 px-4 text-base border-2 border-gray-300 rounded-lg focus:border-purple-600 focus:ring-2 focus:ring-purple-200 focus:outline-none"
                 placeholder="Doe"
@@ -165,13 +173,16 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
                 autoComplete="family-name"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
+                required
               />
               {errors.lastName && <p className="text-red-600 text-sm mt-1">{errors.lastName}</p>}
             </div>
 
             {/* Phone */}
             <div>
-              <label className="block text-sm mb-1">Phone Number</label>
+              <label className="block text-sm font-medium mb-1">
+                Phone <span className="text-red-600">*</span>
+              </label>
               <input
                 className="w-full h-12 px-4 text-base border-2 border-gray-300 rounded-lg focus:border-purple-600 focus:ring-2 focus:ring-purple-200 focus:outline-none"
                 placeholder="(555) 123-4567"
@@ -180,17 +191,21 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
                 autoComplete="tel"
                 value={phone}
                 onChange={(e) => setPhone(formatPhoneDisplay(e.target.value))}
+                required
               />
               {errors.phone && <p className="text-red-600 text-sm mt-1">{errors.phone}</p>}
             </div>
 
             {/* Sample Choice */}
             <div>
-              <label className="block text-sm mb-1">Sample Choice</label>
+              <label className="block text-sm font-medium mb-1">
+                Sample Choice <span className="text-red-600">*</span>
+              </label>
               <select
                 className="w-full h-12 px-4 text-base border-2 border-gray-300 rounded-lg focus:border-purple-600 focus:ring-2 focus:ring-purple-200 focus:outline-none bg-white"
                 value={sampleChoice}
                 onChange={(e) => setSampleChoice(e.target.value)}
+                required
               >
                 <option value="" disabled>Select a sample</option>
                 {availableOptions.map((opt) => (
@@ -209,10 +224,12 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
               disabled={submitting}
               className="w-full h-14 text-lg font-semibold bg-purple-600 text-white rounded-xl active:bg-purple-700 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {submitting ? 'Submitting…' : 'Claim My Free Sample →'}
+              {submitting ? 'Submitting…' : 'Claim My Free Sample'}
             </button>
 
-            <p className="text-xs text-gray-500 text-center">Standard message rates may apply</p>
+            <p className="text-xs text-gray-600 text-center leading-relaxed">
+              By claiming your free sample you agree to receive SMS notifications from VitaDreamz regarding your sample and future promo offers. Opt-out any time! Standard message rates may apply.
+            </p>
           </form>
         </div>
       </div>

@@ -18,6 +18,7 @@ export interface WizardProgress {
   zip?: string;
   timezone?: string;
   promoPercentage?: string; // e.g. '20'
+  returningPromoPercentage?: string; // e.g. '10'
   followupDays?: { day4: boolean; day8: boolean; day12: boolean; day16: boolean; day20: boolean };
   pin?: string;
   ownerName?: string;

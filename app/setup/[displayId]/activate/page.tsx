@@ -21,6 +21,7 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
   const [zip, setZip] = useState('');
   const [timezone, setTimezone] = useState('America/New_York');
   const [promoPercentage, setPromoPercentage] = useState('20');
+  const [returningPromoPercentage, setReturningPromoPercentage] = useState('10');
   // Follow up timings per request: Day 4, 8, 12, 16, 20
   const [followupDays, setFollowupDays] = useState({
     day4: true,
@@ -60,6 +61,7 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
       if (progress.zip) setZip(progress.zip);
       if (progress.timezone) setTimezone(progress.timezone);
       if (progress.promoPercentage) setPromoPercentage(progress.promoPercentage);
+      if (progress.returningPromoPercentage) setReturningPromoPercentage(progress.returningPromoPercentage);
       if (progress.followupDays) setFollowupDays(progress.followupDays);
       if (progress.pin) setPin(progress.pin);
       if (progress.ownerName) setOwnerName(progress.ownerName);
@@ -111,6 +113,7 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
       zip,
       timezone,
       promoPercentage,
+      returningPromoPercentage,
       followupDays,
       pin,
       ownerName,
@@ -407,9 +410,9 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
 
           {/* Samples and Products moved to next step */}
 
-          {/* Display Settings */}
+          {/* Automated-Marketing Settings */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-            <h2 className="font-semibold text-lg mb-4">Display Settings</h2>
+            <h2 className="font-semibold text-lg mb-4">Automated-Marketing Settings</h2>
             <div className="space-y-5">
               <div>
                 <label className="block text-sm font-medium mb-1">Timezone *</label>
@@ -429,22 +432,25 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Discount Percentage *</label>
+                <label className="block text-sm font-medium mb-1">1st Purchase Promo *</label>
                 <select
                   value={promoPercentage}
                   onChange={(e) => setPromoPercentage(e.target.value)}
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
                 >
+                  <option value="0">No Promo</option>
+                  <option value="5">5% Off In-Store Purchase</option>
                   <option value="10">10% Off In-Store Purchase</option>
                   <option value="15">15% Off In-Store Purchase</option>
                   <option value="20">20% Off In-Store Purchase</option>
                   <option value="25">25% Off In-Store Purchase</option>
                   <option value="30">30% Off In-Store Purchase</option>
                 </select>
+                <p className="text-xs text-gray-600 mt-1">Discount for first-time customers</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Customer Follow-up Timing *</label>
+                <label className="block text-sm font-medium mb-1">Initial Follow-up Timing *</label>
                 <p className="text-sm text-gray-600 mb-2">Select the days after the initial sample is given to send follow-up texts with promo offers.</p>
                 <div className="space-y-2">
                   <label className="flex items-center gap-2">
@@ -493,6 +499,50 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
                     <span className="text-sm">Day 20</span>
                   </label>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Returning Customer Promo *</label>
+                <select
+                  value={returningPromoPercentage}
+                  onChange={(e) => setReturningPromoPercentage(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="0">No Promo</option>
+                  <option value="5">5% Off In-Store Purchase</option>
+                  <option value="10">10% Off In-Store Purchase</option>
+                  <option value="15">15% Off In-Store Purchase</option>
+                  <option value="20">20% Off In-Store Purchase</option>
+                  <option value="25">25% Off In-Store Purchase</option>
+                  <option value="30">30% Off In-Store Purchase</option>
+                </select>
+                <p className="text-xs text-gray-600 mt-1">Discount for repeat customers</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Retention Follow-up Timing *</label>
+                <p className="text-sm text-gray-600 mb-2">Select when to send follow-up messages after a customer makes a purchase (select 2).</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={true}
+                      disabled
+                      className="h-4 w-4 text-purple-600 border-gray-300 rounded"
+                    />
+                    <span className="text-sm">45 Days</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={true}
+                      disabled
+                      className="h-4 w-4 text-purple-600 border-gray-300 rounded"
+                    />
+                    <span className="text-sm">90 Days</span>
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Default: 45 & 90 days (can be changed later in dashboard)</p>
               </div>
             </div>
           </div>

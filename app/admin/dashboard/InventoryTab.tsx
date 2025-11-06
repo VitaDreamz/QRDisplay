@@ -213,7 +213,7 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
               <option value="72">72 (3 sheets)</option>
               <option value="120">120 (5 sheets)</option>
             </select>
-            <p className="text-xs text-gray-500 mt-1">6 columns × 4 rows per sheet</p>
+            <p className="text-xs text-gray-500 mt-1">4 columns × 6 rows per sheet</p>
           </div>
 
           <div>
@@ -249,7 +249,7 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
         <details className="mt-4">
           <summary className="cursor-pointer text-sm font-medium text-gray-700">📋 Printing Tips</summary>
           <div className="mt-2 p-3 bg-gray-50 rounded text-sm text-gray-600">
-            • Use OnlineLabels.com OL2681 (1.5" × 1.5" square, 6×4 grid)<br />
+            • Use OnlineLabels.com OL2681 (1.5" × 1.5" square, 4×6 grid)<br />
             • Print at 100% scale (do not "fit to page")<br />
             • Use high-quality laser printer for best results<br />
             • Let ink dry before handling<br />

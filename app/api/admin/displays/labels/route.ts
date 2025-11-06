@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { jsPDF } from 'jspdf';
 import prisma from '@/lib/prisma';
 
-// OL2681 specifications (6 columns × 4 rows)
+// OL2681 specifications (4 columns × 6 rows)
 const PAGE_WIDTH = 215.9;     // 8.5"
 const PAGE_HEIGHT = 279.4;    // 11"
-const COLS = 6;               // 6 columns
-const ROWS = 4;               // 4 rows
-const LABELS_PER_PAGE = 24;   // 6 × 4 = 24
+const COLS = 4;               // 4 columns (across)
+const ROWS = 6;               // 6 rows (down)
+const LABELS_PER_PAGE = 24;   // 4 × 6 = 24
 
 // Label dimensions (inches to mm)
 const LABEL_WIDTH = 38.1;     // 1.5"
@@ -56,11 +56,11 @@ export async function POST(request: NextRequest) {
     for (const display of displays) {
       if (!display.qrPngUrl) continue;
       
-      // Calculate position on sheet (6 columns × 4 rows)
+      // Calculate position on sheet (4 columns × 6 rows)
       const page = Math.floor(labelIndex / LABELS_PER_PAGE);
       const posOnPage = labelIndex % LABELS_PER_PAGE;
-      const col = posOnPage % COLS;  // 6 columns
-      const row = Math.floor(posOnPage / COLS);  // 4 rows
+      const col = posOnPage % COLS;  // 4 columns (across)
+      const row = Math.floor(posOnPage / COLS);  // 6 rows (down)
       
       // Add new page if needed
       if (page > 0 && posOnPage === 0) {

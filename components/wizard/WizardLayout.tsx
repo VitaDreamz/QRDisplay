@@ -64,6 +64,27 @@ export function WizardLayout({
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-md mx-auto px-4 py-6">
           {children}
+          
+          {/* Navigation buttons */}
+          <div className="flex gap-3 mt-8 pb-4">
+            {showBack && currentStep > 1 && (
+              <button
+                onClick={handleBack}
+                className="flex-1 h-12 px-6 text-gray-700 bg-white border-2 border-gray-300 rounded-lg font-semibold hover:bg-gray-50 active:scale-[0.98] transition-all"
+              >
+                ← Back
+              </button>
+            )}
+            {showNext && (
+              <button
+                onClick={handleNext}
+                disabled={nextDisabled}
+                className="flex-1 h-12 px-6 text-white bg-purple-600 rounded-lg font-semibold hover:bg-purple-700 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {nextLabel} →
+              </button>
+            )}
+          </div>
         </div>
       </div>
       

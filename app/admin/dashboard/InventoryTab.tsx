@@ -340,8 +340,8 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
           </select>
         </div>
 
-        {/* Mobile Cards */}
-        <div className="md:hidden divide-y">
+        {/* Mobile Cards - Scrollable */}
+        <div className="md:hidden divide-y max-h-[600px] overflow-y-auto">
           {filteredDisplays.map((display) => (
             <div key={display.id} className="p-4">
               <div className="flex items-start justify-between mb-2">
@@ -375,24 +375,24 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
           ))}
         </div>
 
-        {/* Desktop Table */}
-        <div className="hidden md:block overflow-x-auto">
+        {/* Desktop Table - Scrollable */}
+        <div className="hidden md:block overflow-x-auto max-h-[600px] overflow-y-auto">
           <table className="min-w-full">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-gray-50 border-b sticky top-0 z-10">
               <tr>
-                <th className="px-4 py-3 text-left">
+                <th className="px-4 py-3 text-left bg-gray-50">
                   <input
                     type="checkbox"
                     onChange={(e) => handleSelectAll(e, filteredDisplays)}
                     checked={selected.length > 0 && selected.length === filteredDisplays.length}
                   />
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold">Display ID</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold">QR Preview</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold">URL</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold">Status</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold">Created</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold">Actions</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold bg-gray-50">Display ID</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold bg-gray-50">QR Preview</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold bg-gray-50">URL</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold bg-gray-50">Status</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold bg-gray-50">Created</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold bg-gray-50">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y">

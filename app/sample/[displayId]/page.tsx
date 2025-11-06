@@ -137,7 +137,7 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-sm border border-purple-100 p-5">
           <p className="text-base mb-5 text-gray-700 leading-relaxed">
-            Takes less than 30 seconds to claim a <span className="font-semibold text-purple-900">Free sample</span> and a <span className="font-semibold text-purple-900">{brand?.promoOffer || '$5 deal'}</span> off your 1st Purchase!
+            Takes less than 30 seconds to claim a <span className="font-semibold text-purple-900">Free Sample</span> and a <span className="font-semibold text-purple-900">{brand?.promoOffer || '$5'}</span> Deal!
           </p>
 
           {/* Form */}

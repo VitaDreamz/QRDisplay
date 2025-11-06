@@ -3568,7 +3568,11 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                       className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
                     />
                     <span className="text-xs text-gray-500 mt-1 block">
-                      Their PIN will be the last 4 digits of this number
+                      {editingStaff && editingStaff.staffPin ? (
+                        <>Current PIN: <span className="font-mono font-bold text-purple-600">{editingStaff.staffPin}</span> (last 4 of phone)</>
+                      ) : (
+                        'Their PIN will be the last 4 digits of this number'
+                      )}
                     </span>
                   </div>
                 </div>

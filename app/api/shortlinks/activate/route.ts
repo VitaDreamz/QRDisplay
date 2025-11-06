@@ -35,11 +35,13 @@ export async function POST(req: NextRequest) {
     if (short.requiresPin) {
       const pinRegex = /^\d{4}$/;
       if (!pin || !pinRegex.test(pin)) {
+        console.log('[PIN_DEBUG] Invalid PIN format:', pin);
         return NextResponse.json({ error: 'Invalid PIN' }, { status: 400 });
       }
       
       // Check if it's the store admin PIN
       const isAdminPin = store.staffPin === pin;
+      console.log('[PIN_DEBUG] Admin PIN check:', { storePin: store.staffPin, inputPin: pin, match: isAdminPin });
       
       // Check if it's a staff member PIN
       let staffMember = null;
@@ -51,12 +53,20 @@ export async function POST(req: NextRequest) {
             status: 'active'
           }
         });
+        console.log('[PIN_DEBUG] Staff PIN check:', { 
+          storeId: store.id, 
+          inputPin: pin, 
+          foundStaff: staffMember ? `${staffMember.firstName} ${staffMember.lastName}` : null 
+        });
       }
       
       // If neither admin nor staff PIN matches, reject
       if (!isAdminPin && !staffMember) {
+        console.log('[PIN_DEBUG] PIN REJECTED - No match found');
         return NextResponse.json({ error: 'Invalid PIN' }, { status: 403 });
       }
+      
+      console.log('[PIN_DEBUG] PIN ACCEPTED:', isAdminPin ? 'Admin PIN' : `Staff: ${staffMember?.firstName} ${staffMember?.lastName}`);
       
       // Track which staff member redeemed it
       if (staffMember) {

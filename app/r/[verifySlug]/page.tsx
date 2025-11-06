@@ -109,8 +109,8 @@ export default function RedeemPage({ params }: { params: Promise<{ verifySlug: s
           <div>
             <label className="block text-sm font-medium text-[#2b2b2b] mb-1">PIN</label>
             <input
+              type="text"
               inputMode="numeric"
-              pattern="\\d{4}"
               maxLength={4}
               value={pin}
               onChange={(e) => {
@@ -119,6 +119,7 @@ export default function RedeemPage({ params }: { params: Promise<{ verifySlug: s
               }}
               className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
               placeholder="••••"
+              autoComplete="off"
             />
           </div>
 

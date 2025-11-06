@@ -142,6 +142,9 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
   const [showStaffModal, setShowStaffModal] = useState(false);
   const [showDeleteStaffConfirm, setShowDeleteStaffConfirm] = useState(false);
   const [staffForm, setStaffForm] = useState<any>({});
+  const [staffSortBy, setStaffSortBy] = useState<'samples' | 'sales' | 'type' | 'totalSales'>('totalSales');
+  const [staffSortOrder, setStaffSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [expandedStaffId, setExpandedStaffId] = useState<string | null>(null);
   const [editingStoreContact, setEditingStoreContact] = useState(false);
   const [storeContactForm, setStoreContactForm] = useState<any>({});
   
@@ -698,6 +701,44 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
     }
   };
 
+  const handleStaffSort = (column: 'samples' | 'sales' | 'type' | 'totalSales') => {
+    if (staffSortBy === column) {
+      setStaffSortOrder(staffSortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setStaffSortBy(column);
+      setStaffSortOrder('desc');
+    }
+  };
+
+  const getSortedStaff = () => {
+    return [...staff].sort((a, b) => {
+      let aVal, bVal;
+      switch (staffSortBy) {
+        case 'samples':
+          aVal = a.samplesRedeemed;
+          bVal = b.samplesRedeemed;
+          break;
+        case 'sales':
+          aVal = a.salesGenerated;
+          bVal = b.salesGenerated;
+          break;
+        case 'totalSales':
+          aVal = a.totalSales || 0;
+          bVal = b.totalSales || 0;
+          break;
+        case 'type':
+          aVal = a.type;
+          bVal = b.type;
+          return staffSortOrder === 'asc' 
+            ? aVal.localeCompare(bVal)
+            : bVal.localeCompare(aVal);
+        default:
+          return 0;
+      }
+      return staffSortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+  };
+
   // Fetch products from brand
   const fetchProducts = async () => {
     setLoadingProducts(true);
@@ -994,7 +1035,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            �️ Products
+            🛍️ Products
           </button>
           <button
             onClick={() => setActiveTab('customers')}
@@ -1004,7 +1045,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            � Customers
+            👥 Customers
           </button>
           {role === 'owner' && (
             <>
@@ -1231,7 +1272,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
             {role === 'owner' && (
               <div className="bg-white rounded-lg shadow">
                 <div className="p-4 border-b flex items-center justify-between">
-                  <h2 className="text-xl font-bold">Top Performers 🏆</h2>
+                  <h2 className="text-xl font-bold">Top Staff Performers 🏆</h2>
                   <button onClick={() => setActiveTab('staff')} className="text-purple-600 hover:text-purple-700 text-sm font-medium">View Leaderboard →</button>
                 </div>
                 <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1240,7 +1281,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                       <div className="text-2xl">{getMedal(i)}</div>
                       <div className="font-semibold">{m.firstName} {m.lastName}</div>
                       <div className="text-sm text-gray-600">{m.type}</div>
-                      <div className="mt-2 grid grid-cols-2 gap-3 text-sm">
+                      <div className="mt-2 grid grid-cols-3 gap-2 text-sm">
                         <div>
                           <div className="text-gray-600">Samples</div>
                           <div className="font-semibold">{m.samplesRedeemed}</div>
@@ -1248,6 +1289,10 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                         <div>
                           <div className="text-gray-600">Sales</div>
                           <div className="font-semibold text-green-600">{m.salesGenerated}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-600">Total $</div>
+                          <div className="font-semibold text-green-600">${(m.totalSales || 0).toFixed(2)}</div>
                         </div>
                       </div>
                     </div>
@@ -1265,34 +1310,112 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                 <h2 className="text-xl font-bold">Recent Activity</h2>
               </div>
               <div className="divide-y">
-                {data.customers.slice(0, 10).map((customer) => (
-                  <div key={customer.id} className="p-4 hover:bg-gray-50">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="font-semibold">{customer.firstName} {customer.lastName}</div>
-                        <div className="text-sm text-gray-600">{customer.sampleChoice}</div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {mounted ? formatRelativeTime(customer.requestedAt) : new Date(customer.requestedAt).toLocaleDateString()}
+                {(() => {
+                  // Gather all activities
+                  const activities: Array<{
+                    id: string;
+                    type: 'sample-request' | 'sample-redeemed' | 'purchase-requested' | 'purchase-ready' | 'purchase-fulfilled' | 'promo-redeemed';
+                    timestamp: Date;
+                    customer: { firstName: string; lastName: string };
+                    details: string;
+                    badge: { color: string; text: string; emoji: string };
+                  }> = [];
+
+                  // Sample requests
+                  data.customers.forEach(c => {
+                    activities.push({
+                      id: `sample-req-${c.id}`,
+                      type: 'sample-request',
+                      timestamp: new Date(c.requestedAt),
+                      customer: { firstName: c.firstName, lastName: c.lastName },
+                      details: c.sampleChoice,
+                      badge: { color: 'bg-purple-100 text-purple-800', text: 'Sample Requested', emoji: '📋' }
+                    });
+                  });
+
+                  // Sample redemptions
+                  data.customers.filter(c => c.redeemed && c.redeemedAt).forEach(c => {
+                    activities.push({
+                      id: `sample-red-${c.id}`,
+                      type: 'sample-redeemed',
+                      timestamp: new Date(c.redeemedAt!),
+                      customer: { firstName: c.firstName, lastName: c.lastName },
+                      details: c.sampleChoice,
+                      badge: { color: 'bg-blue-100 text-blue-800', text: 'Sample Redeemed', emoji: '✅' }
+                    });
+                  });
+
+                  // Purchase intents
+                  purchaseIntents.forEach(pi => {
+                    activities.push({
+                      id: `purchase-req-${pi.id}`,
+                      type: 'purchase-requested',
+                      timestamp: new Date(pi.createdAt),
+                      customer: { firstName: pi.customer.firstName, lastName: pi.customer.lastName },
+                      details: `${pi.product.name} - $${pi.finalPrice.toFixed(2)}`,
+                      badge: { color: 'bg-yellow-100 text-yellow-800', text: 'Purchase Requested', emoji: '🛒' }
+                    });
+
+                    if (pi.status === 'ready' || pi.status === 'fulfilled') {
+                      activities.push({
+                        id: `purchase-ready-${pi.id}`,
+                        type: 'purchase-ready',
+                        timestamp: new Date(pi.createdAt), // Use created date as proxy for ready time
+                        customer: { firstName: pi.customer.firstName, lastName: pi.customer.lastName },
+                        details: `${pi.product.name} ready for pickup`,
+                        badge: { color: 'bg-orange-100 text-orange-800', text: 'Purchase Ready', emoji: '📦' }
+                      });
+                    }
+
+                    if (pi.status === 'fulfilled' && pi.fulfilledAt) {
+                      activities.push({
+                        id: `purchase-ful-${pi.id}`,
+                        type: 'purchase-fulfilled',
+                        timestamp: new Date(pi.fulfilledAt),
+                        customer: { firstName: pi.customer.firstName, lastName: pi.customer.lastName },
+                        details: `${pi.product.name} - $${pi.finalPrice.toFixed(2)}`,
+                        badge: { color: 'bg-green-100 text-green-800', text: 'Purchase Fulfilled', emoji: '💰' }
+                      });
+                    }
+                  });
+
+                  // Promo redemptions
+                  data.customers.filter(c => c.promoRedeemed && c.promoRedeemedAt).forEach(c => {
+                    activities.push({
+                      id: `promo-${c.id}`,
+                      type: 'promo-redeemed',
+                      timestamp: new Date(c.promoRedeemedAt!),
+                      customer: { firstName: c.firstName, lastName: c.lastName },
+                      details: 'Returning customer promo',
+                      badge: { color: 'bg-pink-100 text-pink-800', text: 'Promo Redeemed', emoji: '🎁' }
+                    });
+                  });
+
+                  // Sort by timestamp descending and take last 20
+                  return activities
+                    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+                    .slice(0, 20)
+                    .map((activity) => (
+                      <div key={activity.id} className="p-4 hover:bg-gray-50">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="font-semibold">
+                              {activity.customer.firstName} {activity.customer.lastName}
+                            </div>
+                            <div className="text-sm text-gray-600">{activity.details}</div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {mounted ? formatRelativeTime(activity.timestamp) : activity.timestamp.toLocaleDateString()}
+                            </div>
+                          </div>
+                          <div>
+                            <span className={`${activity.badge.color} px-2 py-1 rounded text-xs font-medium whitespace-nowrap`}>
+                              {activity.badge.emoji} {activity.badge.text}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                      <div>
-                        {customer.promoRedeemed ? (
-                          <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">
-                            💰 Promo Used
-                          </span>
-                        ) : customer.redeemed ? (
-                          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
-                            ✅ Redeemed
-                          </span>
-                        ) : (
-                          <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-medium">
-                            ⏳ Pending
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    ));
+                })()}
               </div>
             </div>
           </>
@@ -2173,130 +2296,278 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                         <tr>
                           <th className="px-4 py-3 text-left text-sm font-semibold">Rank</th>
                           <th className="px-4 py-3 text-left text-sm font-semibold">Staff</th>
-                          <th className="px-4 py-3 text-left text-sm font-semibold">Type</th>
-                          <th className="px-4 py-3 text-left text-sm font-semibold">Samples</th>
-                          <th className="px-4 py-3 text-left text-sm font-semibold">Sales</th>
+                          <th 
+                            className="px-4 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-100"
+                            onClick={() => handleStaffSort('type')}
+                          >
+                            Type {staffSortBy === 'type' && (staffSortOrder === 'asc' ? '↑' : '↓')}
+                          </th>
+                          <th 
+                            className="px-4 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-100"
+                            onClick={() => handleStaffSort('samples')}
+                          >
+                            Samples {staffSortBy === 'samples' && (staffSortOrder === 'asc' ? '↑' : '↓')}
+                          </th>
+                          <th 
+                            className="px-4 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-100"
+                            onClick={() => handleStaffSort('sales')}
+                          >
+                            Sales {staffSortBy === 'sales' && (staffSortOrder === 'asc' ? '↑' : '↓')}
+                          </th>
+                          <th 
+                            className="px-4 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-100"
+                            onClick={() => handleStaffSort('totalSales')}
+                          >
+                            Total $ {staffSortBy === 'totalSales' && (staffSortOrder === 'asc' ? '↑' : '↓')}
+                          </th>
                           <th className="px-4 py-3 text-left text-sm font-semibold">On Call</th>
                           <th className="px-4 py-3 text-left text-sm font-semibold">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {staff.map((member, index) => (
-                          <tr key={member.id} className={index < 3 ? 'bg-yellow-50/30' : ''}>
-                            <td className="px-4 py-3 text-lg">
-                              {getMedal(index)} {index + 1}
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="font-medium flex items-center gap-2">
-                                <span>{member.firstName} {member.lastName}</span>
-                                {member.verified ? (
-                                  <span className="text-green-700 bg-green-100 px-2 py-0.5 rounded text-[10px] font-semibold">Verified</span>
-                                ) : (
-                                  <span className="text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded text-[10px] font-semibold">Pending</span>
-                                )}
-                              </div>
-                              <div className="text-xs text-gray-500">{member.phone}</div>
-                            </td>
-                            <td className="px-4 py-3 text-sm">{member.type}</td>
-                            <td className="px-4 py-3 text-sm font-semibold">{member.samplesRedeemed}</td>
-                            <td className="px-4 py-3 text-sm font-semibold text-green-600">{member.salesGenerated}</td>
-                            <td className="px-4 py-3 text-xs">
-                              <div>{member.onCallDays.join(', ')}</div>
-                              <div className="text-gray-500">{member.onCallHoursStart} - {member.onCallHoursStop}</div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex gap-2">
-                                {!member.verified && (
+                        {getSortedStaff().map((member, index) => {
+                          const isExpanded = expandedStaffId === member.id;
+                          return (
+                            <React.Fragment key={member.id}>
+                              <tr className={`${index < 3 ? 'bg-yellow-50/30' : ''} ${isExpanded ? 'border-b-0' : ''}`}>
+                                <td className="px-4 py-3 text-lg">
+                                  {getMedal(index)} {index + 1}
+                                </td>
+                                <td 
+                                  className="px-4 py-3 cursor-pointer hover:bg-gray-50"
+                                  onClick={() => setExpandedStaffId(isExpanded ? null : member.id)}
+                                >
+                                  <div className="font-medium flex items-center gap-2">
+                                    <span className="text-gray-400">{isExpanded ? '▼' : '▶'}</span>
+                                    <span>{member.firstName} {member.lastName}</span>
+                                    {member.verified ? (
+                                      <span className="text-green-700 bg-green-100 px-2 py-0.5 rounded text-[10px] font-semibold">Verified</span>
+                                    ) : (
+                                      <span className="text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded text-[10px] font-semibold">Pending</span>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-gray-500">{member.phone}</div>
+                                </td>
+                                <td className="px-4 py-3 text-sm">{member.type}</td>
+                                <td className="px-4 py-3 text-sm font-semibold">{member.samplesRedeemed}</td>
+                                <td className="px-4 py-3 text-sm font-semibold text-green-600">{member.salesGenerated}</td>
+                                <td className="px-4 py-3 text-sm font-semibold text-green-600">${(member.totalSales || 0).toFixed(2)}</td>
+                                <td className="px-4 py-3 text-xs">
+                                  <div>{member.onCallDays.join(', ')}</div>
+                                  <div className="text-gray-500">{member.onCallHoursStart} - {member.onCallHoursStop}</div>
+                                </td>
+                                <td className="px-4 py-3">
                                   <button
-                                    onClick={() => resendVerification(member.staffId)}
-                                    className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                                    onClick={() => setExpandedStaffId(isExpanded ? null : member.id)}
+                                    className="text-gray-600 hover:text-gray-900 text-sm"
                                   >
-                                    Resend
+                                    {isExpanded ? 'Collapse ▲' : 'Expand ▼'}
                                   </button>
-                                )}
-                                <button
-                                  onClick={() => openEditStaff(member)}
-                                  className="px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setDeletingStaff(member);
-                                    setShowDeleteStaffConfirm(true);
-                                  }}
-                                  className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                                </td>
+                              </tr>
+                              {isExpanded && (
+                                <tr className={index < 3 ? 'bg-yellow-50/30' : ''}>
+                                  <td colSpan={8} className="px-4 py-4 bg-gray-50">
+                                    <div className="space-y-4">
+                                      <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                          <h4 className="font-semibold text-sm mb-2">Contact Information</h4>
+                                          <div className="text-sm space-y-1">
+                                            <div><span className="text-gray-600">Email:</span> {member.email || 'N/A'}</div>
+                                            <div><span className="text-gray-600">Phone:</span> {member.phone}</div>
+                                            <div>
+                                              <span className="text-gray-600">PIN:</span> 
+                                              <span className="font-mono ml-1">{member.staffPin}</span>
+                                              <button
+                                                onClick={() => navigator.clipboard.writeText(member.staffPin)}
+                                                className="ml-2 text-purple-600 hover:text-purple-700 text-xs"
+                                              >
+                                                📋 Copy
+                                              </button>
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <h4 className="font-semibold text-sm mb-2">Schedule</h4>
+                                          <div className="text-sm space-y-1">
+                                            <div><span className="text-gray-600">On-call Days:</span> {member.onCallDays.join(', ')}</div>
+                                            <div><span className="text-gray-600">Hours:</span> {member.onCallHoursStart} - {member.onCallHoursStop}</div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <h4 className="font-semibold text-sm mb-2">Performance Metrics</h4>
+                                        <div className="grid grid-cols-3 gap-3">
+                                          <div className="bg-white rounded p-3 border">
+                                            <div className="text-xs text-gray-600">Samples Redeemed</div>
+                                            <div className="text-lg font-semibold">{member.samplesRedeemed}</div>
+                                          </div>
+                                          <div className="bg-white rounded p-3 border">
+                                            <div className="text-xs text-gray-600">Sales Generated</div>
+                                            <div className="text-lg font-semibold text-green-600">{member.salesGenerated}</div>
+                                          </div>
+                                          <div className="bg-white rounded p-3 border">
+                                            <div className="text-xs text-gray-600">Total Sales $</div>
+                                            <div className="text-lg font-semibold text-green-600">${(member.totalSales || 0).toFixed(2)}</div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      {member.notes && (
+                                        <div>
+                                          <h4 className="font-semibold text-sm mb-2">Notes</h4>
+                                          <div className="text-sm text-gray-700 bg-white rounded p-3 border">{member.notes}</div>
+                                        </div>
+                                      )}
+                                      <div className="flex gap-2 pt-2 border-t">
+                                        {!member.verified && (
+                                          <button
+                                            onClick={() => resendVerification(member.staffId)}
+                                            className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                                          >
+                                            📧 Resend Verification
+                                          </button>
+                                        )}
+                                        <button
+                                          onClick={() => openEditStaff(member)}
+                                          className="px-4 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700"
+                                        >
+                                          ✏️ Edit Staff
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            setDeletingStaff(member);
+                                            setShowDeleteStaffConfirm(true);
+                                          }}
+                                          className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                                        >
+                                          🗑️ Delete Staff
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
 
                   {/* Mobile Cards */}
                   <div className="md:hidden space-y-4">
-                    {staff.map((member, index) => (
-                      <div key={member.id} className={`p-4 rounded-lg border ${index < 3 ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-200'}`}>
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-2xl">{getMedal(index)}</span>
-                            <div>
-                              <div className="font-semibold flex items-center gap-2">#{index + 1} {member.firstName} {member.lastName}
-                                {member.verified ? (
-                                  <span className="text-green-700 bg-green-100 px-2 py-0.5 rounded text-[10px] font-semibold">Verified</span>
-                                ) : (
-                                  <span className="text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded text-[10px] font-semibold">Pending</span>
-                                )}
+                    {getSortedStaff().map((member, index) => {
+                      const isExpanded = expandedStaffId === member.id;
+                      return (
+                        <div key={member.id} className={`p-4 rounded-lg border ${index < 3 ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-200'}`}>
+                          <div 
+                            className="cursor-pointer"
+                            onClick={() => setExpandedStaffId(isExpanded ? null : member.id)}
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-400 text-sm">{isExpanded ? '▼' : '▶'}</span>
+                                <span className="text-2xl">{getMedal(index)}</span>
+                                <div>
+                                  <div className="font-semibold flex items-center gap-2">#{index + 1} {member.firstName} {member.lastName}
+                                    {member.verified ? (
+                                      <span className="text-green-700 bg-green-100 px-2 py-0.5 rounded text-[10px] font-semibold">Verified</span>
+                                    ) : (
+                                      <span className="text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded text-[10px] font-semibold">Pending</span>
+                                    )}
+                                  </div>
+                                  <div className="text-sm text-gray-600">{member.type}</div>
+                                </div>
                               </div>
-                              <div className="text-sm text-gray-600">{member.type}</div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-3 text-sm">
+                              <div>
+                                <div className="text-gray-600">Samples</div>
+                                <div className="font-semibold text-lg">{member.samplesRedeemed}</div>
+                              </div>
+                              <div>
+                                <div className="text-gray-600">Sales</div>
+                                <div className="font-semibold text-lg text-green-600">{member.salesGenerated}</div>
+                              </div>
+                              <div>
+                                <div className="text-gray-600">Total $</div>
+                                <div className="font-semibold text-lg text-green-600">${(member.totalSales || 0).toFixed(2)}</div>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
-                          <div>
-                            <div className="text-gray-600">Samples</div>
-                            <div className="font-semibold text-lg">{member.samplesRedeemed}</div>
-                          </div>
-                          <div>
-                            <div className="text-gray-600">Sales</div>
-                            <div className="font-semibold text-lg text-green-600">{member.salesGenerated}</div>
-                          </div>
-                        </div>
-                        <div className="text-xs text-gray-600 mb-3">
-                          <div>{member.onCallDays.join(', ')}</div>
-                          <div>{member.onCallHoursStart} - {member.onCallHoursStop}</div>
-                        </div>
-                        <div className="flex gap-2">
-                          {!member.verified && (
-                            <button
-                              onClick={() => resendVerification(member.staffId)}
-                              className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                            >
-                              Resend
-                            </button>
+                          
+                          {isExpanded && (
+                            <div className="mt-4 pt-4 border-t space-y-3">
+                              <div>
+                                <h4 className="font-semibold text-sm mb-2">Contact Information</h4>
+                                <div className="text-sm space-y-1">
+                                  <div><span className="text-gray-600">Email:</span> {member.email || 'N/A'}</div>
+                                  <div><span className="text-gray-600">Phone:</span> {member.phone}</div>
+                                  <div>
+                                    <span className="text-gray-600">PIN:</span> 
+                                    <span className="font-mono ml-1">{member.staffPin}</span>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigator.clipboard.writeText(member.staffPin);
+                                      }}
+                                      className="ml-2 text-purple-600 hover:text-purple-700 text-xs"
+                                    >
+                                      📋 Copy
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-sm mb-2">Schedule</h4>
+                                <div className="text-sm space-y-1">
+                                  <div><span className="text-gray-600">On-call Days:</span> {member.onCallDays.join(', ')}</div>
+                                  <div><span className="text-gray-600">Hours:</span> {member.onCallHoursStart} - {member.onCallHoursStop}</div>
+                                </div>
+                              </div>
+                              {member.notes && (
+                                <div>
+                                  <h4 className="font-semibold text-sm mb-2">Notes</h4>
+                                  <div className="text-sm text-gray-700 bg-white rounded p-2 border">{member.notes}</div>
+                                </div>
+                              )}
+                              <div className="flex gap-2 pt-2">
+                                {!member.verified && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      resendVerification(member.staffId);
+                                    }}
+                                    className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                                  >
+                                    📧 Resend
+                                  </button>
+                                )}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openEditStaff(member);
+                                  }}
+                                  className="flex-1 px-3 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700"
+                                >
+                                  ✏️ Edit
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeletingStaff(member);
+                                    setShowDeleteStaffConfirm(true);
+                                  }}
+                                  className="flex-1 px-3 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                                >
+                                  🗑️ Delete
+                                </button>
+                              </div>
+                            </div>
                           )}
-                          <button
-                            onClick={() => openEditStaff(member)}
-                            className="flex-1 px-3 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => {
-                              setDeletingStaff(member);
-                              setShowDeleteStaffConfirm(true);
-                            }}
-                            className="flex-1 px-3 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700"
-                          >
-                            Delete
-                          </button>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </>
               )}

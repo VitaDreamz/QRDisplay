@@ -51,7 +51,27 @@ export async function GET(request: NextRequest) {
       ]
     });
 
-    return NextResponse.json(staff);
+    // Calculate total sales $ for each staff member
+    const staffWithSales = await Promise.all(
+      staff.map(async (member) => {
+        const sales = await prisma.purchaseIntent.aggregate({
+          where: {
+            fulfilledByStaffId: member.id,
+            status: 'fulfilled'
+          },
+          _sum: {
+            finalPrice: true
+          }
+        });
+
+        return {
+          ...member,
+          totalSales: Number(sales._sum.finalPrice || 0)
+        };
+      })
+    );
+
+    return NextResponse.json(staffWithSales);
   } catch (error) {
     console.error('Error fetching staff:', error);
     return NextResponse.json(

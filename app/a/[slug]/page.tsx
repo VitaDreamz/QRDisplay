@@ -87,45 +87,45 @@ export default function ActivateShortlinkPage({ params }: { params: Promise<{ sl
   if (success) {
     return (
       <div className="min-h-svh bg-gradient-to-br from-emerald-500 to-green-600 flex flex-col items-center justify-center p-4">
-        <div className="w-full max-w-lg">
+        <div className="w-full max-w-2xl">
           {/* Success Icon */}
           <div className="flex justify-center mb-8">
-            <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-white flex items-center justify-center shadow-2xl">
-              <span className="text-6xl md:text-7xl">✓</span>
+            <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-white flex items-center justify-center shadow-2xl">
+              <span className="text-7xl md:text-8xl">✓</span>
             </div>
           </div>
 
           {/* Main Message */}
           <div className="text-center mb-8">
-            <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-4">
+            <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-4">
               Sample Redeemed!
             </h1>
-            <p className="text-xl md:text-2xl text-white/90">
+            <p className="text-2xl md:text-3xl text-white/90">
               Hand the item to the customer
             </p>
           </div>
 
           {/* Details Card */}
-          <div className="bg-white/95 backdrop-blur rounded-3xl p-6 md:p-8 shadow-2xl">
-            <div className="space-y-4">
-              <div className="flex items-start justify-between py-3 border-b border-gray-200">
-                <span className="text-gray-600 font-medium">Store</span>
-                <span className="text-gray-900 font-bold text-right">{success.storeName}</span>
+          <div className="bg-white/95 backdrop-blur rounded-3xl p-8 md:p-12 shadow-2xl">
+            <div className="space-y-6">
+              <div className="flex items-start justify-between py-4 border-b-2 border-gray-200">
+                <span className="text-gray-600 font-medium text-lg md:text-xl">Store</span>
+                <span className="text-gray-900 font-bold text-right text-lg md:text-xl">{success.storeName}</span>
               </div>
-              <div className="flex items-start justify-between py-3 border-b border-gray-200">
-                <span className="text-gray-600 font-medium">Sample</span>
-                <span className="text-gray-900 font-bold text-right">{success.sampleChoice}</span>
+              <div className="flex items-start justify-between py-4 border-b-2 border-gray-200">
+                <span className="text-gray-600 font-medium text-lg md:text-xl">Sample</span>
+                <span className="text-gray-900 font-bold text-right text-lg md:text-xl">{success.sampleChoice}</span>
               </div>
-              <div className="flex items-start justify-between py-3">
-                <span className="text-gray-600 font-medium">Member ID</span>
-                <span className="text-gray-900 font-mono font-bold text-right">{success.memberId}</span>
+              <div className="flex items-start justify-between py-4">
+                <span className="text-gray-600 font-medium text-lg md:text-xl">Member ID</span>
+                <span className="text-gray-900 font-mono font-bold text-right text-lg md:text-xl">{success.memberId}</span>
               </div>
             </div>
           </div>
 
           {/* Footer Message */}
           <div className="text-center mt-8">
-            <p className="text-white/80 text-sm">
+            <p className="text-white/90 text-lg md:text-xl">
               Customer will receive a promo offer via SMS
             </p>
           </div>
@@ -135,38 +135,52 @@ export default function ActivateShortlinkPage({ params }: { params: Promise<{ sl
   }
 
   return (
-    <div className="min-h-svh flex items-center justify-center bg-gradient-to-br from-purple-700 to-purple-500 px-5">
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full">
-        <div className="text-center mb-4">
-          <h1 className="text-2xl font-bold text-[#2b2b2b]">Enter Staff PIN</h1>
-          <p className="text-[#6b6b6b] mt-1">Confirm redemption for {sampleChoice} at {storeName}</p>
+    <div className="min-h-svh bg-gradient-to-br from-purple-700 to-purple-500 flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-2xl">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-4">
+            Enter Staff PIN
+          </h1>
+          <p className="text-xl md:text-2xl text-white/90">
+            Confirm redemption for {sampleChoice}
+          </p>
+          <p className="text-lg text-white/75 mt-2">
+            at {storeName}
+          </p>
         </div>
 
         {requiresPin && (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {pinError && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">
+              <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4 text-red-700 text-center text-lg shadow-lg">
                 {pinError}
               </div>
             )}
-            <input
-              type="text"
-              className="w-full h-14 px-4 text-2xl tracking-widest text-center border-2 border-gray-300 rounded-xl focus:border-purple-600 focus:ring-2 focus:ring-purple-200 focus:outline-none"
-              placeholder="••••"
-              inputMode="numeric"
-              maxLength={4}
-              autoFocus
-              value={pin}
-              onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, '');
-                setPin(value);
-                setPinError(null); // Clear error when user types
-              }}
-            />
+            
+            {/* PIN Input */}
+            <div className="bg-white/95 backdrop-blur rounded-3xl p-8 md:p-12 shadow-2xl">
+              <input
+                type="text"
+                className="w-full h-20 md:h-24 px-4 text-4xl md:text-5xl tracking-[0.5em] text-center border-4 border-gray-300 rounded-2xl focus:border-purple-600 focus:ring-4 focus:ring-purple-200 focus:outline-none transition-all"
+                placeholder="••••"
+                inputMode="numeric"
+                maxLength={4}
+                autoFocus
+                value={pin}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, '');
+                  setPin(value);
+                  setPinError(null);
+                }}
+              />
+            </div>
+
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={submitting || pin.length !== 4}
-              className="w-full h-14 text-lg font-semibold bg-purple-600 text-white rounded-xl active:bg-purple-700 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-16 md:h-20 text-xl md:text-2xl font-bold bg-white text-purple-600 rounded-2xl active:bg-gray-100 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-2xl"
             >
               {submitting ? 'Verifying…' : 'Confirm Redemption'}
             </button>
@@ -174,7 +188,9 @@ export default function ActivateShortlinkPage({ params }: { params: Promise<{ sl
         )}
 
         {!requiresPin && (
-          <div className="text-center text-[#2b2b2b]">This link does not require a PIN. Please use the store link at /r/…</div>
+          <div className="bg-white/95 backdrop-blur rounded-3xl p-8 shadow-2xl text-center">
+            <p className="text-xl text-[#2b2b2b]">This link does not require a PIN. Please use the store link at /r/…</p>
+          </div>
         )}
       </div>
     </div>

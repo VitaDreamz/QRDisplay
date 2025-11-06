@@ -129,18 +129,85 @@ export default function PromoRedemptionPage({ params }: { params: Promise<{ slug
 
   if (success) {
     return (
-      <div className="min-h-svh flex items-center justify-center bg-gradient-to-br from-purple-700 to-purple-500 px-5">
-        <div className="bg-white rounded-2xl p-6 max-w-md w-full text-center">
-          <div className="mx-auto w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-3">
-            <span className="text-3xl text-emerald-500">✓</span>
+      <div className="min-h-svh bg-gradient-to-br from-emerald-500 to-green-600 flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-2xl">
+          {/* Success Icon */}
+          <div className="flex justify-center mb-8">
+            <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-white flex items-center justify-center shadow-2xl">
+              <span className="text-7xl md:text-8xl">✓</span>
+            </div>
           </div>
-          <h1 className="text-2xl font-bold text-[#2b2b2b] mb-2">Request Submitted!</h1>
-          <p className="text-base mt-2 text-[#2b2b2b]">The store has been notified and will send you a text when your order is ready to be completed in store (typically 1-5 business days).</p>
-          <div className="mt-4 text-left text-[#2b2b2b]">
-            <div><span className="font-semibold">Store:</span> {success.storeName}</div>
-            <div><span className="font-semibold">Customer:</span> {success.customerName}</div>
-            <div><span className="font-semibold">Offer:</span> {success.promoOffer}</div>
-            <div><span className="font-semibold">Product:</span> {success.productName}</div>
+
+          {/* Main Message */}
+          <div className="text-center mb-8">
+            <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-4">
+              Request Submitted!
+            </h1>
+            <p className="text-xl md:text-2xl text-white/90 max-w-xl mx-auto">
+              The store has been notified and will send you a text when your order is ready to be completed in store
+            </p>
+            <p className="text-lg md:text-xl text-white/75 mt-2">
+              (typically 1-5 business days)
+            </p>
+          </div>
+
+          {/* Product Card */}
+          {selectedProduct && (
+            <div className="bg-white/95 backdrop-blur rounded-3xl p-6 md:p-8 mb-6 shadow-2xl">
+              <div className="flex flex-col items-center gap-4">
+                {/* Product Image */}
+                {selectedProduct.imageUrl && (
+                  <img
+                    src={selectedProduct.imageUrl}
+                    alt={selectedProduct.name}
+                    className="w-48 h-48 md:w-64 md:h-64 object-cover rounded-2xl border-4 border-gray-200 shadow-lg"
+                  />
+                )}
+                
+                {/* Product Name */}
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-900 text-center">
+                  {success.productName}
+                </h2>
+                
+                {/* Pricing */}
+                <div className="flex items-center gap-4">
+                  <div className="text-xl text-gray-500 line-through">
+                    ${selectedProduct.originalPrice.toFixed(2)}
+                  </div>
+                  <div className="text-4xl md:text-5xl font-bold text-emerald-600">
+                    ${selectedProduct.finalPrice.toFixed(2)}
+                  </div>
+                </div>
+                <div className="text-lg md:text-xl text-emerald-600 font-semibold">
+                  You save ${selectedProduct.savings.toFixed(2)} ({discountPercent}% off)
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Details Card */}
+          <div className="bg-white/95 backdrop-blur rounded-3xl p-8 md:p-12 shadow-2xl">
+            <div className="space-y-6">
+              <div className="flex items-start justify-between py-4 border-b-2 border-gray-200">
+                <span className="text-gray-600 font-medium text-lg md:text-xl">Store</span>
+                <span className="text-gray-900 font-bold text-right text-lg md:text-xl">{success.storeName}</span>
+              </div>
+              <div className="flex items-start justify-between py-4 border-b-2 border-gray-200">
+                <span className="text-gray-600 font-medium text-lg md:text-xl">Customer</span>
+                <span className="text-gray-900 font-bold text-right text-lg md:text-xl">{success.customerName}</span>
+              </div>
+              <div className="flex items-start justify-between py-4">
+                <span className="text-gray-600 font-medium text-lg md:text-xl">Offer</span>
+                <span className="text-gray-900 font-bold text-right text-lg md:text-xl">{success.promoOffer}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Message */}
+          <div className="text-center mt-8">
+            <p className="text-white/90 text-lg md:text-xl">
+              Check your phone for updates from {success.storeName}
+            </p>
           </div>
         </div>
       </div>

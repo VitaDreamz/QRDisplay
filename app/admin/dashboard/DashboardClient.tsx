@@ -531,7 +531,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
             </div>
 
             {/* Mobile Cards */}
-            <div className="md:hidden space-y-3">
+            <div className="md:hidden space-y-3 max-h-[600px] overflow-y-auto">
               {filteredDisplays.map((display) => (
                 <div key={display.id} className="bg-white rounded-lg p-4 shadow-sm">
                   <div className="flex justify-between items-start mb-2">
@@ -564,9 +564,9 @@ export function DashboardClient({ data }: { data: DashboardData }) {
 
             {/* Desktop Table */}
             <div className="hidden md:block bg-white rounded-lg shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
+                  <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
                     <tr>
                       <th
                         onClick={() => handleDisplaySort('displayId')}
@@ -987,7 +987,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
 
         {/* Inventory Tab */}
         {activeTab === 'inventory' && (
-          <InventoryTab displays={filteredDisplays} organizations={data.organizations} />
+          <InventoryTab displays={data.displays} organizations={data.organizations} />
         )}
 
         {/* Settings Tab */}

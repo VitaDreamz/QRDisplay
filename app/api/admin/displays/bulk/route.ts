@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 
-type BulkAction = 'status' | 'organization' | 'reset';
+type BulkAction = 'status' | 'organization' | 'reset' | 'delete';
 
 export async function PATCH(req: NextRequest) {
   try {
@@ -24,7 +24,7 @@ export async function PATCH(req: NextRequest) {
     if (!Array.isArray(displayIds) || displayIds.length === 0) {
       return NextResponse.json({ error: 'No displays selected' }, { status: 400 });
     }
-    if (!action || !['status', 'organization', 'reset'].includes(action)) {
+    if (!action || !['status', 'organization', 'reset', 'delete'].includes(action)) {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 
@@ -102,6 +102,17 @@ export async function PATCH(req: NextRequest) {
         status: 'sold'
         // assignedOrgId: UNCHANGED - display stays assigned to org
       };
+    } else if (action === 'delete') {
+      // Delete = permanently remove displays from database
+      const result = await prisma.display.deleteMany({
+        where: { displayId: { in: displayIds } },
+      });
+
+      return NextResponse.json({ 
+        success: true, 
+        deleted: result.count,
+        message: `Successfully deleted ${result.count} display${result.count !== 1 ? 's' : ''}`
+      });
     }
 
     const result = await prisma.display.updateMany({

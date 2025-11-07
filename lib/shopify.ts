@@ -449,6 +449,7 @@ export async function tagShopifyCustomer(
     displayId?: string;
     state?: string; // 2-letter state code
     status?: 'active' | 'inactive';
+    activatedDate?: string; // YYYY-MM-DD format
   }
 ) {
   try {
@@ -494,6 +495,10 @@ export async function tagShopifyCustomer(
       newTags.push(`Display:${tags.status}`);
     }
 
+    if (tags.activatedDate) {
+      newTags.push(`Activated:${tags.activatedDate}`);
+    }
+
     console.log(`[Shopify Tagging] New tags to add:`, newTags);
 
     // Merge existing tags with new ones (avoid duplicates)
@@ -515,6 +520,48 @@ export async function tagShopifyCustomer(
     return allTags;
   } catch (error) {
     console.error('Error tagging Shopify customer:', error);
+    throw error;
+  }
+}
+
+/**
+ * Add store credit to a Shopify customer account
+ */
+export async function addStoreCredit(
+  org: Organization,
+  shopifyCustomerId: string,
+  amount: number,
+  note: string
+) {
+  try {
+    console.log(`[Shopify Store Credit] Adding $${amount} credit to customer ${shopifyCustomerId}`);
+    
+    const { shopify, session } = getShopifyClient(org);
+    const client = new shopify.clients.Rest({ session });
+
+    // Extract numeric ID if it's a GraphQL ID
+    let customerId = shopifyCustomerId;
+    if (customerId.includes('gid://')) {
+      customerId = customerId.split('/').pop() || customerId;
+    }
+
+    console.log(`[Shopify Store Credit] Using customer ID: ${customerId}`);
+
+    // Add store credit using Shopify REST API
+    const response = await client.post({
+      path: `customers/${customerId}/store_credit_account_transactions`,
+      data: {
+        transaction: {
+          amount: amount.toFixed(2),
+          note: note,
+        },
+      },
+    });
+
+    console.log(`✅ Successfully added $${amount} store credit to customer ${customerId}`);
+    return response.body;
+  } catch (error) {
+    console.error('Error adding store credit:', error);
     throw error;
   }
 }

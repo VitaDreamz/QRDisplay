@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { sendActivationEmail, sendBrandStoreActivationEmail } from '@/lib/email';
 import { generateBase62Slug } from '@/lib/shortid';
-import { tagShopifyCustomer } from '@/lib/shopify';
+import { tagShopifyCustomer, addStoreCredit } from '@/lib/shopify';
 
 // Helper to generate a new Store ID with 3-digit minimum padding
 function generateStoreId(nextIndex: number) {
@@ -265,6 +265,7 @@ export async function POST(req: NextRequest) {
 
     // If a setup photo was uploaded during the wizard on the display, carry it over to the store
     let updatedStore = store;
+    let photoCredit = false;
     try {
       const displayPhoto = (await prisma.display.findUnique({
         where: { displayId },
@@ -278,6 +279,7 @@ export async function POST(req: NextRequest) {
             setupPhotoCredit: !!displayPhoto.setupPhotoCredit,
           } as any,
         });
+        photoCredit = !!displayPhoto.setupPhotoCredit;
         console.log('✅ Setup photo carried over to store');
       }
     } catch (carryErr) {
@@ -295,19 +297,53 @@ export async function POST(req: NextRequest) {
     });
 
     // Tag Shopify customer with store and display info (if linked)
+    console.log(`🔍 Tagging check - shopifyCustomerId: ${shopifyCustomerId}, hasOrg: ${!!display.organization}`);
     if (shopifyCustomerId && display.organization) {
       try {
-        console.log(`🏷️  Attempting to tag Shopify customer ${shopifyCustomerId}`);
+        const activatedDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        console.log(`🏷️  Attempting to tag Shopify customer ${shopifyCustomerId} with tags:`, {
+          storeId: updatedStore.storeId,
+          displayId: displayId,
+          state: state,
+          status: 'active',
+          activatedDate: activatedDate,
+        });
         await tagShopifyCustomer(display.organization, shopifyCustomerId, {
           storeId: updatedStore.storeId,
           displayId: displayId,
           state: state, // 2-letter state code
           status: 'active',
+          activatedDate: activatedDate, // e.g., "2025-11-07"
         });
         console.log(`✅ Tagged Shopify customer ${shopifyCustomerId} with store/display info`);
       } catch (tagErr) {
         console.error('⚠️ Failed to tag Shopify customer:', tagErr);
+        console.error('⚠️ Full error details:', JSON.stringify(tagErr, null, 2));
         // Don't fail the activation if tagging fails
+      }
+
+      // Add $10 store credit if they uploaded a setup photo
+      if (photoCredit && !updatedStore.setupPhotoCredit) {
+        try {
+          console.log(`💰 Adding $10 store credit for setup photo to customer ${shopifyCustomerId}`);
+          await addStoreCredit(
+            display.organization,
+            shopifyCustomerId,
+            10.00,
+            `$10 credit for QRDisplay setup photo - ${displayId}`
+          );
+          
+          // Mark that the credit has been applied
+          await prisma.store.update({
+            where: { storeId: updatedStore.storeId },
+            data: { setupPhotoCredit: true } as any,
+          });
+          
+          console.log(`✅ Added $10 store credit to customer ${shopifyCustomerId}`);
+        } catch (creditErr) {
+          console.error('⚠️ Failed to add store credit:', creditErr);
+          // Don't fail the activation if store credit fails
+        }
       }
     } else {
       if (!shopifyCustomerId) {

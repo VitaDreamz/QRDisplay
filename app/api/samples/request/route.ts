@@ -203,7 +203,7 @@ Dashboard: qrdisplay.com/store/login/${display.store.storeId}`;
     try {
       // Fetch full organization with Shopify fields
       const org = await prisma.organization.findUnique({
-        where: { id: display.assignedOrgId || display.organization!.id },
+        where: { orgId: display.assignedOrgId || display.organization!.orgId },
       });
       
       if (org?.shopifyActive) {

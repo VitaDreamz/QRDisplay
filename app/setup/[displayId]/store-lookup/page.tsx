@@ -44,7 +44,7 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
   const [searching, setSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const searchTimeout = useRef<NodeJS.Timeout>();
+  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     params.then((p) => {

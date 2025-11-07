@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     const org = display.organization;
 
-    let shopifyCustomer = null;
+    let shopifyCustomers: any[] = [];
     let existingStores = [];
 
     // Search our database for stores matching the query
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
         state: true,
         shopifyCustomerId: true,
       },
-      take: 10, // Limit results
+      take: 50, // Increase limit to show more results
     });
 
     existingStores = stores.map(s => ({
@@ -67,33 +67,21 @@ export async function GET(request: NextRequest) {
       state: s.state,
     }));
 
-    // If we found stores with a shopifyCustomerId, use that to fetch the Shopify customer
-    const storeWithShopifyId = stores.find(s => s.shopifyCustomerId);
-    
-    if (storeWithShopifyId?.shopifyCustomerId) {
-      // We have a Shopify customer ID from our database
-      try {
-        shopifyCustomer = await getShopifyCustomer(org, storeWithShopifyId.shopifyCustomerId);
-      } catch (err) {
-        console.error('Failed to get Shopify customer:', err);
-        // Continue without Shopify customer
-      }
-    }
-
-    // Also search Shopify directly
+    // Search Shopify directly for ALL matching customers
     try {
       const customers = await searchShopifyCustomers(org, query);
-      if (customers.length > 0 && !shopifyCustomer) {
-        // If we didn't find a Shopify customer from our database, use the search result
-        shopifyCustomer = customers[0];
-      }
+      
+      // Filter to only wholesale customers (lastName = "Wholesale")
+      shopifyCustomers = customers.filter(c => 
+        c.lastName?.toLowerCase() === 'wholesale'
+      );
     } catch (err) {
       console.error('Failed to search Shopify:', err);
-      // Continue without Shopify customer
+      // Continue without Shopify customers
     }
 
     return NextResponse.json({
-      shopifyCustomer,
+      shopifyCustomers, // Return array of all matching customers
       existingStores,
     });
   } catch (error) {

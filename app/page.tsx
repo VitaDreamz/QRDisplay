@@ -8,24 +8,21 @@ import Link from "next/link";
 export default function HomePage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
-  const [showLanding, setShowLanding] = useState(false);
 
   useEffect(() => {
     if (!isLoaded) return;
 
-    if (!user) {
-      // Show landing page instead of redirecting
-      setShowLanding(true);
-      return;
-    }
-
-    // Super admin goes to dashboard
-    if (user.primaryEmailAddress?.emailAddress === "jbonutto@gmail.com") {
-      router.push("/admin/dashboard");
+    if (user) {
+      // Super admin goes to dashboard
+      if (user.primaryEmailAddress?.emailAddress === "jbonutto@gmail.com") {
+        router.push("/admin/dashboard");
+      }
+      // Other logged-in users also go somewhere (you can change this)
+      // For now, just show them the landing page too
     }
   }, [isLoaded, user, router]);
 
-  if (!isLoaded || (user && !showLanding)) {
+  if (!isLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-lg text-slate-600">Loading...</div>

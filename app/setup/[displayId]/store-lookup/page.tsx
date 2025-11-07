@@ -44,7 +44,15 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
   const [searching, setSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [showAllResults, setShowAllResults] = useState(false);
+  const [totalResults, setTotalResults] = useState(0);
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  // Limit visible results (like Shopify does)
+  const INITIAL_RESULTS_LIMIT = 7;
+  const visibleResults = showAllResults 
+    ? searchResults 
+    : searchResults.slice(0, INITIAL_RESULTS_LIMIT);
 
   useEffect(() => {
     params.then((p) => {
@@ -84,13 +92,15 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
 
         const results: SearchResult[] = [];
 
-        // Add Shopify customer if found
-        if (data.shopifyCustomer) {
-          results.push({
-            type: 'shopify',
-            shopifyCustomer: data.shopifyCustomer,
-            displayText: `${data.shopifyCustomer.firstName}`,
-            subText: `${data.shopifyCustomer.email}${data.shopifyCustomer.phone ? ' • ' + data.shopifyCustomer.phone : ''}`,
+        // Add ALL Shopify customers (filtered to wholesale only on backend)
+        if (data.shopifyCustomers && data.shopifyCustomers.length > 0) {
+          data.shopifyCustomers.forEach((customer: ShopifyCustomer) => {
+            results.push({
+              type: 'shopify',
+              shopifyCustomer: customer,
+              displayText: customer.firstName,
+              subText: `${customer.email}${customer.phone ? ' • ' + customer.phone : ''}`,
+            });
           });
         }
 
@@ -107,7 +117,9 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
         }
 
         setSearchResults(results);
+        setTotalResults(results.length);
         setShowResults(results.length > 0);
+        setShowAllResults(false); // Reset when new search happens
       } catch (err) {
         console.error('Search error:', err);
         setSearchResults([]);
@@ -204,17 +216,27 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
 
           {/* Search Results Dropdown */}
           {showResults && searchResults.length > 0 && (
-            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-96 overflow-y-auto">
-              {searchResults.map((result, index) => (
+            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-[500px] overflow-y-auto">
+              {visibleResults.map((result, index) => (
                 <button
                   key={index}
                   onClick={() => handleSelectResult(result)}
-                  className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                  className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-gray-100 transition-colors"
                 >
                   <div className="font-medium text-gray-900">{result.displayText}</div>
                   <div className="text-sm text-gray-600 mt-0.5">{result.subText}</div>
                 </button>
               ))}
+              
+              {/* Show More Button (like Shopify) */}
+              {!showAllResults && searchResults.length > INITIAL_RESULTS_LIMIT && (
+                <button
+                  onClick={() => setShowAllResults(true)}
+                  className="w-full text-left px-4 py-3 text-blue-600 hover:bg-blue-50 font-medium transition-colors border-t border-gray-200"
+                >
+                  Show {searchResults.length - INITIAL_RESULTS_LIMIT} more
+                </button>
+              )}
             </div>
           )}
 

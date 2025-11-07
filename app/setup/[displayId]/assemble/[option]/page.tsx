@@ -19,19 +19,19 @@ const assemblySteps: Record<DisplayOption, AssemblyStep[]> = {
     {
       title: 'Attach Straight Bar to Sample Stand',
       instruction: 'Flip the Sample Stand over and match 2 of the magnets from the bar with 2 magnets on the side of the Stand you\'d like to attach the display. The bar should click into place securely.',
-      image: '/images/displays/vitadreamz-display-setup-bar2stand.gif',
+      image: '/images/displays/vitadreamz-display-setup-bar2stand.1.jpg',
       tips: ['Make sure magnets are facing the right direction', 'Bar should be on the "back" side of the Stand (hidden from the front)']
     },
     {
       title: 'Attach Display to Bar & Stand',
       instruction: 'Place the display upright and level next to the Stand with bar and "click it" into place. It should attach firmly and straight.',
-      image: '/images/displays/vitadreamz-display-setup-display2stand.gif',
+      image: '/images/displays/vitadreamz-display-setup-display2stand.1.jpg',
       tips: ['Display should be level', 'Make sure QR faces customers and the marketing insert is straight']
     },
     {
       title: 'Hang Sample Products',
       instruction: 'Slide the square peg into the hook slat on the sample display, then hang your samples on the hook. Arrange them neatly for best presentation.',
-      image: '/images/displays/vitadreamz-display-setup-hook2stand.gif',
+      image: '/images/displays/vitadreamz-display-setup-hook2stand.1.jpg',
       tips: ['Samples should hang evenly', 'Be sure to "pull up" when grabbing samples as pulling down on samples can flip the display']
     }
   ],
@@ -39,7 +39,7 @@ const assemblySteps: Record<DisplayOption, AssemblyStep[]> = {
     {
       title: 'Attach Display Stand & Set Up',
       instruction: 'Connect the display stand to the back of the QRDisplay using the magnetic attachment. Make sure it\'s secure and the display stands upright. Place your display in a high-visibility area near the checkout or counter.',
-      image: '/images/displays/vitadreamz-display-setup-stand.gif',
+      image: '/images/displays/vitadreamz-display-setup-stand1.jpg',
       tips: ['Stand should be perpendicular to display', 'Choose eye-level placement', 'Good lighting is important']
     }
   ],

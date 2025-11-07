@@ -62,13 +62,14 @@ export function SupportBubble() {
         </div>
       )}
       
-      {/* Help tab button */}
+      {/* Help tab button - vertical text */}
       <button
         onClick={() => setShowMenu(!showMenu)}
-        className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-4 py-3 rounded-r-lg shadow-lg hover:shadow-xl transition-all font-semibold text-sm hover:px-5"
+        className="bg-gradient-to-b from-purple-600 to-purple-700 text-white py-6 px-2 rounded-r-lg shadow-lg hover:shadow-xl transition-all hover:px-3 writing-mode-vertical"
         aria-label="Support help"
+        style={{ writingMode: 'vertical-rl' }}
       >
-        💬 Help
+        <span className="text-sm font-semibold">💬 Help</span>
       </button>
     </div>
   );

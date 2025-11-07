@@ -120,7 +120,8 @@ export default async function StoreDashboardPage() {
       purchasingPhone: store.purchasingPhone,
       purchasingEmail: store.purchasingEmail,
       availableSamples: store.availableSamples as string[],
-      availableProducts: store.availableProducts as string[]
+      availableProducts: store.availableProducts as string[],
+      storeCredit: store.storeCredit
     },
     customers: customers.map((c: any) => ({
       id: c.id,

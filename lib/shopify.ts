@@ -7,6 +7,7 @@ import '@shopify/shopify-api/adapters/node';
 import { shopifyApi, ApiVersion, Session } from '@shopify/shopify-api';
 import { Organization } from '@prisma/client';
 import { decryptSafe } from './encryption';
+import prisma from './prisma';
 
 /**
  * Initialize Shopify API client for a specific organization
@@ -525,102 +526,62 @@ export async function tagShopifyCustomer(
 }
 
 /**
- * Add $10 store credit by creating a discount code for the customer
- * This works on all Shopify plans (not just Plus)
+ * Add store credit to a store's balance in QRDisplay
+ * This is managed internally, not through Shopify
  */
 export async function addStoreCredit(
-  org: Organization,
-  shopifyCustomerId: string,
+  storeId: string,
   amount: number,
-  note: string
+  reason: string,
+  displayId?: string
 ) {
   try {
-    console.log(`[Shopify Store Credit] Creating $${amount} discount code for customer ${shopifyCustomerId}`);
+    console.log(`💰 Adding $${amount} credit to store ${storeId} - ${reason}`);
     
-    const { shopify, session } = getShopifyClient(org);
-    const client = new shopify.clients.Rest({ session });
+    // Get current store balance
+    const store = await prisma.store.findUnique({
+      where: { storeId },
+      select: { id: true, storeCredit: true },
+    });
 
-    // Extract numeric ID if it's a GraphQL ID
-    let customerId = shopifyCustomerId;
-    if (customerId.includes('gid://')) {
-      customerId = customerId.split('/').pop() || customerId;
+    if (!store) {
+      throw new Error(`Store ${storeId} not found`);
     }
 
-    console.log(`[Shopify Store Credit] Using customer ID: ${customerId}`);
+    // Calculate new balance
+    const currentBalance = store.storeCredit || 0;
+    const newBalance = Number(currentBalance) + amount;
 
-    // Get customer email for discount code eligibility
-    const getResponse = await client.get({
-      path: `customers/${customerId}`,
-    });
+    // Create transaction record and update store balance in a transaction
+    const [transaction] = await prisma.$transaction([
+      prisma.storeCreditTransaction.create({
+        data: {
+          storeId: store.id,
+          amount,
+          type: 'earned',
+          reason,
+          displayId,
+          balance: newBalance,
+        },
+      }),
+      prisma.store.update({
+        where: { id: store.id },
+        data: { storeCredit: newBalance },
+      }),
+    ]);
 
-    const customer = getResponse.body.customer as any;
-    const customerEmail = customer.email;
+    console.log(`✅ Successfully added $${amount} credit to store ${storeId}. New balance: $${newBalance.toFixed(2)}`);
     
-    if (!customerEmail) {
-      throw new Error('Customer has no email address');
-    }
-
-    // Create a unique discount code for this customer
-    const discountCode = `QRDISPLAY10-${customerId}`;
-    
-    console.log(`[Shopify Store Credit] Creating discount code: ${discountCode}`);
-
-    // Create price rule for $10 off
-    const priceRuleResponse = await client.post({
-      path: 'price_rules',
-      data: {
-        price_rule: {
-          title: `QRDisplay Setup Credit - Customer ${customerId}`,
-          target_type: 'line_item',
-          target_selection: 'all',
-          allocation_method: 'across',
-          value_type: 'fixed_amount',
-          value: `-${amount.toFixed(2)}`,
-          customer_selection: 'prerequisite',
-          prerequisite_customer_ids: [customerId],
-          once_per_customer: true,
-          usage_limit: 1,
-          starts_at: new Date().toISOString(),
-        },
-      },
-    });
-
-    const priceRule = priceRuleResponse.body.price_rule as any;
-    const priceRuleId = priceRule.id;
-
-    console.log(`[Shopify Store Credit] Created price rule: ${priceRuleId}`);
-
-    // Create discount code linked to the price rule
-    await client.post({
-      path: `price_rules/${priceRuleId}/discount_codes`,
-      data: {
-        discount_code: {
-          code: discountCode,
-        },
-      },
-    });
-
-    console.log(`[Shopify Store Credit] Created discount code: ${discountCode}`);
-
-    // Add note to customer about the credit
-    const existingNote = customer.note || '';
-    const creditNote = `\n[${new Date().toISOString().split('T')[0]}] $${amount.toFixed(2)} QRDisplay Store Credit - ${note}\nDiscount Code: ${discountCode}`;
-    const updatedNote = existingNote + creditNote;
-
-    await client.put({
-      path: `customers/${customerId}`,
-      data: {
-        customer: {
-          id: customerId,
-          note: updatedNote,
-        },
-      },
-    });
-
-    console.log(`✅ Successfully added $${amount} credit note to customer ${customerId}`);
-    return { success: true, note: creditNote };
+    return {
+      success: true,
+      previousBalance: Number(currentBalance),
+      amountAdded: amount,
+      newBalance,
+      transaction,
+    };
   } catch (error) {
-    console.error('Error adding store credit note:', error);
+    console.error('Error adding store credit:', error);
     throw error;
   }
 }
+

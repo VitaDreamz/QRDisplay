@@ -325,12 +325,12 @@ export async function POST(req: NextRequest) {
       // Add $10 store credit if they uploaded a setup photo
       if (hasSetupPhoto && !updatedStore.setupPhotoCredit) {
         try {
-          console.log(`💰 Adding $10 store credit for setup photo to customer ${shopifyCustomerId}`);
+          console.log(`💰 Adding $10 store credit for setup photo to store ${updatedStore.storeId}`);
           await addStoreCredit(
-            display.organization,
-            shopifyCustomerId,
+            updatedStore.storeId,
             10.00,
-            `$10 credit for QRDisplay setup photo - ${displayId}`
+            'Setup Photo Upload',
+            displayId
           );
           
           // Mark that the credit has been applied
@@ -339,7 +339,7 @@ export async function POST(req: NextRequest) {
             data: { setupPhotoCredit: true } as any,
           });
           
-          console.log(`✅ Added $10 store credit to customer ${shopifyCustomerId}`);
+          console.log(`✅ Added $10 store credit to store ${updatedStore.storeId}`);
         } catch (creditErr) {
           console.error('⚠️ Failed to add store credit:', creditErr);
           console.error('⚠️ Full credit error:', JSON.stringify(creditErr, null, 2));

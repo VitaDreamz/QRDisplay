@@ -98,8 +98,8 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
             results.push({
               type: 'shopify',
               shopifyCustomer: customer,
-              displayText: customer.firstName,
-              subText: `${customer.email}${customer.phone ? ' • ' + customer.phone : ''}`,
+              displayText: customer.firstName, // Business name
+              subText: `${customer.city || 'Unknown City'}, ${customer.province || 'Unknown State'}`, // Just location, no email/phone
             });
           });
         }

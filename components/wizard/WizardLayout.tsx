@@ -52,7 +52,7 @@ export function WizardLayout({
   };
   
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-blue-900 flex flex-col">
       {/* Progress bar at top */}
       <ProgressBar 
         currentStep={currentStep} 
@@ -70,7 +70,7 @@ export function WizardLayout({
             {showBack && currentStep > 1 && (
               <button
                 onClick={handleBack}
-                className="flex-1 h-12 px-6 text-gray-700 bg-white border-2 border-gray-300 rounded-lg font-semibold hover:bg-gray-50 active:scale-[0.98] transition-all"
+                className="flex-1 h-12 px-6 text-white bg-white/10 backdrop-blur-sm border-2 border-white/30 rounded-lg font-semibold hover:bg-white/20 active:scale-[0.98] transition-all"
               >
                 ← Back
               </button>
@@ -79,7 +79,7 @@ export function WizardLayout({
               <button
                 onClick={handleNext}
                 disabled={nextDisabled}
-                className="flex-1 h-12 px-6 text-white bg-purple-600 rounded-lg font-semibold hover:bg-purple-700 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 h-12 px-6 text-white bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg font-semibold hover:from-purple-600 hover:to-blue-600 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/50"
               >
                 {nextLabel} →
               </button>

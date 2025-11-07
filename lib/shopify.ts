@@ -30,6 +30,7 @@ export function getShopifyClient(org: Organization) {
     apiVersion: ApiVersion.October24,
     isEmbeddedApp: false,
     isCustomStoreApp: true, // We're using private apps
+    adminApiAccessToken: accessToken, // Private app access token
   });
 
   // Create session with access token

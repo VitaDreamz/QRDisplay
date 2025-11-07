@@ -72,6 +72,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
     setError('');
     try {
       console.log('📋 Current wizard progress:', progress);
+      console.log('📋 Full progress object:', JSON.stringify(progress, null, 2));
       
       // Convert followupDays from object to array of day numbers
       const selectedDays = progress?.followupDays 

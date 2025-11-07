@@ -123,6 +123,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
       };
       
       console.log('🚀 Sending activation payload:', payload);
+      console.log('📋 shopifyCustomerId from progress:', progress?.shopifyCustomerId);
       
       const response = await fetch('/api/displays/activate', {
         method: 'POST',

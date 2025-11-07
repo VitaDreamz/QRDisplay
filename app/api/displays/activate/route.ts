@@ -13,6 +13,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     console.log('🚀 Activation request received for displayId:', body.displayId);
+    console.log('🔍 shopifyCustomerId in request:', body.shopifyCustomerId);
     
     const {
       displayId,

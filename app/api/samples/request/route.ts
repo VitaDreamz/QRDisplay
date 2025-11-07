@@ -4,6 +4,7 @@ import { normalizePhone } from '@/lib/phone';
 import { generateSlug } from '@/lib/slugs';
 import { sendBrandSampleRequestEmail } from '@/lib/email';
 import { SAMPLE_OPTIONS } from '@/lib/constants';
+import { syncCustomerToShopify } from '@/lib/shopify';
 
 async function generateMemberId(): Promise<string> {
   const count = await prisma.customer.count();
@@ -81,6 +82,8 @@ export async function POST(req: NextRequest) {
         activated: false,
         redeemed: false,
         requestedAt: new Date(),
+        attributedStoreId: display.store.storeId, // Set for commission tracking
+        sampleDate: new Date(), // Track when sample was requested
       }
     });
 
@@ -194,6 +197,22 @@ Dashboard: qrdisplay.com/store/login/${display.store.storeId}`;
     } catch (emailErr) {
       console.error('❌ Brand notification email failed:', emailErr);
       // Do not fail the request if email fails
+    }
+
+    // Sync customer to Shopify (if integration is active)
+    try {
+      // Fetch full organization with Shopify fields
+      const org = await prisma.organization.findUnique({
+        where: { id: display.assignedOrgId || display.organization!.id },
+      });
+      
+      if (org?.shopifyActive) {
+        await syncCustomerToShopify(org, customer);
+        console.log(`✅ Customer ${customer.memberId} synced to Shopify`);
+      }
+    } catch (shopifyErr) {
+      console.error('❌ Shopify sync failed:', shopifyErr);
+      // Do not fail the request if Shopify sync fails
     }
 
     // Return success and data for success page

@@ -279,6 +279,7 @@ model Customer {
   promoRedemptions PromoRedemption[]
   purchaseIntents  PurchaseIntent[]
   conversions      Conversion[]
+  webhookLogs      ShopifyWebhookLog[]
   
   @@index([shopifyCustomerId])
   @@map("customers")
@@ -537,6 +538,7 @@ model Conversion {
 model ShopifyWebhookLog {
   id            String   @id @default(cuid())
   orgId         String
+  customerId    String?  // QRDisplay customer ID if found
   webhookId     String?  // Shopify webhook ID
   topic         String   // e.g., "orders/paid"
   shopifyOrderId String?
@@ -549,8 +551,10 @@ model ShopifyWebhookLog {
   createdAt     DateTime @default(now())
   
   organization Organization @relation(fields: [orgId], references: [orgId])
+  customer     Customer?    @relation(fields: [customerId], references: [id])
   
   @@index([orgId])
+  @@index([customerId])
   @@index([shopifyOrderId])
   @@index([status])
   @@map("shopify_webhook_logs")

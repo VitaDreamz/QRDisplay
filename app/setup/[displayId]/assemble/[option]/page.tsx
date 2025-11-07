@@ -19,7 +19,7 @@ const assemblySteps: Record<DisplayOption, AssemblyStep[]> = {
     {
       title: 'Attach Straight Bar to Sample Stand',
       instruction: 'Flip the Sample Stand over and match 2 of the magnets from the bar with 2 magnets on the side of the Stand you\'d like to attach the display. The bar should click into place securely.',
-      image: '🎣 + 📏',
+      image: '/images/displays/vitadreamz-display-setup-bar2stand',
       tips: ['Make sure magnets are facing the right direction', 'Bar should be on the "back" side of the Stand (hidden from the front)']
     },
     {
@@ -76,7 +76,18 @@ export default function AssemblePage({ params }: { params: Promise<{ displayId: 
   const [displayId, setDisplayId] = useState<string>('');
   const [option, setOption] = useState<DisplayOption>('A');
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [animFrame, setAnimFrame] = useState(1);
   const { saveProgress } = useWizardProgress(displayId);
+  
+  // Animation for step 1 of Option A - alternate between two images
+  useEffect(() => {
+    if (option === 'A' && currentStepIndex === 0) {
+      const interval = setInterval(() => {
+        setAnimFrame(prev => prev === 1 ? 2 : 1);
+      }, 1000); // Switch every 1 second
+      return () => clearInterval(interval);
+    }
+  }, [option, currentStepIndex]);
   
   useEffect(() => {
     params.then(p => {
@@ -161,15 +172,36 @@ export default function AssemblePage({ params }: { params: Promise<{ displayId: 
         </h2>
         
         {/* Image/Icon Placeholder */}
-        <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg p-12 mb-4 text-center border-2 border-dashed border-purple-300">
-          <div className="text-6xl mb-3">{currentStep.image}</div>
-          <div className="text-sm text-gray-600">
-            Step {currentStepIndex + 1} visual guide
+        {option === 'A' && currentStepIndex === 0 ? (
+          // Animated image for Option A, Step 1
+          <div className="rounded-lg overflow-hidden mb-4 border-2 border-purple-300">
+            <img 
+              src={`${currentStep.image}.${animFrame}.jpg`}
+              alt={currentStep.title}
+              className="w-full h-auto transition-opacity duration-500"
+            />
           </div>
-          <div className="text-xs text-gray-500 mt-1">
-            (Detailed photo/video coming soon)
+        ) : currentStep.image.startsWith('/images/') ? (
+          // Static image for other steps with actual images
+          <div className="rounded-lg overflow-hidden mb-4 border-2 border-purple-300">
+            <img 
+              src={currentStep.image}
+              alt={currentStep.title}
+              className="w-full h-auto"
+            />
           </div>
-        </div>
+        ) : (
+          // Fallback to emoji placeholder for steps without images
+          <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg p-12 mb-4 text-center border-2 border-dashed border-purple-300">
+            <div className="text-6xl mb-3">{currentStep.image}</div>
+            <div className="text-sm text-gray-600">
+              Step {currentStepIndex + 1} visual guide
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              (Detailed photo/video coming soon)
+            </div>
+          </div>
+        )}
         
         {/* Instructions */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">

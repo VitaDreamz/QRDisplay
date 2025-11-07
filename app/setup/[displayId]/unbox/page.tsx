@@ -31,15 +31,12 @@ export default function UnboxPage({ params }: { params: Promise<{ displayId: str
   }
   
   const components = [
-    { num: 1, name: 'QRDisplay Base + Face Plate', icon: '📱' },
-    { num: 2, name: 'Sample Stand with Hook', icon: '🎣' },
-    { num: 3, name: 'Display Stand', icon: '🗂️' },
-    { num: 4, name: 'Straight Attachment Bar', icon: '📏' },
-    { num: 5, name: 'Shelf Talker Bar', icon: '🏷️' },
-    { num: 6, name: 'Magnetic Holder', icon: '🧲' },
-    { num: 7, name: '6× Sample Products', icon: '💊' },
-    { num: 8, name: 'Marketing Insert', icon: '📄' },
-    { num: 9, name: 'Setup Instructions', icon: '📋' }
+    { num: 1, name: 'QRDisplay (Base+Face+Card)' },
+    { num: 2, name: 'Sample Stand' },
+    { num: 3, name: 'Display Stand' },
+    { num: 4, name: 'Connecting Bar' },
+    { num: 5, name: 'Square Slat Hanging Hook' },
+    { num: 6, name: 'VitaDreamz Samples' }
   ];
   
   return (
@@ -63,15 +60,13 @@ export default function UnboxPage({ params }: { params: Promise<{ displayId: str
         </p>
       </div>
       
-      {/* Image placeholder */}
-      <div className="bg-gradient-to-br from-purple-100 to-blue-100 rounded-lg p-8 mb-6 text-center border-2 border-dashed border-purple-300">
-        <div className="text-4xl mb-2">🖼️</div>
-        <div className="text-sm text-gray-600">
-          Photo: Flat-lay view of all components
-        </div>
-        <div className="text-xs text-gray-500 mt-1">
-          (Coming soon - detailed labeled photo)
-        </div>
+      {/* Image */}
+      <div className="rounded-lg overflow-hidden mb-6 border-2 border-purple-300">
+        <img 
+          src="/images/displays/vitadreamz-display-setup-layflat.jpg" 
+          alt="All display components laid out"
+          className="w-full h-auto"
+        />
       </div>
       
       {/* Component checklist */}
@@ -87,7 +82,6 @@ export default function UnboxPage({ params }: { params: Promise<{ displayId: str
                 {component.num}
               </div>
               <div className="flex items-center gap-2 flex-1">
-                <span className="text-xl">{component.icon}</span>
                 <span className="text-sm font-medium">{component.name}</span>
               </div>
             </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { sendBrandPromoRedemptionEmail } from '@/lib/email';
+import { addCustomerTimelineEvent, updateCustomerStage } from '@/lib/shopify';
 
 export async function POST(request: NextRequest) {
   try {
@@ -128,6 +129,51 @@ export async function POST(request: NextRequest) {
           },
           redeemedAt: new Date(),
         });
+      }
+      
+      // Update Shopify stage and add timeline event for in-store purchase
+      if (org?.shopifyActive && (customer as any).shopifyCustomerId) {
+        try {
+          const shopifyCustomerId = (customer as any).shopifyCustomerId;
+          
+          // Get purchase intent to find what product they wanted
+          const purchaseIntent = await prisma.purchaseIntent.findFirst({
+            where: {
+              customerId: customer.id,
+              storeId: store.id,
+            },
+            orderBy: {
+              createdAt: 'desc'
+            },
+            include: {
+              product: true
+            }
+          });
+          
+          // Update stage tag to converted-instore
+          await updateCustomerStage(org, shopifyCustomerId, 'converted-instore');
+          
+          // Build timeline message with product details
+          let message = `Purchased In-Store at ${store.storeName}`;
+          if (purchaseIntent?.product) {
+            message = `Purchased In-Store: ${purchaseIntent.product.name}`;
+          }
+          if (purchaseAmount) {
+            message += ` ($${parseFloat(purchaseAmount).toFixed(2)}`;
+            if (discountAmount) {
+              message += ` - saved $${parseFloat(discountAmount).toFixed(2)}`;
+            }
+            message += ')';
+          }
+          message += ` - ${store.promoOffer}`;
+          
+          await addCustomerTimelineEvent(org, shopifyCustomerId, {
+            message,
+            occurredAt: new Date(),
+          });
+        } catch (shopifyErr) {
+          console.error('❌ Shopify update failed:', shopifyErr);
+        }
       }
     } catch (emailErr) {
       console.error('❌ Brand promo notification email failed:', emailErr);

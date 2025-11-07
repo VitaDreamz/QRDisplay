@@ -192,12 +192,12 @@ async function handleOrderPaid(orgId: string, order: ShopifyOrder, topic: string
     // Update customer stage to converted
     if ((customer as any).shopifyCustomerId) {
       try {
-        await updateCustomerStage(org, (customer as any).shopifyCustomerId, 'converted');
+        await updateCustomerStage(org, (customer as any).shopifyCustomerId, 'converted-online');
         
         // Add timeline event for purchase
         const productNames = order.line_items.map(item => item.title).join(', ');
         await addCustomerTimelineEvent(org, (customer as any).shopifyCustomerId, {
-          message: `Purchased: ${productNames} ($${orderTotal.toFixed(2)}) - Commission: $${commissionAmount.toFixed(2)} to ${customer.store?.storeName}`,
+          message: `Purchased Online: ${productNames} ($${orderTotal.toFixed(2)}) - Commission: $${commissionAmount.toFixed(2)} to ${customer.store?.storeName}`,
           occurredAt: purchaseDate,
         });
       } catch (shopifyErr) {

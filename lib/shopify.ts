@@ -91,7 +91,7 @@ export async function syncCustomerToShopify(
     storeId: string;
     memberId: string;
     sampleProduct?: string; // e.g., "Slumber Berry 4ct"
-    stage?: 'requested' | 'redeemed' | 'purchase-intent' | 'converted'; // Customer journey stage
+    stage?: 'requested' | 'redeemed' | 'purchase-intent' | 'converted-instore' | 'converted-online'; // Customer journey stage
   }
 ) {
   try {
@@ -112,8 +112,10 @@ export async function syncCustomerToShopify(
       tags.push('Sample-Redeemed');
     } else if (customer.stage === 'purchase-intent') {
       tags.push('Purchase-Intent');
-    } else if (customer.stage === 'converted') {
-      tags.push('Converted-Customer');
+    } else if (customer.stage === 'converted-instore') {
+      tags.push('Converted-Customer-InStore');
+    } else if (customer.stage === 'converted-online') {
+      tags.push('Converted-Customer-Online');
     }
     
     // Add product-specific tag if provided
@@ -183,6 +185,7 @@ export async function syncCustomerToShopify(
 
 /**
  * Add a timeline event to a customer's profile in Shopify
+ * Stores events in BOTH metafields (for querying) and notes (for visibility)
  */
 export async function addCustomerTimelineEvent(
   org: Organization,
@@ -193,64 +196,93 @@ export async function addCustomerTimelineEvent(
   }
 ) {
   try {
-    const graphqlClient = await getShopifyGraphQLClient(org);
-
-    const mutation = `
-      mutation customerSMSMarketingConsentUpdate($input: CustomerSmsMarketingConsentUpdateInput!) {
-        customerSmsMarketingConsentUpdate(input: $input) {
-          customer {
-            id
-          }
-          userErrors {
-            field
-            message
-          }
-        }
-      }
-    `;
-
-    // Note: Shopify's timeline events via API are limited
-    // We'll use metafields instead to store custom events that can be displayed
-    const metafieldMutation = `
-      mutation createCustomerMetafield($input: CustomerInput!) {
-        customerUpdate(input: $input) {
-          customer {
-            id
-          }
-          userErrors {
-            field
-            message
-          }
-        }
-      }
-    `;
-
-    // For now, we'll add events as customer notes/tags
-    // A more robust solution would use a custom app with timeline access
     const restClient = await getShopifyRestClient(org);
+    const timestamp = (event.occurredAt || new Date()).toISOString();
+    const formattedDate = new Date(timestamp).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
     
-    // Get current customer
+    // Get current customer data
     const customerResponse = await restClient.get({
       path: `customers/${shopifyCustomerId}`,
     });
-    
     const customer = (customerResponse.body as any).customer;
-    const currentNote = customer.note || '';
-    const timestamp = (event.occurredAt || new Date()).toISOString();
-    const newNote = `${currentNote}\n[${timestamp}] ${event.message}`;
     
-    // Update customer note with event
+    // 1. UPDATE NOTES (visible at top of customer page)
+    const currentNote = customer.note || '';
+    const newNoteLine = `[${formattedDate}] ${event.message}`;
+    const updatedNote = currentNote ? `${currentNote}\n${newNoteLine}` : newNoteLine;
+    
     await restClient.put({
       path: `customers/${shopifyCustomerId}`,
       data: {
         customer: {
           id: shopifyCustomerId,
-          note: newNote.trim(),
+          note: updatedNote.trim(),
         },
       },
     });
+    
+    // 2. UPDATE METAFIELDS (for structured querying)
+    const metafieldsResponse = await restClient.get({
+      path: `customers/${shopifyCustomerId}/metafields`,
+    });
+    
+    const metafields = (metafieldsResponse.body as any).metafields || [];
+    const eventsMetafield = metafields.find((m: any) => m.namespace === 'qrdisplay' && m.key === 'events');
+    
+    let events: Array<{ timestamp: string; message: string }> = [];
+    if (eventsMetafield?.value) {
+      try {
+        events = JSON.parse(eventsMetafield.value);
+      } catch (e) {
+        console.warn('Failed to parse existing events:', e);
+      }
+    }
+    
+    // Add new event
+    events.push({
+      timestamp,
+      message: event.message,
+    });
+    
+    // Keep last 50 events to avoid metafield size limits
+    if (events.length > 50) {
+      events = events.slice(-50);
+    }
+    
+    // Update or create metafield
+    if (eventsMetafield) {
+      await restClient.put({
+        path: `customers/${shopifyCustomerId}/metafields/${eventsMetafield.id}`,
+        data: {
+          metafield: {
+            id: eventsMetafield.id,
+            value: JSON.stringify(events),
+            type: 'json',
+          },
+        },
+      });
+    } else {
+      await restClient.post({
+        path: `customers/${shopifyCustomerId}/metafields`,
+        data: {
+          metafield: {
+            namespace: 'qrdisplay',
+            key: 'events',
+            value: JSON.stringify(events),
+            type: 'json',
+          },
+        },
+      });
+    }
 
-    console.log(`✅ Added timeline event for customer ${shopifyCustomerId}: ${event.message}`);
+    console.log(`✅ Added event for customer ${shopifyCustomerId}: ${event.message}`);
     
     return { success: true };
   } catch (error) {
@@ -266,7 +298,7 @@ export async function addCustomerTimelineEvent(
 export async function updateCustomerStage(
   org: Organization,
   shopifyCustomerId: string,
-  newStage: 'requested' | 'redeemed' | 'purchase-intent' | 'converted'
+  newStage: 'requested' | 'redeemed' | 'purchase-intent' | 'converted-instore' | 'converted-online'
 ) {
   try {
     const restClient = await getShopifyRestClient(org);
@@ -280,7 +312,7 @@ export async function updateCustomerStage(
     const currentTags = customer.tags ? customer.tags.split(',').map((t: string) => t.trim()) : [];
     
     // Remove old stage tags
-    const stageTagsToRemove = ['Sample-Requested', 'Sample-Redeemed', 'Purchase-Intent', 'Converted-Customer'];
+    const stageTagsToRemove = ['Sample-Requested', 'Sample-Redeemed', 'Purchase-Intent', 'Converted-Customer-InStore', 'Converted-Customer-Online'];
     const filteredTags = currentTags.filter((tag: string) => !stageTagsToRemove.includes(tag));
     
     // Add new stage tag
@@ -288,7 +320,8 @@ export async function updateCustomerStage(
       newStage === 'requested' ? 'Sample-Requested' :
       newStage === 'redeemed' ? 'Sample-Redeemed' :
       newStage === 'purchase-intent' ? 'Purchase-Intent' :
-      'Converted-Customer';
+      newStage === 'converted-instore' ? 'Converted-Customer-InStore' :
+      'Converted-Customer-Online';
     
     filteredTags.push(newStageTag);
     

@@ -76,7 +76,6 @@ export default function AssemblePage({ params }: { params: Promise<{ displayId: 
   const [displayId, setDisplayId] = useState<string>('');
   const [option, setOption] = useState<DisplayOption>('A');
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [completedSteps, setCompletedSteps] = useState<Record<number, boolean>>({});
   const { saveProgress } = useWizardProgress(displayId);
   
   useEffect(() => {
@@ -89,17 +88,12 @@ export default function AssemblePage({ params }: { params: Promise<{ displayId: 
   const steps = assemblySteps[option] || assemblySteps.A;
   const currentStep = steps[currentStepIndex];
   const isLastStep = currentStepIndex === steps.length - 1;
-  const isStepComplete = completedSteps[currentStepIndex];
-  
-  const handleStepComplete = () => {
-    setCompletedSteps(prev => ({ ...prev, [currentStepIndex]: true }));
-  };
   
   const handleNext = () => {
     if (isLastStep) {
       // Go to photo page
       if (displayId) {
-        saveProgress({ currentStep: 4, assemblySteps: completedSteps });
+        saveProgress({ currentStep: 4 });
         router.push(`/setup/${displayId}/photo`);
       }
     } else {
@@ -130,17 +124,15 @@ export default function AssemblePage({ params }: { params: Promise<{ displayId: 
       displayId={displayId}
       onBack={handleBack}
       onNext={handleNext}
-      nextLabel={isLastStep ? 'Continue to Photo' : 'Next Step'}
-      nextDisabled={!isStepComplete}
-      showNext={isStepComplete}
+      nextLabel={isLastStep ? 'Next: Take a Photo' : 'Next Step'}
     >
       {/* Header */}
       <div className="text-center mb-6">
         <div className="text-5xl mb-3">🔧</div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+        <h1 className="text-2xl font-bold text-white mb-2">
           Option {option}: Assembly
         </h1>
-        <div className="text-sm text-gray-600 mb-4">
+        <div className="text-sm text-pink-200 mb-4">
           Step {currentStepIndex + 1} of {steps.length}
         </div>
         
@@ -200,25 +192,6 @@ export default function AssemblePage({ params }: { params: Promise<{ displayId: 
                 </li>
               ))}
             </ul>
-          </div>
-        )}
-        
-        {/* Complete Step Button */}
-        {!isStepComplete && (
-          <button
-            onClick={handleStepComplete}
-            className="w-full py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
-          >
-            ✓ Done with this step
-          </button>
-        )}
-        
-        {isStepComplete && (
-          <div className="bg-green-100 border-2 border-green-500 rounded-lg p-4 text-center">
-            <div className="text-green-800 font-medium flex items-center justify-center gap-2">
-              <span className="text-2xl">✓</span>
-              <span>Step Complete!</span>
-            </div>
           </div>
         )}
       </div>

@@ -188,10 +188,10 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
       <div className="pb-20">
         <div className="text-center mb-8">
           <div className="text-5xl mb-3">🔍</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <h1 className="text-2xl font-bold text-white mb-2">
             Find Your Wholesale Account
           </h1>
-          <p className="text-gray-600 text-sm">
+          <p className="text-pink-200 text-sm">
             Search by business name, email, or phone number
           </p>
         </div>
@@ -204,17 +204,17 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by business name, email, or phone..."
-              className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 pr-10 text-lg focus:border-blue-500 focus:outline-none"
+              className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 pr-10 text-lg focus:border-purple-500 focus:outline-none"
               autoFocus
             />
             {searching && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <div className="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                <div className="animate-spin h-5 w-5 border-2 border-purple-600 border-t-transparent rounded-full"></div>
               </div>
             )}
           </div>
 
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-xs text-purple-200 mt-2">
             Enter your business name (e.g., "Nature's Elite"), email address, or phone number
           </p>
 
@@ -255,11 +255,11 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
         </div>
 
         {/* Create New Account Link */}
-        <div className="text-center mt-8 pt-6 border-t border-gray-200">
-          <p className="text-gray-600 text-sm mb-3">Can't find your account?</p>
+        <div className="text-center mt-8 pt-6 border-t border-white/20">
+          <p className="text-purple-200 text-sm mb-3">Can't find your account?</p>
           <button
             onClick={handleCreateNewAccount}
-            className="text-blue-600 hover:text-blue-700 font-medium underline"
+            className="text-blue-300 hover:text-blue-200 font-medium underline"
           >
             Create a new wholesale account
           </button>

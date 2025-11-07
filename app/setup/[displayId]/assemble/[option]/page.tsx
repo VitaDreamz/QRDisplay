@@ -228,15 +228,6 @@ export default function AssemblePage({ params }: { params: Promise<{ displayId: 
         )}
       </div>
       
-      {/* Video Placeholder */}
-      <div className="bg-gray-900 rounded-lg p-8 mb-6 text-center">
-        <div className="text-5xl mb-3">🎥</div>
-        <div className="text-white text-sm mb-2">Video Tutorial</div>
-        <div className="text-gray-400 text-xs">
-          Coming soon: Watch step-by-step video guide
-        </div>
-      </div>
-      
       {/* Help Section */}
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
         <div className="flex gap-2">

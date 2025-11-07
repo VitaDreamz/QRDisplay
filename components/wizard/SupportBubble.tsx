@@ -6,10 +6,10 @@ export function SupportBubble() {
   const [showMenu, setShowMenu] = useState(false);
   
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-6 left-6 z-50">
       {/* Support menu */}
       {showMenu && (
-        <div className="absolute bottom-full right-0 mb-3 bg-white rounded-lg shadow-xl border border-gray-200 w-64 overflow-hidden">
+        <div className="absolute bottom-full left-0 mb-3 bg-white rounded-lg shadow-xl border border-gray-200 w-64 overflow-hidden">
           <div className="p-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white">
             <div className="font-semibold">Need Help?</div>
             <div className="text-xs opacity-90">We're here to support you</div>

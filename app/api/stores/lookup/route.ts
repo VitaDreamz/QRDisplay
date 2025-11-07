@@ -7,7 +7,39 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('query');
     const displayId = searchParams.get('displayId');
+    const shopifyCustomerId = searchParams.get('shopifyCustomerId');
 
+    // Two modes:
+    // 1. Search mode: requires query + displayId
+    // 2. Lookup by Shopify customer: requires shopifyCustomerId only
+    
+    if (shopifyCustomerId) {
+      // Mode 2: Find existing stores for this Shopify customer
+      const stores = await prisma.store.findMany({
+        where: {
+          shopifyCustomerId: shopifyCustomerId,
+        },
+        select: {
+          storeId: true,
+          storeName: true,
+          city: true,
+          state: true,
+          shopifyCustomerId: true,
+        },
+      });
+
+      return NextResponse.json({
+        shopifyCustomers: [],
+        existingStores: stores.map(s => ({
+          storeId: s.storeId,
+          storeName: s.storeName,
+          city: s.city,
+          state: s.state,
+        })),
+      });
+    }
+
+    // Mode 1: Search for wholesale customers
     if (!query || query.trim().length < 2) {
       return NextResponse.json(
         { error: 'Search query must be at least 2 characters' },

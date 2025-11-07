@@ -140,6 +140,7 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
   const handleSelectResult = (result: SearchResult) => {
     if (result.type === 'shopify' && result.shopifyCustomer) {
       // Save Shopify customer info and continue (convert state to abbreviation)
+      console.log('🏪 Saving Shopify customer to progress:', result.shopifyCustomer.id);
       saveProgress({
         currentStep: 7,
         shopifyCustomerId: result.shopifyCustomer.id,
@@ -150,6 +151,7 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
         zip: result.shopifyCustomer.zip,
         isNewLocation: true,
       });
+      console.log('✅ Saved shopifyCustomerId to wizard progress');
       router.push(`/setup/${displayId}/activate`);
     } else if (result.type === 'existing' && result.existingStore) {
       // For existing stores, we might want to show more info or prevent duplicate
@@ -159,6 +161,7 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
   };
 
   const handleCreateNewAccount = () => {
+    console.log('🆕 Creating new account - no Shopify customer linked');
     saveProgress({
       currentStep: 7,
       shopifyCustomerId: undefined,

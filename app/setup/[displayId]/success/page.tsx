@@ -10,6 +10,8 @@ export default function SuccessPage({ params }: { params: Promise<{ displayId: s
   const searchParams = useSearchParams();
   const [displayId, setDisplayId] = useState<string>('');
   const [storeId, setStoreId] = useState<string>('');
+  const [setupPhotoUrl, setSetupPhotoUrl] = useState<string>('');
+  const [hasPhoto, setHasPhoto] = useState(false);
   const { progress } = useWizardProgress(displayId);
 
   useEffect(() => {
@@ -17,6 +19,19 @@ export default function SuccessPage({ params }: { params: Promise<{ displayId: s
       setDisplayId(p.displayId);
       const sid = searchParams.get('storeId');
       if (sid) setStoreId(sid);
+      
+      // Check if there's a setup photo
+      if (p.displayId) {
+        fetch(`/api/displays/${p.displayId}/info`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.setupPhotoUrl) {
+              setSetupPhotoUrl(data.setupPhotoUrl);
+              setHasPhoto(true);
+            }
+          })
+          .catch(err => console.error('Failed to fetch photo:', err));
+      }
     });
   }, [params, searchParams]);
 
@@ -63,6 +78,62 @@ export default function SuccessPage({ params }: { params: Promise<{ displayId: s
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Setup Photo Section */}
+      {hasPhoto ? (
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border-2 border-green-300 p-6 mb-6 shadow-lg">
+          <div className="flex items-start gap-4 mb-4">
+            <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-2xl">✓</span>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-xl font-bold text-green-900 mb-1">
+                $10 Store Credit Earned! 🎉
+              </h3>
+              <p className="text-green-800 text-sm">
+                Thank you for uploading your setup photo!
+              </p>
+            </div>
+          </div>
+          
+          <div className="rounded-lg overflow-hidden border-2 border-green-200">
+            <img 
+              src={setupPhotoUrl} 
+              alt="Your display setup" 
+              className="w-full h-auto"
+            />
+          </div>
+          
+          <div className="mt-4 bg-white/50 rounded-lg p-3 text-center">
+            <div className="text-sm text-green-800">
+              💰 <strong>$10 credit</strong> has been added to your wholesale account
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border-2 border-amber-300 p-6 mb-6 shadow-lg">
+          <div className="text-center">
+            <div className="text-5xl mb-3">📸</div>
+            <h3 className="text-xl font-bold text-amber-900 mb-2">
+              Last Chance for $10 Store Credit!
+            </h3>
+            <p className="text-amber-800 mb-4">
+              Upload a photo of your completed display setup
+            </p>
+            
+            <button
+              onClick={() => router.push(`/setup/${displayId}/photo`)}
+              className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg font-bold text-lg hover:from-amber-600 hover:to-orange-600 transition-all shadow-lg"
+            >
+              📷 Upload Photo & Earn $10
+            </button>
+            
+            <div className="mt-3 text-xs text-amber-700">
+              One-time offer • Photo must show your display in-store
+            </div>
+          </div>
         </div>
       )}
 

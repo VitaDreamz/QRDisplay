@@ -525,7 +525,8 @@ export async function tagShopifyCustomer(
 }
 
 /**
- * Add store credit to a Shopify customer account
+ * Add $10 store credit by creating a discount code for the customer
+ * This works on all Shopify plans (not just Plus)
  */
 export async function addStoreCredit(
   org: Organization,
@@ -534,7 +535,7 @@ export async function addStoreCredit(
   note: string
 ) {
   try {
-    console.log(`[Shopify Store Credit] Adding $${amount} credit to customer ${shopifyCustomerId}`);
+    console.log(`[Shopify Store Credit] Creating $${amount} discount code for customer ${shopifyCustomerId}`);
     
     const { shopify, session } = getShopifyClient(org);
     const client = new shopify.clients.Rest({ session });
@@ -547,21 +548,79 @@ export async function addStoreCredit(
 
     console.log(`[Shopify Store Credit] Using customer ID: ${customerId}`);
 
-    // Add store credit using Shopify REST API
-    const response = await client.post({
-      path: `customers/${customerId}/store_credit_account_transactions`,
+    // Get customer email for discount code eligibility
+    const getResponse = await client.get({
+      path: `customers/${customerId}`,
+    });
+
+    const customer = getResponse.body.customer as any;
+    const customerEmail = customer.email;
+    
+    if (!customerEmail) {
+      throw new Error('Customer has no email address');
+    }
+
+    // Create a unique discount code for this customer
+    const discountCode = `QRDISPLAY10-${customerId}`;
+    
+    console.log(`[Shopify Store Credit] Creating discount code: ${discountCode}`);
+
+    // Create price rule for $10 off
+    const priceRuleResponse = await client.post({
+      path: 'price_rules',
       data: {
-        transaction: {
-          amount: amount.toFixed(2),
-          note: note,
+        price_rule: {
+          title: `QRDisplay Setup Credit - Customer ${customerId}`,
+          target_type: 'line_item',
+          target_selection: 'all',
+          allocation_method: 'across',
+          value_type: 'fixed_amount',
+          value: `-${amount.toFixed(2)}`,
+          customer_selection: 'prerequisite',
+          prerequisite_customer_ids: [customerId],
+          once_per_customer: true,
+          usage_limit: 1,
+          starts_at: new Date().toISOString(),
         },
       },
     });
 
-    console.log(`✅ Successfully added $${amount} store credit to customer ${customerId}`);
-    return response.body;
+    const priceRule = priceRuleResponse.body.price_rule as any;
+    const priceRuleId = priceRule.id;
+
+    console.log(`[Shopify Store Credit] Created price rule: ${priceRuleId}`);
+
+    // Create discount code linked to the price rule
+    await client.post({
+      path: `price_rules/${priceRuleId}/discount_codes`,
+      data: {
+        discount_code: {
+          code: discountCode,
+        },
+      },
+    });
+
+    console.log(`[Shopify Store Credit] Created discount code: ${discountCode}`);
+
+    // Add note to customer about the credit
+    const existingNote = customer.note || '';
+    const creditNote = `\n[${new Date().toISOString().split('T')[0]}] $${amount.toFixed(2)} QRDisplay Store Credit - ${note}\nDiscount Code: ${discountCode}`;
+    const updatedNote = existingNote + creditNote;
+
+    await client.put({
+      path: `customers/${customerId}`,
+      data: {
+        customer: {
+          id: customerId,
+          note: updatedNote,
+        },
+      },
+    });
+
+    console.log(`✅ Successfully added $${amount} credit note to customer ${customerId}`);
+    return { success: true, note: creditNote };
   } catch (error) {
-    console.error('Error adding store credit:', error);
+    console.error('Error adding store credit note:', error);
     throw error;
   }
 }

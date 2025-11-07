@@ -174,8 +174,8 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
       <div className="pb-20">
         <div className="text-center mb-6">
           <div className="text-5xl mb-3">🧪🛍️</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Choose Samples & Products</h1>
-          <p className="text-gray-600">Select at least one sample and one full-size product offering</p>
+          <h1 className="text-2xl font-bold text-white mb-2">Choose Samples & Products</h1>
+          <p className="text-pink-200">Select at least one sample and one full-size product offering</p>
         </div>
 
         {error && (

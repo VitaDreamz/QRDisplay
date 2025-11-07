@@ -3068,50 +3068,106 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                   >
                     Cancel
                   </button>
-                  <button
-                    onClick={async () => {
-                      const selectedBoxes = Object.entries(boxQuantities).filter(([_, qty]) => qty > 0);
-                      if (selectedBoxes.length === 0) {
-                        alert('Please select at least one product');
-                        return;
-                      }
-
-                      setSendingPurchaseRequest(true);
-                      try {
-                        const res = await fetch('/api/stores/purchase-request', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            storeId: data.store.storeId,
-                            storeName: data.store.storeName,
-                            boxQuantities,
-                            notes: purchaseRequestNotes,
-                            contactName: data.store.ownerName || data.store.adminName,
-                            contactEmail: data.store.ownerEmail || data.store.adminEmail,
-                            contactPhone: data.store.ownerPhone || data.store.adminPhone,
-                          })
-                        });
-
-                        if (res.ok) {
-                          alert('✅ Wholesale order request sent to VitaDreamz! They will contact you soon with shipping details and payment information.');
-                          setShowPurchaseRequest(false);
-                          setBoxQuantities({});
-                          setPurchaseRequestNotes('');
-                        } else {
-                          throw new Error('Failed to send request');
+                  
+                  {/* Dual Path: Shopify Draft Order vs Manual Request */}
+                  {data.organization?.shopifyShop && data.organization?.shopifyAccessToken ? (
+                    // SHOPIFY PATH: Create draft order via Shopify API
+                    <button
+                      onClick={async () => {
+                        const selectedBoxes = Object.entries(boxQuantities).filter(([_, qty]) => qty > 0);
+                        if (selectedBoxes.length === 0) {
+                          alert('Please select at least one product');
+                          return;
                         }
-                      } catch (err) {
-                        console.error('Failed to send purchase request:', err);
-                        alert('❌ Failed to send purchase request. Please try again.');
-                      } finally {
-                        setSendingPurchaseRequest(false);
-                      }
-                    }}
-                    disabled={sendingPurchaseRequest || Object.values(boxQuantities).every(q => q === 0)}
-                    className="w-full sm:flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 active:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-base"
-                  >
-                    {sendingPurchaseRequest ? 'Sending...' : 'Send Order Request'}
-                  </button>
+
+                        setSendingPurchaseRequest(true);
+                        try {
+                          const res = await fetch('/api/stores/create-draft-order', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              storeId: data.store.storeId,
+                              storeName: data.store.storeName,
+                              boxQuantities,
+                              notes: purchaseRequestNotes,
+                              storeCredit: (data.store as any).storeCredit || 0,
+                              contactName: data.store.ownerName || data.store.adminName,
+                              contactEmail: data.store.ownerEmail || data.store.adminEmail,
+                              contactPhone: data.store.ownerPhone || data.store.adminPhone,
+                            })
+                          });
+
+                          if (res.ok) {
+                            const result = await res.json();
+                            alert(`✅ Order placed successfully!\n\nCheck your email for your payable invoice link to complete your order.`);
+                            setShowPurchaseRequest(false);
+                            setBoxQuantities({});
+                            setPurchaseRequestNotes('');
+                          } else {
+                            const error = await res.json();
+                            throw new Error(error.error || 'Failed to create draft order');
+                          }
+                        } catch (err: any) {
+                          console.error('Failed to create draft order:', err);
+                          alert(`❌ Failed to create draft order: ${err.message}`);
+                        } finally {
+                          setSendingPurchaseRequest(false);
+                        }
+                      }}
+                      disabled={sendingPurchaseRequest || Object.values(boxQuantities).every(q => q === 0)}
+                      className="w-full sm:flex-1 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 active:bg-purple-800 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-base flex items-center justify-center gap-2"
+                    >
+                      {sendingPurchaseRequest ? 'Placing Order...' : 'Place Order'}
+                    </button>
+                  ) : (
+                    // MANUAL PATH: Send email request to organization
+                    <button
+                      onClick={async () => {
+                        const selectedBoxes = Object.entries(boxQuantities).filter(([_, qty]) => qty > 0);
+                        if (selectedBoxes.length === 0) {
+                          alert('Please select at least one product');
+                          return;
+                        }
+
+                        setSendingPurchaseRequest(true);
+                        try {
+                          const res = await fetch('/api/stores/purchase-request', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              storeId: data.store.storeId,
+                              storeName: data.store.storeName,
+                              boxQuantities,
+                              notes: purchaseRequestNotes,
+                              storeCredit: (data.store as any).storeCredit || 0,
+                              contactName: data.store.ownerName || data.store.adminName,
+                              contactEmail: data.store.ownerEmail || data.store.adminEmail,
+                              contactPhone: data.store.ownerPhone || data.store.adminPhone,
+                            })
+                          });
+
+                          if (res.ok) {
+                            const orgName = (data.organization as any)?.name || 'your brand';
+                            alert(`✅ Your order request has been successfully sent to ${orgName}.\n\nYour sales rep will respond back with a payable invoice link for you to complete your order. May take up to 48hrs (at longest).`);
+                            setShowPurchaseRequest(false);
+                            setBoxQuantities({});
+                            setPurchaseRequestNotes('');
+                          } else {
+                            throw new Error('Failed to send request');
+                          }
+                        } catch (err) {
+                          console.error('Failed to send purchase request:', err);
+                          alert('❌ Failed to send purchase request. Please try again.');
+                        } finally {
+                          setSendingPurchaseRequest(false);
+                        }
+                      }}
+                      disabled={sendingPurchaseRequest || Object.values(boxQuantities).every(q => q === 0)}
+                      className="w-full sm:flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 active:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-base"
+                    >
+                      {sendingPurchaseRequest ? 'Sending...' : '📧 Send Order Request'}
+                    </button>
+                  )}
                 </div>
               </>
             )}

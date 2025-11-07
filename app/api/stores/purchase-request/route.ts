@@ -7,7 +7,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { storeId, storeName, boxQuantities, notes, contactName, contactEmail, contactPhone } = body;
+    const { storeId, storeName, boxQuantities, notes, contactName, contactEmail, contactPhone, storeCredit } = body;
 
     if (!storeId || !boxQuantities || Object.keys(boxQuantities).length === 0) {
       return NextResponse.json(

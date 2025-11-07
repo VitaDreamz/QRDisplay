@@ -117,6 +117,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
         purchasingEmail: purchasingEmail || '',
         purchasingSameAsOwner: progress?.purchasingSameAsOwner || false,
         adminSameAsOwner: progress?.adminSameAsOwner || false,
+        shopifyCustomerId: progress?.shopifyCustomerId || null, // For Shopify tagging
         availableSamples,
         availableProducts,
       };
@@ -143,7 +144,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
       // Save store ID and go to staff page
       const storeId = result.storeId;
       saveProgress({ currentStep: 9 });
-      router.push(`/setup/${displayId}/staff`);
+      router.push(`/setup/${displayId}/staff?storeId=${storeId}`);
     } catch (e) {
       console.error('[Activation Exception]', e);
       setError(e instanceof Error ? e.message : 'Activation failed.');

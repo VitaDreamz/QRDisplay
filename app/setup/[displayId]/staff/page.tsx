@@ -132,7 +132,7 @@ export default function AddStaffPage({ params }: { params: Promise<{ displayId: 
 
   const handleSkip = () => {
     saveProgress({ staffAdded: false, currentStep: 10 });
-    router.push(`/setup/${displayId}/success`);
+    router.push(`/setup/${displayId}/success${storeId ? `?storeId=${storeId}` : ''}`);
   };
 
   return (

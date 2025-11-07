@@ -55,10 +55,10 @@ export default function UnboxPage({ params }: { params: Promise<{ displayId: str
       {/* Header */}
       <div className="text-center mb-6">
         <div className="text-5xl mb-3">📦</div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+        <h1 className="text-2xl font-bold text-white mb-2">
           What's in the Box
         </h1>
-        <p className="text-gray-600">
+        <p className="text-pink-200">
           Let's make sure you have everything
         </p>
       </div>

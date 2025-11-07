@@ -71,39 +71,25 @@ export default function SetupWelcomePage({ params }: { params: Promise<{ display
   }
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header with Organization Branding */}
-      <div className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-6">
-          <div className="flex items-center gap-4">
-            {brandInfo?.logoUrl && (
-              <div className="relative w-16 h-16 flex-shrink-0">
-                <Image
-                  src={brandInfo.logoUrl}
-                  alt={brandInfo.name || 'Brand Logo'}
-                  fill
-                  className="object-contain"
-                />
-              </div>
-            )}
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {brandInfo?.name || 'QRDisplay'} Display Activation
-              </h1>
-              <p className="text-sm text-gray-600">Display ID: <span className="font-mono font-semibold">{displayId}</span></p>
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-blue-900">
       {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 py-12">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
+            {brandInfo?.name || 'QRDisplay'} Sampling Program Activation
+          </h1>
+          <p className="text-purple-200 text-sm">
+            Display ID: <span className="font-mono font-semibold text-white">{displayId}</span>
+          </p>
+        </div>
+
         {/* Intro Text */}
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-3">
-            How would you like to get started?
+          <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">
+            Let's get your Automated Sampling Program set-up in 5mins or less!
           </h2>
-          <p className="text-gray-600 text-lg">
+          <p className="text-purple-200 text-lg">
             Choose the setup experience that works best for you
           </p>
         </div>
@@ -113,34 +99,43 @@ export default function SetupWelcomePage({ params }: { params: Promise<{ display
           {/* Option 1: Start Wizard */}
           <button
             onClick={handleStartWizard}
-            className="bg-white rounded-xl shadow-lg border-2 border-gray-200 hover:border-purple-500 hover:shadow-xl transition-all p-8 text-left group"
+            className="bg-white/10 backdrop-blur-md rounded-xl shadow-lg border-2 border-white/20 hover:border-purple-400 hover:shadow-2xl hover:bg-white/15 transition-all p-8 text-left group"
           >
-            <div className="text-5xl mb-4">🧭</div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-purple-600 transition-colors">
-              Start Setup Wizard
+            <div className="text-5xl mb-4">🕐</div>
+            <div className="text-purple-200 text-sm mb-2">~5 minutes</div>
+            <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-purple-300 transition-colors">
+              Start Set-up Wizard
             </h3>
-            <p className="text-gray-600 mb-4">
-              Step-by-step guided walkthrough to set up your display
+            <p className="text-purple-100 mb-4 text-sm">
+              Step-by-step guided walkthrough to build your display and tie it directly to your store.
             </p>
-            <div className="space-y-2 text-sm text-gray-500">
-              <div className="flex items-center gap-2">
-                <span className="text-purple-600">✓</span>
+            <div className="space-y-2 text-sm text-purple-200">
+              <div className="flex items-start gap-2">
+                <span className="text-purple-400 mt-0.5">-</span>
                 <span>Unbox and assemble instructions</span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-purple-600">✓</span>
-                <span>Upload a setup photo for $10 credit</span>
+              <div className="flex items-start gap-2">
+                <span className="text-purple-400 mt-0.5">-</span>
+                <span>Bonus $10 Store Credit Opportunity</span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-purple-600">✓</span>
-                <span>Add staff members</span>
+              <div className="flex items-start gap-2">
+                <span className="text-purple-400 mt-0.5">-</span>
+                <span>Enter Store Details</span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-purple-600">✓</span>
-                <span>Complete store activation</span>
+              <div className="flex items-start gap-2">
+                <span className="text-purple-400 mt-0.5">-</span>
+                <span>Set-up Automated Marketing</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-purple-400 mt-0.5">-</span>
+                <span>Select Products for sampling and sale</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-purple-400 mt-0.5">-</span>
+                <span>Add staff members (for staff tracking)</span>
               </div>
             </div>
-            <div className="mt-6 text-purple-600 font-semibold group-hover:translate-x-1 transition-transform inline-block">
+            <div className="mt-6 text-purple-300 font-semibold group-hover:translate-x-1 transition-transform inline-block">
               Start Wizard →
             </div>
           </button>
@@ -148,34 +143,35 @@ export default function SetupWelcomePage({ params }: { params: Promise<{ display
           {/* Option 2: Skip to Activation */}
           <button
             onClick={handleSkipToActivation}
-            className="bg-white rounded-xl shadow-lg border-2 border-gray-200 hover:border-blue-500 hover:shadow-xl transition-all p-8 text-left group"
+            className="bg-white/10 backdrop-blur-md rounded-xl shadow-lg border-2 border-white/20 hover:border-blue-400 hover:shadow-2xl hover:bg-white/15 transition-all p-8 text-left group"
           >
             <div className="text-5xl mb-4">⚡</div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors">
+            <div className="text-blue-200 text-sm mb-2">~2 mins</div>
+            <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-blue-300 transition-colors">
               Skip to Activation
             </h3>
-            <p className="text-gray-600 mb-4">
-              Already know what you're doing? Jump straight to activation
+            <p className="text-blue-100 mb-4 text-sm">
+              Don't need help building your display? Jump straight to activating your store!
             </p>
-            <div className="space-y-2 text-sm text-gray-500">
-              <div className="flex items-center gap-2">
-                <span className="text-blue-600">✓</span>
-                <span>Quick and direct</span>
+            <div className="space-y-2 text-sm text-blue-200">
+              <div className="flex items-start gap-2">
+                <span className="text-blue-400 mt-0.5">-</span>
+                <span>Enter Store Details</span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-blue-600">✓</span>
-                <span>Enter store details</span>
+              <div className="flex items-start gap-2">
+                <span className="text-blue-400 mt-0.5">-</span>
+                <span>Set-up Automated Marketing</span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-blue-600">✓</span>
-                <span>Activate immediately</span>
+              <div className="flex items-start gap-2">
+                <span className="text-blue-400 mt-0.5">-</span>
+                <span>Select Products for sampling and sale</span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-blue-600">✓</span>
-                <span>Go live in under 2 minutes</span>
+              <div className="flex items-start gap-2">
+                <span className="text-blue-400 mt-0.5">-</span>
+                <span>Add staff members (for staff tracking)</span>
               </div>
             </div>
-            <div className="mt-6 text-blue-600 font-semibold group-hover:translate-x-1 transition-transform inline-block">
+            <div className="mt-6 text-blue-300 font-semibold group-hover:translate-x-1 transition-transform inline-block">
               Go to Activation →
             </div>
           </button>
@@ -183,8 +179,8 @@ export default function SetupWelcomePage({ params }: { params: Promise<{ display
 
         {/* Help Text */}
         <div className="text-center">
-          <p className="text-sm text-gray-500">
-            Need assistance? Contact {brandInfo?.supportEmail || 'support'} or call {brandInfo?.supportPhone || 'us'} anytime.
+          <p className="text-sm text-purple-200">
+            Need assistance? Click the chat bubble on the right of your screen to contact customer support
           </p>
         </div>
       </div>

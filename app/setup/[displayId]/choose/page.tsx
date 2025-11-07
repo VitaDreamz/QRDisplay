@@ -72,43 +72,58 @@ export default function ChooseDisplayPage({ params }: { params: Promise<{ displa
       {/* Header */}
       <div className="text-center mb-6">
         <div className="text-5xl mb-3">🏪</div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
-          Choose Your Display Setup
+        <h1 className="text-2xl font-bold text-white mb-2">
+          Choose How You Want to Set-up Your Display
         </h1>
-        <p className="text-gray-600">
-          Pick the option that works best for your space
+        <p className="text-pink-200">
+          We'll walk you through which items to grab and how to build it!
         </p>
       </div>
       
       {/* Option Cards */}
       <div className="space-y-4 mb-6">
-        {options.map((option) => (
-          <button
-            key={option.id}
-            onClick={() => handleSelectOption(option.id)}
-            className={`w-full text-left bg-white rounded-lg shadow-sm border-2 p-5 transition-all hover:shadow-lg hover:scale-102 ${
-              selectedOption === option.id
-                ? 'border-purple-500 bg-purple-50'
-                : 'border-gray-200 hover:border-purple-300'
-            }`}
-          >
-            {/* Option Header */}
-            <div className="flex items-start gap-4 mb-3">
-              <div className="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-purple-100 to-blue-100 rounded-lg flex items-center justify-center text-3xl">
-                {option.icon}
-              </div>
-              <div className="flex-1">
-                <div className="font-bold text-lg text-gray-900 mb-1">
-                  Option {option.id}: {option.title}
+        {options.map((option) => {
+          const isComingSoon = option.id === 'C';
+          
+          return (
+            <button
+              key={option.id}
+              onClick={() => !isComingSoon && handleSelectOption(option.id)}
+              disabled={isComingSoon}
+              className={`w-full text-left bg-white/10 backdrop-blur-md rounded-lg shadow-sm border-2 p-5 transition-all relative ${
+                isComingSoon
+                  ? 'border-gray-500 bg-gray-800/50 opacity-60 cursor-not-allowed'
+                  : selectedOption === option.id
+                  ? 'border-purple-400 bg-purple-900/30 hover:shadow-lg hover:scale-102'
+                  : 'border-white/20 hover:border-purple-400 hover:bg-white/15 hover:shadow-lg hover:scale-102'
+              }`}
+            >
+              {/* Coming Soon Overlay */}
+              {isComingSoon && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-lg backdrop-blur-sm z-10">
+                  <span className="text-2xl font-bold text-white transform -rotate-12 bg-gradient-to-r from-yellow-400 to-orange-500 px-6 py-2 rounded-lg shadow-lg">
+                    COMING SOON
+                  </span>
                 </div>
-                <div className="text-sm text-gray-600">
-                  {option.description}
+              )}
+              
+              {/* Option Header */}
+              <div className="flex items-start gap-4 mb-3">
+                <div className="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-purple-400/30 to-blue-400/30 rounded-lg flex items-center justify-center text-3xl border border-white/20">
+                  {option.icon}
+                </div>
+                <div className="flex-1">
+                  <div className="font-bold text-lg text-white mb-1">
+                    Option {option.id}: {option.title}
+                  </div>
+                  <div className="text-sm text-purple-200">
+                    {option.description}
+                  </div>
                 </div>
               </div>
-            </div>
             
             {/* Product Image */}
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg overflow-hidden mb-3 border border-gray-200">
+            <div className="bg-gradient-to-br from-white/5 to-white/10 rounded-lg overflow-hidden mb-3 border border-white/20">
               <div className="relative w-full h-64">
                 <Image
                   src={option.imagePath}
@@ -121,23 +136,24 @@ export default function ChooseDisplayPage({ params }: { params: Promise<{ displa
             
             {/* Best For */}
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-sm font-medium text-gray-700">Best for:</span>
-              <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+              <span className="text-sm font-medium text-purple-200">Best for:</span>
+              <span className="px-3 py-1 bg-green-500/20 text-green-300 rounded-full text-sm font-medium border border-green-400/30">
                 {option.bestFor}
               </span>
             </div>
             
             {/* Choose Button */}
-            <div className="pt-3 border-t border-gray-200">
+            <div className="pt-3 border-t border-white/20">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-purple-600">
-                  Choose this setup →
+                <span className="text-sm font-medium text-purple-300">
+                  {isComingSoon ? 'Not available yet' : 'Choose this setup →'}
                 </span>
-                <span className="text-2xl">→</span>
+                {!isComingSoon && <span className="text-2xl text-purple-300">→</span>}
               </div>
             </div>
           </button>
-        ))}
+          );
+        })}
       </div>
       
       {/* Help Text */}

@@ -1268,6 +1268,31 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
               </div>
             )}
 
+            {/* Place Wholesale Order Card */}
+            <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg shadow-lg p-6 text-white">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="flex-1">
+                  <h2 className="text-2xl font-bold mb-2">Place Wholesale Order</h2>
+                  <p className="text-purple-100 mb-3">
+                    Order wholesale products for your store inventory
+                  </p>
+                  <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-lg px-4 py-3 inline-flex">
+                    <span className="text-3xl">💰</span>
+                    <div>
+                      <p className="text-xs text-purple-100 uppercase tracking-wide">Available Store Credit</p>
+                      <p className="text-2xl font-bold">${((data.store as any).storeCredit || 0).toFixed(2)}</p>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowPurchaseRequest(true)}
+                  className="px-6 py-3 bg-white text-purple-600 rounded-lg hover:bg-purple-50 transition-colors text-lg font-bold shadow-lg hover:shadow-xl transform hover:scale-105"
+                >
+                  + Place Order
+                </button>
+              </div>
+            </div>
+
             {/* Top 3 Staff */}
             {role === 'owner' && (
               <div className="bg-white rounded-lg shadow">
@@ -2156,20 +2181,11 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
 
             {/* Full-Size Products Section */}
             <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6">
-                <div>
-                  <h2 className="text-xl font-bold">Full-Size Products</h2>
-                  <p className="text-sm text-gray-600 mt-1">
-                    These are the full-size products customers can purchase
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowPurchaseRequest(true)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold flex items-center gap-2"
-                >
-                  <span>+</span>
-                  Request Wholesale Order
-                </button>
+              <div className="mb-6">
+                <h2 className="text-xl font-bold">Full-Size Products</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  These are the full-size products customers can purchase
+                </p>
               </div>
 
             {loadingProducts ? (
@@ -3070,7 +3086,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                   </button>
                   
                   {/* Dual Path: Shopify Draft Order vs Manual Request */}
-                  {data.organization?.shopifyShop && data.organization?.shopifyAccessToken ? (
+                  {data.organization?.shopifyStoreName && data.organization?.shopifyAccessToken ? (
                     // SHOPIFY PATH: Create draft order via Shopify API
                     <button
                       onClick={async () => {

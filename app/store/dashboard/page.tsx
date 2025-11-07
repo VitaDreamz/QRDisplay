@@ -69,7 +69,9 @@ export default async function StoreDashboardPage() {
     where: { orgId: store?.orgId || '' },
     select: {
       name: true,
-      orgId: true
+      orgId: true,
+      shopifyStoreName: true,
+      shopifyAccessToken: true,
     }
   });
 

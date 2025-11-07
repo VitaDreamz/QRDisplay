@@ -2815,7 +2815,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
           <div className="bg-white rounded-lg p-4 sm:p-6 max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-start mb-4 gap-3">
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg sm:text-xl font-bold">Request Wholesale Order</h3>
+                <h3 className="text-lg sm:text-xl font-bold">Place Wholesale Order</h3>
                 <p className="text-xs sm:text-sm text-gray-600 mt-1">
                   Select boxes and quantities for your wholesale order
                 </p>
@@ -2830,6 +2830,22 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
               >
                 ✕
               </button>
+            </div>
+
+            {/* Store Credit Banner */}
+            <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg p-4 mb-6">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">💰</span>
+                  <div>
+                    <p className="text-xs text-gray-600 uppercase tracking-wide">Available Store Credit</p>
+                    <p className="text-2xl font-bold text-purple-600">${((data.store as any).storeCredit || 0).toFixed(2)}</p>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-600 text-right">
+                  Credit will be applied<br />to your order
+                </div>
+              </div>
             </div>
 
             {loadingProducts ? (

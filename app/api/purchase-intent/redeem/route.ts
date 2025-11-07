@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
           let message = `Purchased In-Store: ${product?.name || intent.productSku}`;
           message += ` ($${intent.finalPrice.toFixed(2)})`;
           if (intent.discountPercent > 0) {
-            const savings = intent.originalPrice - intent.finalPrice;
+            const savings = Number(intent.originalPrice) - Number(intent.finalPrice);
             message += ` - saved $${savings.toFixed(2)} (${intent.discountPercent}% off)`;
           }
           message += ` at ${store?.storeName}`;

@@ -35,6 +35,19 @@ model Organization {
   subscriptionPlan   String?
   stripeCustomerId   String?
   
+  // Shopify Integration (multi-tenant)
+  shopifyStoreName     String?   // e.g., "vitadreamz.myshopify.com"
+  shopifyAccessToken   String?   // Encrypted access token
+  shopifyApiKey        String?   // Encrypted (for private apps)
+  shopifyApiSecret     String?   // Encrypted (for private apps)
+  shopifyWebhookSecret String?   // For webhook signature verification
+  shopifyConnectedAt   DateTime? // When Shopify was connected
+  shopifyActive        Boolean   @default(false) // Is integration active?
+  
+  // Commission Settings (per-brand)
+  commissionRate       Float?    @default(10.0) // Percentage (e.g., 10.0 = 10%)
+  attributionWindow    Int?      @default(30)   // Days to attribute sale to store
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
@@ -45,6 +58,8 @@ model Organization {
   orders    Order[]
   customers Customer[]
   promoRedemptions PromoRedemption[]
+  conversions Conversion[]
+  webhookLogs ShopifyWebhookLog[]
   
   @@map("organizations")
 }
@@ -125,6 +140,7 @@ model Store {
   users        User[]
   staff        Staff[]
   promoRedemptions PromoRedemption[]
+  conversions  Conversion[]
   
   @@map("stores")
 }
@@ -247,6 +263,13 @@ model Customer {
   currentStage     String    @default("pending") // pending, redeemed, purchased, repeat
   stageChangedAt   DateTime  @default(now())
   
+  // Shopify Integration
+  shopifyCustomerId String?   // Shopify customer ID for attribution
+  syncedToShopify   Boolean   @default(false)
+  syncedAt          DateTime?
+  attributedStoreId String?   // Store that gets credit for conversions
+  sampleDate        DateTime? // When they got their sample (for attribution window)
+  
   requestedAt  DateTime  @default(now())
   
   organization Organization @relation(fields: [orgId], references: [orgId])
@@ -255,7 +278,9 @@ model Customer {
   promoRedeemedByStaff Staff?  @relation("PromoRedeemedByStaff", fields: [promoRedeemedByStaffId], references: [id], onDelete: SetNull)
   promoRedemptions PromoRedemption[]
   purchaseIntents  PurchaseIntent[]
+  conversions      Conversion[]
   
+  @@index([shopifyCustomerId])
   @@map("customers")
 }
 
@@ -470,6 +495,65 @@ model Error {
   userInfo   String?
   
   @@map("errors")
+}
+
+// Shopify Integration Models
+
+// Tracks conversions from samples to Shopify purchases
+model Conversion {
+  id                String   @id @default(cuid())
+  orgId             String
+  customerId        String   // QRDisplay customer
+  shopifyOrderId    String   // Shopify order ID
+  shopifyCustomerId String   // Shopify customer ID
+  storeId           String   // Store that gets credit
+  
+  orderNumber       String   // Human-readable order number
+  orderTotal        Float    // Total order amount
+  commissionAmount  Float    // Commission earned by store
+  commissionRate    Float    // Rate used for calculation
+  
+  sampleDate        DateTime // When customer got sample
+  purchaseDate      DateTime // When they purchased
+  daysToConversion  Int      // Days between sample and purchase
+  
+  attributed        Boolean  @default(true) // Within attribution window?
+  paid              Boolean  @default(false) // Commission paid to store?
+  
+  createdAt         DateTime @default(now())
+  
+  organization Organization @relation(fields: [orgId], references: [orgId])
+  customer     Customer     @relation(fields: [customerId], references: [memberId])
+  store        Store        @relation(fields: [storeId], references: [storeId])
+  
+  @@index([orgId])
+  @@index([customerId])
+  @@index([storeId])
+  @@index([shopifyOrderId])
+  @@map("conversions")
+}
+
+// Logs all Shopify webhook events
+model ShopifyWebhookLog {
+  id            String   @id @default(cuid())
+  orgId         String
+  webhookId     String?  // Shopify webhook ID
+  topic         String   // e.g., "orders/paid"
+  shopifyOrderId String?
+  
+  payload       Json     // Full webhook payload
+  status        String   @default("pending") // pending, processed, failed, ignored
+  errorMessage  String?
+  
+  processedAt   DateTime?
+  createdAt     DateTime @default(now())
+  
+  organization Organization @relation(fields: [orgId], references: [orgId])
+  
+  @@index([orgId])
+  @@index([shopifyOrderId])
+  @@index([status])
+  @@map("shopify_webhook_logs")
 }
 
 // Magic Links for Store Auth

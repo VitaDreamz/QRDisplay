@@ -5,14 +5,12 @@ import { getShopifyCustomer, searchShopifyCustomers } from '@/lib/shopify';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const email = searchParams.get('email');
-    const phone = searchParams.get('phone');
-    const businessName = searchParams.get('businessName');
+    const query = searchParams.get('query');
     const displayId = searchParams.get('displayId');
 
-    if (!email && !phone && !businessName) {
+    if (!query || query.trim().length < 2) {
       return NextResponse.json(
-        { error: 'Email, phone, or business name required' },
+        { error: 'Search query must be at least 2 characters' },
         { status: 400 }
       );
     }
@@ -42,25 +40,16 @@ export async function GET(request: NextRequest) {
     let shopifyCustomer = null;
     let existingStores = [];
 
-    // First, check if we have any stores in our database with this email/phone/businessName
-    const storeQuery: any = {
-      OR: [],
-    };
-    
-    if (email) storeQuery.OR.push({ adminEmail: email });
-    if (phone) storeQuery.OR.push({ adminPhone: phone });
-    if (businessName) {
-      // Partial match on store name
-      storeQuery.OR.push({ 
-        storeName: { 
-          contains: businessName, 
-          mode: 'insensitive' 
-        } 
-      });
-    }
-
+    // Search our database for stores matching the query
+    // Check email, phone, and business name (partial match)
     const stores = await prisma.store.findMany({
-      where: storeQuery,
+      where: {
+        OR: [
+          { adminEmail: { contains: query, mode: 'insensitive' } },
+          { adminPhone: { contains: query, mode: 'insensitive' } },
+          { storeName: { contains: query, mode: 'insensitive' } },
+        ],
+      },
       select: {
         storeId: true,
         storeName: true,
@@ -68,6 +57,7 @@ export async function GET(request: NextRequest) {
         state: true,
         shopifyCustomerId: true,
       },
+      take: 10, // Limit results
     });
 
     existingStores = stores.map(s => ({
@@ -88,26 +78,18 @@ export async function GET(request: NextRequest) {
         console.error('Failed to get Shopify customer:', err);
         // Continue without Shopify customer
       }
-    } else {
-      // Try to find customer in Shopify by email/phone/businessName
-      try {
-        let query = '';
-        if (businessName) {
-          // Search by first_name (business name in our convention)
-          query = businessName;
-        } else {
-          query = email || phone || '';
-        }
-        
-        const customers = await searchShopifyCustomers(org, query);
-        if (customers.length > 0) {
-          // Take the first match
-          shopifyCustomer = customers[0];
-        }
-      } catch (err) {
-        console.error('Failed to search Shopify:', err);
-        // Continue without Shopify customer
+    }
+
+    // Also search Shopify directly
+    try {
+      const customers = await searchShopifyCustomers(org, query);
+      if (customers.length > 0 && !shopifyCustomer) {
+        // If we didn't find a Shopify customer from our database, use the search result
+        shopifyCustomer = customers[0];
       }
+    } catch (err) {
+      console.error('Failed to search Shopify:', err);
+      // Continue without Shopify customer
     }
 
     return NextResponse.json({

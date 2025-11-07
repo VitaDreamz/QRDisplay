@@ -25,28 +25,22 @@ const assemblySteps: Record<DisplayOption, AssemblyStep[]> = {
     {
       title: 'Attach Display to Bar & Stand',
       instruction: 'Place the display upright and level next to the Stand with bar and "click it" into place. It should attach firmly and straight.',
-      image: '📱 → 📏',
+      image: '/images/displays/vitadreamz-display-setup-display2stand',
       tips: ['Display should be level', 'Make sure QR faces customers and the marketing insert is straight']
     },
     {
       title: 'Hang Sample Products',
       instruction: 'Slide the square peg into the hook slat on the sample display, then hang your samples on the hook. Arrange them neatly for best presentation.',
-      image: '💊 → 🎣',
+      image: '/images/displays/vitadreamz-display-setup-hook2stand',
       tips: ['Samples should hang evenly', 'Be sure to "pull up" when grabbing samples as pulling down on samples can flip the display']
     }
   ],
   B: [
     {
-      title: 'Attach Display Stand',
-      instruction: 'Connect the display stand to the back of the QRDisplay using the magnetic attachment. Make sure it\'s secure and the display stands upright.',
-      image: '📱 + 🗂️',
-      tips: ['Stand should be perpendicular to display', 'Test stability before placing']
-    },
-    {
-      title: 'Position Your Display',
-      instruction: 'Place your display in a high-visibility area near the checkout or counter. Ensure the QR code is easily accessible to customers.',
-      image: '🏪 → 📱',
-      tips: ['Choose eye-level placement', 'Avoid cluttered areas', 'Good lighting is important']
+      title: 'Attach Display Stand & Set Up',
+      instruction: 'Connect the display stand to the back of the QRDisplay using the magnetic attachment. Make sure it\'s secure and the display stands upright. Place your display in a high-visibility area near the checkout or counter.',
+      image: '/images/displays/vitadreamz-display-setup-stand',
+      tips: ['Stand should be perpendicular to display', 'Choose eye-level placement', 'Good lighting is important']
     }
   ],
   C: [
@@ -79,11 +73,25 @@ export default function AssemblePage({ params }: { params: Promise<{ displayId: 
   const [animFrame, setAnimFrame] = useState(1);
   const { saveProgress } = useWizardProgress(displayId);
   
-  // Animation for step 1 of Option A - alternate between two images
+  // Animation configuration for each step
+  const getFrameCount = () => {
+    if (option === 'A') {
+      if (currentStepIndex === 0) return 2; // bar2stand has 2 frames
+      if (currentStepIndex === 1) return 2; // display2stand has 2 frames
+      if (currentStepIndex === 2) return 5; // hook2stand has 5 frames
+    }
+    if (option === 'B') {
+      if (currentStepIndex === 0) return 4; // stand has 4 frames
+    }
+    return 1;
+  };
+  
+  // Animation for steps with multiple images
   useEffect(() => {
-    if (option === 'A' && currentStepIndex === 0) {
+    const frameCount = getFrameCount();
+    if (frameCount > 1) {
       const interval = setInterval(() => {
-        setAnimFrame(prev => prev === 1 ? 2 : 1);
+        setAnimFrame(prev => prev >= frameCount ? 1 : prev + 1);
       }, 1000); // Switch every 1 second
       return () => clearInterval(interval);
     }
@@ -110,12 +118,14 @@ export default function AssemblePage({ params }: { params: Promise<{ displayId: 
     } else {
       // Next assembly step
       setCurrentStepIndex(prev => prev + 1);
+      setAnimFrame(1); // Reset animation to first frame
     }
   };
   
   const handleBack = () => {
     if (currentStepIndex > 0) {
       setCurrentStepIndex(prev => prev - 1);
+      setAnimFrame(1); // Reset animation to first frame
     } else {
       router.back();
     }
@@ -172,24 +182,27 @@ export default function AssemblePage({ params }: { params: Promise<{ displayId: 
         </h2>
         
         {/* Image/Icon Placeholder */}
-        {option === 'A' && currentStepIndex === 0 ? (
-          // Animated image for Option A, Step 1
-          <div className="rounded-lg overflow-hidden mb-4 border-2 border-purple-300">
-            <img 
-              src={`${currentStep.image}.${animFrame}.jpg`}
-              alt={currentStep.title}
-              className="w-full h-auto transition-opacity duration-500"
-            />
-          </div>
-        ) : currentStep.image.startsWith('/images/') ? (
-          // Static image for other steps with actual images
-          <div className="rounded-lg overflow-hidden mb-4 border-2 border-purple-300">
-            <img 
-              src={currentStep.image}
-              alt={currentStep.title}
-              className="w-full h-auto"
-            />
-          </div>
+        {currentStep.image.startsWith('/images/') ? (
+          getFrameCount() > 1 ? (
+            // Animated image for steps with multiple frames
+            <div className="rounded-lg overflow-hidden mb-4 border-2 border-purple-300">
+              <img 
+                src={`${currentStep.image}.${animFrame}.jpg`}
+                alt={currentStep.title}
+                className="w-full h-auto transition-opacity duration-300"
+                key={animFrame}
+              />
+            </div>
+          ) : (
+            // Static image for steps with single frame
+            <div className="rounded-lg overflow-hidden mb-4 border-2 border-purple-300">
+              <img 
+                src={currentStep.image}
+                alt={currentStep.title}
+                className="w-full h-auto"
+              />
+            </div>
+          )
         ) : (
           // Fallback to emoji placeholder for steps without images
           <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg p-12 mb-4 text-center border-2 border-dashed border-purple-300">

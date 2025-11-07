@@ -6,10 +6,10 @@ export function SupportBubble() {
   const [showMenu, setShowMenu] = useState(false);
   
   return (
-    <div className="fixed left-6 top-[66%] z-50">
+    <div className="fixed left-0 top-[66%] z-50">
       {/* Support menu */}
       {showMenu && (
-        <div className="absolute bottom-full left-0 mb-3 bg-white rounded-lg shadow-xl border border-gray-200 w-64 overflow-hidden">
+        <div className="absolute left-full ml-2 top-0 bg-white rounded-lg shadow-xl border border-gray-200 w-64 overflow-hidden">
           <div className="p-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white">
             <div className="font-semibold">Need Help?</div>
             <div className="text-xs opacity-90">We're here to support you</div>
@@ -62,13 +62,13 @@ export function SupportBubble() {
         </div>
       )}
       
-      {/* Chat bubble button */}
+      {/* Help tab button */}
       <button
         onClick={() => setShowMenu(!showMenu)}
-        className="w-14 h-14 rounded-full bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg hover:shadow-xl transition-all flex items-center justify-center text-2xl hover:scale-110"
-        aria-label="Support chat"
+        className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-4 py-3 rounded-r-lg shadow-lg hover:shadow-xl transition-all font-semibold text-sm hover:px-5"
+        aria-label="Support help"
       >
-        💬
+        💬 Help
       </button>
     </div>
   );

@@ -14,6 +14,9 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
   const { progress, saveProgress, clearProgress } = useWizardProgress(displayId);
 
   // Form state - using same structure as existing activation
+  const [hasMultipleLocations, setHasMultipleLocations] = useState(false);
+  const [centralizedPurchasing, setCentralizedPurchasing] = useState(false);
+  const [locationName, setLocationName] = useState('');
   const [storeName, setStoreName] = useState('');
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
@@ -58,9 +61,40 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
   const [products, setProducts] = useState<any[]>([]);
   const [brandInfo, setBrandInfo] = useState<any>(null);
 
+  // Load existing store data if setting up an existing store
+  useEffect(() => {
+    if (progress?.wholesaleBusinessName) {
+      // Pre-fill business name from Shopify lookup
+      console.log('📋 Pre-filling from Shopify:', progress.wholesaleBusinessName);
+      setStoreName(progress.wholesaleBusinessName);
+    }
+    
+    if (progress?.address) {
+      // Pre-fill address from Shopify
+      setAddress(progress.address);
+      setCity(progress.city || '');
+      setState(progress.state || '');
+      setZip(progress.zip || '');
+    }
+    
+    // Check if there are existing locations (for multi-location hint)
+    if (progress?.shopifyCustomerId && displayId) {
+      fetch(`/api/stores/lookup?shopifyCustomerId=${progress.shopifyCustomerId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.existingStores && data.existingStores.length > 0) {
+            // They have existing locations - hint that they might want multi-location
+            console.log(`📋 Found ${data.existingStores.length} existing locations`);
+          }
+        })
+        .catch(err => console.error('Failed to check existing stores:', err));
+    }
+  }, [progress, displayId]);
+
   // Load saved progress and pre-fill form fields
   useEffect(() => {
     if (progress) {
+      // Load from saved progress (user was editing)
       console.log('📋 Loading saved progress:', progress);
       if (progress.storeName) setStoreName(progress.storeName);
       if (progress.address) setAddress(progress.address);
@@ -85,7 +119,7 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
       if (progress.purchasingEmail) setPurchasingEmail(progress.purchasingEmail);
       if (progress.purchasingSameAsOwner !== undefined) setPurchasingSameAsOwner(progress.purchasingSameAsOwner);
     }
-  }, [progress]);
+  }, [progress, displayId]);
 
   useEffect(() => {
     params.then(async (p) => {
@@ -112,10 +146,28 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
   }, [params]);
   // Move activation submit to next step; this page now only collects store/admin details
   const goToProductsStep = () => {
+    // Build final store name based on multi-location settings
+    const finalStoreName = hasMultipleLocations && centralizedPurchasing && locationName
+      ? `${storeName} - ${locationName}`
+      : storeName;
+    
+    const parentAccountName = hasMultipleLocations && centralizedPurchasing 
+      ? storeName 
+      : undefined;
+    
+    const shopifyCustomerId = centralizedPurchasing && progress?.shopifyCustomerId
+      ? progress.shopifyCustomerId
+      : undefined;
+    
     // Persist current form fields to progress and navigate
     saveProgress({
-      currentStep: 7,
-      storeName,
+      currentStep: 8,
+      storeName: finalStoreName,
+      parentAccountName,
+      shopifyCustomerId,
+      hasMultipleLocations,
+      centralizedPurchasing,
+      locationName,
       address,
       city,
       state,
@@ -147,12 +199,13 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
     </div>;
   }
 
-  const isFormValid = storeName && city && state && zip && ownerName && ownerEmail && ownerPhone && pin.length === 4;
+  const isFormValid = storeName && city && state && zip && ownerName && ownerEmail && ownerPhone && pin.length === 4 &&
+    (!hasMultipleLocations || !centralizedPurchasing || locationName);
 
   return (
     <WizardLayout
-      currentStep={6}
-      totalSteps={9}
+      currentStep={7}
+      totalSteps={10}
       stepLabel="Store Details"
       displayId={displayId}
       showNext={false}
@@ -180,17 +233,130 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
             <h2 className="font-semibold text-lg mb-4">Store Information</h2>
             
             <div className="space-y-4">
+              {/* Multiple Locations Question - Only show if they have a Shopify account */}
+              {progress?.shopifyCustomerId && (
+                <>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <label className="block text-sm font-medium mb-3">
+                      Does this business have multiple locations?
+                    </label>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="multipleLocations"
+                          checked={!hasMultipleLocations}
+                          onChange={() => {
+                            setHasMultipleLocations(false);
+                            setCentralizedPurchasing(false);
+                            setLocationName('');
+                          }}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm">No, single location</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="multipleLocations"
+                          checked={hasMultipleLocations}
+                          onChange={() => setHasMultipleLocations(true)}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-sm">Yes, multiple locations</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Centralized Purchasing Question - Only show if multiple locations */}
+                  {hasMultipleLocations && (
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                      <label className="block text-sm font-medium mb-3">
+                        Does this wholesale account purchase for all locations?
+                      </label>
+                      <div className="space-y-2">
+                        <label className="flex items-start gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="centralizedPurchasing"
+                            checked={centralizedPurchasing}
+                            onChange={() => setCentralizedPurchasing(true)}
+                            className="w-4 h-4 mt-0.5"
+                          />
+                          <span className="text-sm">
+                            <strong>Yes, centralized purchasing</strong>
+                            <br />
+                            <span className="text-gray-600">All commissions roll up to this wholesale account</span>
+                          </span>
+                        </label>
+                        <label className="flex items-start gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="centralizedPurchasing"
+                            checked={!centralizedPurchasing}
+                            onChange={() => setCentralizedPurchasing(false)}
+                            className="w-4 h-4 mt-0.5"
+                          />
+                          <span className="text-sm">
+                            <strong>No, each location has its own account</strong>
+                            <br />
+                            <span className="text-gray-600">Each location manages their own purchasing and commissions</span>
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Business Name - Pre-filled if from Shopify, readonly if centralized */}
               <div>
-                <label className="block text-sm font-medium mb-1">Store Name *</label>
+                <label className="block text-sm font-medium mb-1">
+                  Business Name *
+                  {hasMultipleLocations && !centralizedPurchasing && (
+                    <span className="text-gray-500 text-xs ml-1">(Will be different for each location)</span>
+                  )}
+                </label>
                 <input
                   type="text"
                   value={storeName}
                   onChange={(e) => setStoreName(e.target.value)}
+                  readOnly={hasMultipleLocations && centralizedPurchasing && !!progress?.wholesaleBusinessName}
                   required
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
-                  placeholder="Main Street Pharmacy"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 ${
+                    hasMultipleLocations && centralizedPurchasing && progress?.wholesaleBusinessName 
+                      ? 'bg-gray-100 cursor-not-allowed' 
+                      : ''
+                  }`}
+                  placeholder="Nature's Elite"
                 />
+                {hasMultipleLocations && centralizedPurchasing && progress?.wholesaleBusinessName && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Business name from your wholesale account
+                  </p>
+                )}
               </div>
+
+              {/* Location Name - Only show if multiple locations with centralized purchasing */}
+              {hasMultipleLocations && centralizedPurchasing && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Location Name *
+                    <span className="text-gray-500 text-xs ml-1">(e.g., "Miami Beach", "Downtown", "Store #2")</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={locationName}
+                    onChange={(e) => setLocationName(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+                    placeholder="Miami Beach"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Final store name will be: <strong>{storeName}{locationName ? ` - ${locationName}` : ''}</strong>
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium mb-1">Address</label>

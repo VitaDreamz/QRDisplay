@@ -60,8 +60,8 @@ export default function PhotoPage({ params }: { params: Promise<{ displayId: str
   
   const handleContinue = () => {
     if (displayId) {
-      saveProgress({ currentStep: 5 });
-      router.push(`/setup/${displayId}/activate`);
+      saveProgress({ currentStep: 6 });
+      router.push(`/setup/${displayId}/store-lookup`);
     }
   };
   

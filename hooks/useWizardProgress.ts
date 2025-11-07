@@ -36,6 +36,15 @@ export interface WizardProgress {
   purchasingSameAsOwner?: boolean;
   availableSamples?: string[];
   availableProducts?: string[];
+  // Store lookup fields
+  shopifyCustomerId?: string;
+  wholesaleBusinessName?: string; // From Shopify firstName (e.g. "Nature's Elite" without "Wholesale")
+  isNewLocation?: boolean;
+  // Multi-location fields
+  hasMultipleLocations?: boolean;
+  centralizedPurchasing?: boolean;
+  locationName?: string;
+  parentAccountName?: string;
 }
 
 const STORAGE_KEY = 'qrdisplay-wizard-progress';

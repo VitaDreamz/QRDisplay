@@ -39,6 +39,9 @@ export async function POST(req: NextRequest) {
       adminSameAsOwner,
       availableSamples,
       availableProducts,
+      // Multi-location fields
+      shopifyCustomerId,
+      parentAccountName,
     } = body;
 
     // Validate required fields
@@ -225,6 +228,9 @@ export async function POST(req: NextRequest) {
         purchasingEmail: purchasingSameAsOwner ? ownerEmail : purchasingEmail,
         availableSamples,
         availableProducts,
+        // Multi-location fields
+        shopifyCustomerId: shopifyCustomerId || null,
+        parentAccountName: parentAccountName || null,
       },
       update: {
         storeName,
@@ -249,6 +255,9 @@ export async function POST(req: NextRequest) {
         purchasingEmail: purchasingSameAsOwner ? ownerEmail : purchasingEmail,
         availableSamples,
         availableProducts,
+        // Multi-location fields
+        shopifyCustomerId: shopifyCustomerId || null,
+        parentAccountName: parentAccountName || null,
       },
     });
 

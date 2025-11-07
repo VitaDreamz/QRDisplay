@@ -41,7 +41,10 @@ export default function SetupWelcomePage({ params }: { params: Promise<{ display
             else if (savedProgress.currentStep === 3) router.push(`/setup/${p.displayId}/choose`);
             else if (savedProgress.currentStep === 4) router.push(`/setup/${p.displayId}/assemble/${savedProgress.displayOption}`);
             else if (savedProgress.currentStep === 5) router.push(`/setup/${p.displayId}/photo`);
-            else if (savedProgress.currentStep === 6) router.push(`/setup/${p.displayId}/activate`);
+            else if (savedProgress.currentStep === 6) router.push(`/setup/${p.displayId}/store-lookup`);
+            else if (savedProgress.currentStep === 7) router.push(`/setup/${p.displayId}/activate`);
+            else if (savedProgress.currentStep === 8) router.push(`/setup/${p.displayId}/products`);
+            else if (savedProgress.currentStep === 9) router.push(`/setup/${p.displayId}/staff`);
           }
         }
       }
@@ -57,7 +60,7 @@ export default function SetupWelcomePage({ params }: { params: Promise<{ display
   
   const handleSkipToActivation = () => {
     if (displayId) {
-      router.push(`/setup/${displayId}/activate`);
+      router.push(`/setup/${displayId}/store-lookup`);
     }
   };
   

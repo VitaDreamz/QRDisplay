@@ -28,8 +28,8 @@ export default function SuccessPage({ params }: { params: Promise<{ displayId: s
 
   return (
     <WizardLayout
-      currentStep={9}
-      totalSteps={9}
+      currentStep={10}
+      totalSteps={10}
       stepLabel="Success"
       displayId={displayId}
       showBack={false}

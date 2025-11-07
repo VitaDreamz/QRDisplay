@@ -142,8 +142,8 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
       
       // Save store ID and go to staff page
       const storeId = result.storeId;
-      saveProgress({ currentStep: 8 });
-      router.push(`/setup/${displayId}/staff${storeId ? `?storeId=${storeId}` : ''}`);
+      saveProgress({ currentStep: 9 });
+      router.push(`/setup/${displayId}/staff`);
     } catch (e) {
       console.error('[Activation Exception]', e);
       setError(e instanceof Error ? e.message : 'Activation failed.');
@@ -161,8 +161,8 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
 
   return (
     <WizardLayout
-      currentStep={7}
-      totalSteps={9}
+      currentStep={8}
+      totalSteps={10}
       stepLabel="Products"
       displayId={displayId}
       showNext={false}

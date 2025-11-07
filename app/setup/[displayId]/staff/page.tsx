@@ -131,14 +131,14 @@ export default function AddStaffPage({ params }: { params: Promise<{ displayId: 
   const isFormValid = firstName && lastName && phone && email && role;
 
   const handleSkip = () => {
-    saveProgress({ staffAdded: false, currentStep: 9 });
-    router.push(`/setup/${displayId}/success${storeId ? `?storeId=${storeId}` : ''}`);
+    saveProgress({ staffAdded: false, currentStep: 10 });
+    router.push(`/setup/${displayId}/success`);
   };
 
   return (
     <WizardLayout
-      currentStep={8}
-      totalSteps={9}
+      currentStep={9}
+      totalSteps={10}
       stepLabel="Add Staff"
       displayId={displayId}
       showNext={false}
@@ -333,7 +333,7 @@ export default function AddStaffPage({ params }: { params: Promise<{ displayId: 
                 <button
                   type="button"
                   onClick={() => {
-                    saveProgress({ staffAdded: true, currentStep: 9 });
+                    saveProgress({ staffAdded: true, currentStep: 10 });
                     router.push(`/setup/${displayId}/success${storeId ? `?storeId=${storeId}` : ''}`);
                   }}
                   className="w-full py-3 border-2 border-purple-600 text-purple-600 rounded-lg font-medium hover:bg-purple-50 transition-colors"

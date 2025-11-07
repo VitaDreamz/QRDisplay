@@ -107,6 +107,10 @@ model Store {
   purchasingPhone   String?
   purchasingEmail   String?
   
+  // Shopify wholesale account linkage
+  shopifyCustomerId String?  // Links this store to a Shopify customer for commission credits
+  parentAccountName String?  // For multi-location: "Acme Corp" (shown in UI)
+  
   streetAddress String?
   city          String?
   state         String?

@@ -362,3 +362,47 @@ export async function getShopifyOrder(org: Organization, orderId: string) {
     throw error;
   }
 }
+
+/**
+ * Get a Shopify customer by ID
+ */
+export async function getShopifyCustomer(shopifyCustomerId: string) {
+  try {
+    const response = await fetch(
+      `${process.env.SHOPIFY_STORE_URL}/admin/api/2024-10/customers/${shopifyCustomerId}.json`,
+      {
+        headers: {
+          'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN!,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Shopify API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const customer = data.customer;
+    const defaultAddress = customer.default_address;
+
+    return {
+      id: customer.id.toString(),
+      email: customer.email,
+      phone: customer.phone || defaultAddress?.phone,
+      firstName: customer.first_name,
+      lastName: customer.last_name,
+      companyName: defaultAddress?.company,
+      // Address fields for pre-filling store location
+      address: defaultAddress?.address1,
+      address2: defaultAddress?.address2,
+      city: defaultAddress?.city,
+      province: defaultAddress?.province,
+      zip: defaultAddress?.zip,
+      country: defaultAddress?.country,
+    };
+  } catch (error) {
+    console.error('Error fetching Shopify customer:', error);
+    throw error;
+  }
+}

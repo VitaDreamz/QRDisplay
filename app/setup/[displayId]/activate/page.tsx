@@ -156,9 +156,8 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
       ? storeName 
       : undefined;
     
-    const shopifyCustomerId = centralizedPurchasing && progress?.shopifyCustomerId
-      ? progress.shopifyCustomerId
-      : undefined;
+    // Always preserve shopifyCustomerId if it exists (for tagging purposes)
+    const shopifyCustomerId = progress?.shopifyCustomerId || undefined;
     
     // Persist current form fields to progress and navigate
     saveProgress({

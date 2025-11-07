@@ -4,7 +4,7 @@ import { normalizePhone } from '@/lib/phone';
 import { generateSlug } from '@/lib/slugs';
 import { sendBrandSampleRequestEmail } from '@/lib/email';
 import { SAMPLE_OPTIONS } from '@/lib/constants';
-import { syncCustomerToShopify } from '@/lib/shopify';
+import { syncCustomerToShopify, addCustomerTimelineEvent } from '@/lib/shopify';
 
 async function generateMemberId(): Promise<string> {
   const count = await prisma.customer.count();
@@ -207,7 +207,11 @@ Dashboard: qrdisplay.com/store/login/${display.store.storeId}`;
       });
       
       if (org?.shopifyActive) {
-        const result = await syncCustomerToShopify(org, customer);
+        const result = await syncCustomerToShopify(org, {
+          ...customer,
+          sampleProduct: sampleLabel, // Pass the sample product for tagging
+          stage: 'requested', // Initial stage
+        });
         
         // Update customer record with Shopify ID
         await prisma.customer.update({
@@ -220,6 +224,16 @@ Dashboard: qrdisplay.com/store/login/${display.store.storeId}`;
         });
         
         console.log(`✅ Customer ${customer.memberId} synced to Shopify (${result.isNew ? 'new' : 'existing'} customer #${result.shopifyCustomerId})`);
+        
+        // Add timeline event for sample request
+        try {
+          await addCustomerTimelineEvent(org, result.shopifyCustomerId, {
+            message: `Requested Sample: ${sampleLabel} at ${display.store.storeName}`,
+            occurredAt: customer.requestedAt,
+          });
+        } catch (timelineErr) {
+          console.error('❌ Shopify timeline event failed:', timelineErr);
+        }
       }
     } catch (shopifyErr) {
       console.error('❌ Shopify sync failed:', shopifyErr);

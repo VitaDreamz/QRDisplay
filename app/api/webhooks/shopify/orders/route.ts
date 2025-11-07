@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { verifyShopifyWebhook } from '@/lib/shopify';
+import { verifyShopifyWebhook, addCustomerTimelineEvent, updateCustomerStage } from '@/lib/shopify';
 import { shouldAttributeConversion, calculateCommission } from '@/lib/commission';
 
 const prisma = new PrismaClient();
@@ -188,6 +188,22 @@ async function handleOrderPaid(orgId: string, order: ShopifyOrder, topic: string
     console.log(`✅ Conversion tracked: $${commissionAmount.toFixed(2)} commission`);
     console.log(`   Store: ${customer.store?.storeName} (${customer.store?.storeId})`);
     console.log(`   Days to conversion: ${daysToConversion}`);
+
+    // Update customer stage to converted
+    if ((customer as any).shopifyCustomerId) {
+      try {
+        await updateCustomerStage(org, (customer as any).shopifyCustomerId, 'converted');
+        
+        // Add timeline event for purchase
+        const productNames = order.line_items.map(item => item.title).join(', ');
+        await addCustomerTimelineEvent(org, (customer as any).shopifyCustomerId, {
+          message: `Purchased: ${productNames} ($${orderTotal.toFixed(2)}) - Commission: $${commissionAmount.toFixed(2)} to ${customer.store?.storeName}`,
+          occurredAt: purchaseDate,
+        });
+      } catch (shopifyErr) {
+        console.error('❌ Shopify stage update failed:', shopifyErr);
+      }
+    }
 
     // TODO: Apply store credit to wholesale store
     // This will be implemented in a separate function that:

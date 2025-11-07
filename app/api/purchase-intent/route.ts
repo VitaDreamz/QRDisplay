@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { customAlphabet } from 'nanoid';
 import { sendBrandPurchaseIntentEmail, sendStorePurchaseIntentEmail } from '@/lib/email';
+import { addCustomerTimelineEvent, updateCustomerStage } from '@/lib/shopify';
 
 const nanoid = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 12);
 
@@ -131,6 +132,28 @@ export async function POST(request: NextRequest) {
           stageChangedAt: new Date()
         }
       });
+      
+      // Update Shopify stage and add timeline event
+      const org = await prisma.organization.findUnique({
+        where: { orgId: customer.orgId }
+      });
+      
+      if (org?.shopifyActive && (customer as any).shopifyCustomerId) {
+        try {
+          const shopifyCustomerId = (customer as any).shopifyCustomerId;
+          
+          // Update stage tag
+          await updateCustomerStage(org, shopifyCustomerId, 'purchase-intent');
+          
+          // Add timeline event
+          await addCustomerTimelineEvent(org, shopifyCustomerId, {
+            message: `Requested Purchase: ${product.name} ($${finalPrice}) at ${store.storeName}`,
+            occurredAt: new Date(),
+          });
+        } catch (shopifyErr) {
+          console.error('❌ Shopify update failed:', shopifyErr);
+        }
+      }
     } catch (e) {
       console.warn('Failed to update customer status to purchase_requested:', e);
     }

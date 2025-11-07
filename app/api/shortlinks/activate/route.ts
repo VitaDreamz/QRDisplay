@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { sendBrandSampleRedemptionEmail } from '@/lib/email';
+import { addCustomerTimelineEvent, updateCustomerStage } from '@/lib/shopify';
 
 const TTL_MS = 72 * 60 * 60 * 1000; // 72 hours
 
@@ -159,6 +160,24 @@ export async function POST(req: NextRequest) {
           },
           redeemedAt: updated.redeemedAt || new Date(),
         });
+      }
+      
+      // Add timeline event to Shopify (if integration active and customer synced)
+      if (org?.shopifyActive && (customer as any).shopifyCustomerId) {
+        try {
+          const shopifyCustomerId = (customer as any).shopifyCustomerId;
+          
+          // Update stage tag
+          await updateCustomerStage(org, shopifyCustomerId, 'redeemed');
+          
+          // Add timeline event
+          await addCustomerTimelineEvent(org, shopifyCustomerId, {
+            message: `Redeemed Sample: ${customer.sampleChoice} at ${store.storeName}`,
+            occurredAt: updated.redeemedAt || new Date(),
+          });
+        } catch (shopifyErr) {
+          console.error('❌ Shopify timeline event failed:', shopifyErr);
+        }
       }
     } catch (emailErr) {
       console.error('❌ Brand notification email failed:', emailErr);

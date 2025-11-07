@@ -90,10 +90,38 @@ export async function syncCustomerToShopify(
     email?: string | null;
     storeId: string;
     memberId: string;
+    sampleProduct?: string; // e.g., "Slumber Berry 4ct"
+    stage?: 'requested' | 'redeemed' | 'purchase-intent' | 'converted'; // Customer journey stage
   }
 ) {
   try {
     const restClient = await getShopifyRestClient(org);
+
+    // Build tags array
+    const tags = [
+      'qrdisplay',
+      `store:${customer.storeId}`,
+      `member:${customer.memberId}`,
+      'In-Store Sample',
+    ];
+    
+    // Add stage-based tag
+    if (customer.stage === 'requested') {
+      tags.push('Sample-Requested');
+    } else if (customer.stage === 'redeemed') {
+      tags.push('Sample-Redeemed');
+    } else if (customer.stage === 'purchase-intent') {
+      tags.push('Purchase-Intent');
+    } else if (customer.stage === 'converted') {
+      tags.push('Converted-Customer');
+    }
+    
+    // Add product-specific tag if provided
+    if (customer.sampleProduct) {
+      tags.push(customer.sampleProduct);
+    }
+    
+    const tagsString = tags.join(',');
 
     // Search for existing customer by phone
     const searchResponse = await restClient.get({
@@ -112,8 +140,8 @@ export async function syncCustomerToShopify(
         data: {
           customer: {
             id: shopifyCustomer.id,
-            tags: `qrdisplay,store:${customer.storeId},member:${customer.memberId}`,
-            note: `QRDisplay Member: ${customer.memberId} | Store: ${customer.storeId}`,
+            tags: tagsString,
+            note: `QRDisplay Member: ${customer.memberId} | Store: ${customer.storeId}${customer.sampleProduct ? ` | Sample: ${customer.sampleProduct}` : ''}`,
           },
         },
       });
@@ -132,8 +160,8 @@ export async function syncCustomerToShopify(
             last_name: customer.lastName,
             phone: customer.phone,
             email: customer.email || undefined,
-            tags: `qrdisplay,store:${customer.storeId},member:${customer.memberId}`,
-            note: `QRDisplay Member: ${customer.memberId} | Store: ${customer.storeId}`,
+            tags: tagsString,
+            note: `QRDisplay Member: ${customer.memberId} | Store: ${customer.storeId}${customer.sampleProduct ? ` | Sample: ${customer.sampleProduct}` : ''}`,
             accepts_marketing: true,
             accepts_marketing_updated_at: new Date().toISOString(),
           },
@@ -149,6 +177,137 @@ export async function syncCustomerToShopify(
     }
   } catch (error) {
     console.error('Error syncing customer to Shopify:', error);
+    throw error;
+  }
+}
+
+/**
+ * Add a timeline event to a customer's profile in Shopify
+ */
+export async function addCustomerTimelineEvent(
+  org: Organization,
+  shopifyCustomerId: string,
+  event: {
+    message: string;
+    occurredAt?: Date;
+  }
+) {
+  try {
+    const graphqlClient = await getShopifyGraphQLClient(org);
+
+    const mutation = `
+      mutation customerSMSMarketingConsentUpdate($input: CustomerSmsMarketingConsentUpdateInput!) {
+        customerSmsMarketingConsentUpdate(input: $input) {
+          customer {
+            id
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    // Note: Shopify's timeline events via API are limited
+    // We'll use metafields instead to store custom events that can be displayed
+    const metafieldMutation = `
+      mutation createCustomerMetafield($input: CustomerInput!) {
+        customerUpdate(input: $input) {
+          customer {
+            id
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    // For now, we'll add events as customer notes/tags
+    // A more robust solution would use a custom app with timeline access
+    const restClient = await getShopifyRestClient(org);
+    
+    // Get current customer
+    const customerResponse = await restClient.get({
+      path: `customers/${shopifyCustomerId}`,
+    });
+    
+    const customer = (customerResponse.body as any).customer;
+    const currentNote = customer.note || '';
+    const timestamp = (event.occurredAt || new Date()).toISOString();
+    const newNote = `${currentNote}\n[${timestamp}] ${event.message}`;
+    
+    // Update customer note with event
+    await restClient.put({
+      path: `customers/${shopifyCustomerId}`,
+      data: {
+        customer: {
+          id: shopifyCustomerId,
+          note: newNote.trim(),
+        },
+      },
+    });
+
+    console.log(`✅ Added timeline event for customer ${shopifyCustomerId}: ${event.message}`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error adding customer timeline event:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update customer stage tags in Shopify
+ * This adds new stage tags while preserving existing tags
+ */
+export async function updateCustomerStage(
+  org: Organization,
+  shopifyCustomerId: string,
+  newStage: 'requested' | 'redeemed' | 'purchase-intent' | 'converted'
+) {
+  try {
+    const restClient = await getShopifyRestClient(org);
+    
+    // Get current customer
+    const customerResponse = await restClient.get({
+      path: `customers/${shopifyCustomerId}`,
+    });
+    
+    const customer = (customerResponse.body as any).customer;
+    const currentTags = customer.tags ? customer.tags.split(',').map((t: string) => t.trim()) : [];
+    
+    // Remove old stage tags
+    const stageTagsToRemove = ['Sample-Requested', 'Sample-Redeemed', 'Purchase-Intent', 'Converted-Customer'];
+    const filteredTags = currentTags.filter((tag: string) => !stageTagsToRemove.includes(tag));
+    
+    // Add new stage tag
+    const newStageTag = 
+      newStage === 'requested' ? 'Sample-Requested' :
+      newStage === 'redeemed' ? 'Sample-Redeemed' :
+      newStage === 'purchase-intent' ? 'Purchase-Intent' :
+      'Converted-Customer';
+    
+    filteredTags.push(newStageTag);
+    
+    // Update customer with new tags
+    await restClient.put({
+      path: `customers/${shopifyCustomerId}`,
+      data: {
+        customer: {
+          id: shopifyCustomerId,
+          tags: filteredTags.join(','),
+        },
+      },
+    });
+    
+    console.log(`✅ Updated customer ${shopifyCustomerId} stage to: ${newStageTag}`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating customer stage in Shopify:', error);
     throw error;
   }
 }

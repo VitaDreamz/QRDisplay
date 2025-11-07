@@ -46,6 +46,26 @@ export default function SuccessPage({ params }: { params: Promise<{ displayId: s
         </p>
       </div>
 
+      {/* Dashboard Access Button - PROMINENT */}
+      {storeId && (
+        <div className="mb-6">
+          <a
+            href={`/store/login/${storeId}`}
+            className="block w-full py-5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold text-xl text-center shadow-xl hover:from-purple-700 hover:to-blue-700 transition-all transform hover:scale-105"
+          >
+            🏪 Open Store Dashboard
+          </a>
+          {progress?.pin && (
+            <div className="text-center mt-3 bg-purple-50 rounded-lg p-3">
+              <div className="text-sm text-gray-700 mb-1">Your Login PIN:</div>
+              <div className="text-3xl font-mono font-bold text-purple-600 tracking-wider">
+                {progress.pin}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Success Checklist */}
       <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg border-2 border-green-200 p-6 mb-6">
         <div className="space-y-3">
@@ -98,29 +118,6 @@ export default function SuccessPage({ params }: { params: Promise<{ displayId: s
           </div>
         </div>
       </div>
-
-      {/* Dashboard Access */}
-      {storeId && (
-        <div className="bg-white rounded-lg shadow-lg border-2 border-purple-200 p-6 mb-6">
-          <a
-            href={`/store/login/${storeId}`}
-            className="block w-full py-4 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg font-bold text-lg text-center shadow-lg hover:from-purple-700 hover:to-purple-800 transition-all mb-4"
-          >
-            Sign Into Dashboard
-          </a>
-          {progress?.pin && (
-            <div className="text-center">
-              <div className="text-sm text-gray-600 mb-1">Your PIN:</div>
-              <div className="text-3xl font-mono font-bold text-purple-600 tracking-wider">
-                {progress.pin}
-              </div>
-              <div className="text-xs text-gray-500 mt-2">
-                Keep this PIN safe - you'll need it to access your dashboard
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Staff Option - Only show if they skipped */}
       {!progress?.staffAdded && (

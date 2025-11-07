@@ -391,7 +391,12 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
                   <input
                     type="text"
                     value={state}
-                    onChange={(e) => setState(e.target.value.toUpperCase())}
+                    onChange={(e) => {
+                      const input = e.target.value;
+                      // Convert to abbreviation if full state name is entered
+                      const abbrev = toStateAbbreviation(input);
+                      setState(abbrev.toUpperCase());
+                    }}
                     required
                     maxLength={2}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 uppercase"

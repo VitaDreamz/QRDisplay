@@ -452,16 +452,28 @@ export async function tagShopifyCustomer(
   }
 ) {
   try {
+    console.log(`[Shopify Tagging] Starting tag update for customer ${shopifyCustomerId}`);
+    console.log(`[Shopify Tagging] Tags to add:`, tags);
+    
     const { shopify, session } = getShopifyClient(org);
     const client = new shopify.clients.Rest({ session });
 
+    // Extract numeric ID if it's a GraphQL ID (gid://shopify/Customer/123456)
+    let customerId = shopifyCustomerId;
+    if (customerId.includes('gid://')) {
+      customerId = customerId.split('/').pop() || customerId;
+    }
+    
+    console.log(`[Shopify Tagging] Using customer ID: ${customerId}`);
+
     // First, get the current customer to retrieve existing tags
     const getResponse = await client.get({
-      path: `customers/${shopifyCustomerId}`,
+      path: `customers/${customerId}`,
     });
 
     const customer = getResponse.body.customer as any;
     const existingTags = customer.tags ? customer.tags.split(', ') : [];
+    console.log(`[Shopify Tagging] Existing tags:`, existingTags);
 
     // Build new tags
     const newTags: string[] = [];
@@ -482,21 +494,24 @@ export async function tagShopifyCustomer(
       newTags.push(`Display:${tags.status}`);
     }
 
+    console.log(`[Shopify Tagging] New tags to add:`, newTags);
+
     // Merge existing tags with new ones (avoid duplicates)
     const allTags = [...new Set([...existingTags, ...newTags])];
+    console.log(`[Shopify Tagging] Final tags:`, allTags);
 
     // Update customer with new tags
     await client.put({
-      path: `customers/${shopifyCustomerId}`,
+      path: `customers/${customerId}`,
       data: {
         customer: {
-          id: shopifyCustomerId,
+          id: customerId,
           tags: allTags.join(', '),
         },
       },
     });
 
-    console.log(`✅ Tagged Shopify customer ${shopifyCustomerId}:`, newTags);
+    console.log(`✅ Successfully tagged Shopify customer ${customerId}:`, newTags);
     return allTags;
   } catch (error) {
     console.error('Error tagging Shopify customer:', error);

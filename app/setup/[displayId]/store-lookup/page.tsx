@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { WizardLayout } from '@/components/wizard/WizardLayout';
 import { useWizardProgress } from '@/hooks/useWizardProgress';
+import { toStateAbbreviation } from '@/lib/states';
 
 type ShopifyCustomer = {
   id: string;
@@ -138,14 +139,14 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
 
   const handleSelectResult = (result: SearchResult) => {
     if (result.type === 'shopify' && result.shopifyCustomer) {
-      // Save Shopify customer info and continue
+      // Save Shopify customer info and continue (convert state to abbreviation)
       saveProgress({
         currentStep: 7,
         shopifyCustomerId: result.shopifyCustomer.id,
         wholesaleBusinessName: result.shopifyCustomer.firstName,
         address: result.shopifyCustomer.address,
         city: result.shopifyCustomer.city,
-        state: result.shopifyCustomer.province,
+        state: toStateAbbreviation(result.shopifyCustomer.province), // Convert to 2-letter code
         zip: result.shopifyCustomer.zip,
         isNewLocation: true,
       });

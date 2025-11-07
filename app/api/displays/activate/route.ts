@@ -296,6 +296,7 @@ export async function POST(req: NextRequest) {
     // Tag Shopify customer with store and display info (if linked)
     if (shopifyCustomerId && display.organization) {
       try {
+        console.log(`🏷️  Attempting to tag Shopify customer ${shopifyCustomerId}`);
         await tagShopifyCustomer(display.organization, shopifyCustomerId, {
           storeId: updatedStore.storeId,
           displayId: displayId,
@@ -306,6 +307,13 @@ export async function POST(req: NextRequest) {
       } catch (tagErr) {
         console.error('⚠️ Failed to tag Shopify customer:', tagErr);
         // Don't fail the activation if tagging fails
+      }
+    } else {
+      if (!shopifyCustomerId) {
+        console.log('ℹ️  No shopifyCustomerId provided - skipping tagging');
+      }
+      if (!display.organization) {
+        console.log('⚠️  No organization found - skipping tagging');
       }
     }
 

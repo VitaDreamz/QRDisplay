@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { addCustomerTimelineEvent, updateCustomerStage } from '@/lib/shopify';
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,13 +57,51 @@ export async function POST(request: NextRequest) {
 
     // Update customer status to "purchased"
     try {
-      await prisma.customer.update({
+      const customer = await prisma.customer.update({
         where: { id: intent.customerId },
         data: {
           currentStage: 'purchased',
           stageChangedAt: new Date()
         }
       });
+      
+      // Update Shopify with in-store purchase
+      const org = await prisma.organization.findUnique({
+        where: { orgId: customer.orgId }
+      });
+      
+      const store = await prisma.store.findUnique({
+        where: { id: intent.storeId }
+      });
+      
+      const product = await prisma.product.findUnique({
+        where: { sku: intent.productSku }
+      });
+      
+      if (org?.shopifyActive && (customer as any).shopifyCustomerId) {
+        try {
+          const shopifyCustomerId = (customer as any).shopifyCustomerId;
+          
+          // Update stage tag to converted-instore
+          await updateCustomerStage(org, shopifyCustomerId, 'converted-instore');
+          
+          // Build timeline message with product details
+          let message = `Purchased In-Store: ${product?.name || intent.productSku}`;
+          message += ` ($${intent.finalPrice.toFixed(2)})`;
+          if (intent.discountPercent > 0) {
+            const savings = intent.originalPrice - intent.finalPrice;
+            message += ` - saved $${savings.toFixed(2)} (${intent.discountPercent}% off)`;
+          }
+          message += ` at ${store?.storeName}`;
+          
+          await addCustomerTimelineEvent(org, shopifyCustomerId, {
+            message,
+            occurredAt: new Date(),
+          });
+        } catch (shopifyErr) {
+          console.error('❌ Shopify update failed:', shopifyErr);
+        }
+      }
     } catch (e) {
       console.warn('Failed to update customer status to purchased:', e);
     }

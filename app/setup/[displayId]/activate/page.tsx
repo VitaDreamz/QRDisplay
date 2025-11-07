@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { WizardLayout } from '@/components/wizard/WizardLayout';
 import { useWizardProgress } from '@/hooks/useWizardProgress';
 import { SAMPLE_OPTIONS } from '@/lib/constants';
+import { toStateAbbreviation } from '@/lib/states';
 
 export default function ActivatePage({ params }: { params: Promise<{ displayId: string }> }) {
   const router = useRouter();
@@ -70,10 +71,10 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
     }
     
     if (progress?.address) {
-      // Pre-fill address from Shopify
+      // Pre-fill address from Shopify (convert state to abbreviation)
       setAddress(progress.address);
       setCity(progress.city || '');
-      setState(progress.state || '');
+      setState(toStateAbbreviation(progress.state) || '');
       setZip(progress.zip || '');
     }
     
@@ -208,7 +209,11 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
       totalSteps={10}
       stepLabel="Store Details"
       displayId={displayId}
-      showNext={false}
+      showBack={true}
+      showNext={true}
+      nextLabel="Next: Set Up Products"
+      nextDisabled={loading || !isFormValid}
+      onNext={goToProductsStep}
     >
       <div className="pb-20">
         <div className="text-center mb-6">
@@ -748,20 +753,6 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
               </div>
             </div>
           </div>
-
-          {/* Next Button to Products Step */}
-          <button
-            type="button"
-            disabled={loading || !isFormValid}
-            onClick={goToProductsStep}
-            className={`w-full py-4 rounded-lg font-bold text-lg transition-all ${
-              loading || !isFormValid
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800 shadow-lg'
-            }`}
-          >
-            Set-up Your Products
-          </button>
         </form>
       </div>
     </WizardLayout>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { sendActivationEmail, sendBrandStoreActivationEmail } from '@/lib/email';
 import { generateBase62Slug } from '@/lib/shortid';
+import { tagShopifyCustomer } from '@/lib/shopify';
 
 // Helper to generate a new Store ID with 3-digit minimum padding
 function generateStoreId(nextIndex: number) {
@@ -291,6 +292,22 @@ export async function POST(req: NextRequest) {
         activatedAt: new Date(),
       },
     });
+
+    // Tag Shopify customer with store and display info (if linked)
+    if (shopifyCustomerId && display.organization) {
+      try {
+        await tagShopifyCustomer(display.organization, shopifyCustomerId, {
+          storeId: updatedStore.storeId,
+          displayId: displayId,
+          state: state, // 2-letter state code
+          status: 'active',
+        });
+        console.log(`✅ Tagged Shopify customer ${shopifyCustomerId} with store/display info`);
+      } catch (tagErr) {
+        console.error('⚠️ Failed to tag Shopify customer:', tagErr);
+        // Don't fail the activation if tagging fails
+      }
+    }
 
     // Use permanent login link for store dashboard
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';

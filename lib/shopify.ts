@@ -437,3 +437,69 @@ export async function searchShopifyCustomers(org: Organization, query: string) {
     return [];
   }
 }
+
+/**
+ * Add tags to a Shopify customer (for tracking stores and displays)
+ */
+export async function tagShopifyCustomer(
+  org: Organization,
+  shopifyCustomerId: string,
+  tags: {
+    storeId?: string;
+    displayId?: string;
+    state?: string; // 2-letter state code
+    status?: 'active' | 'inactive';
+  }
+) {
+  try {
+    const { shopify, session } = getShopifyClient(org);
+    const client = new shopify.clients.Rest({ session });
+
+    // First, get the current customer to retrieve existing tags
+    const getResponse = await client.get({
+      path: `customers/${shopifyCustomerId}`,
+    });
+
+    const customer = getResponse.body.customer as any;
+    const existingTags = customer.tags ? customer.tags.split(', ') : [];
+
+    // Build new tags
+    const newTags: string[] = [];
+    
+    if (tags.storeId) {
+      newTags.push(`Store:${tags.storeId}`);
+    }
+    
+    if (tags.displayId) {
+      newTags.push(`Display:${tags.displayId}`);
+    }
+    
+    if (tags.state) {
+      newTags.push(`State:${tags.state}`);
+    }
+    
+    if (tags.status) {
+      newTags.push(`Display:${tags.status}`);
+    }
+
+    // Merge existing tags with new ones (avoid duplicates)
+    const allTags = [...new Set([...existingTags, ...newTags])];
+
+    // Update customer with new tags
+    await client.put({
+      path: `customers/${shopifyCustomerId}`,
+      data: {
+        customer: {
+          id: shopifyCustomerId,
+          tags: allTags.join(', '),
+        },
+      },
+    });
+
+    console.log(`✅ Tagged Shopify customer ${shopifyCustomerId}:`, newTags);
+    return allTags;
+  } catch (error) {
+    console.error('Error tagging Shopify customer:', error);
+    throw error;
+  }
+}

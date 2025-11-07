@@ -19,19 +19,19 @@ const assemblySteps: Record<DisplayOption, AssemblyStep[]> = {
     {
       title: 'Attach Straight Bar to Sample Stand',
       instruction: 'Flip the Sample Stand over and match 2 of the magnets from the bar with 2 magnets on the side of the Stand you\'d like to attach the display. The bar should click into place securely.',
-      image: '/images/displays/vitadreamz-display-setup-bar2stand',
+      image: '/images/displays/vitadreamz-display-setup-bar2stand.gif',
       tips: ['Make sure magnets are facing the right direction', 'Bar should be on the "back" side of the Stand (hidden from the front)']
     },
     {
       title: 'Attach Display to Bar & Stand',
       instruction: 'Place the display upright and level next to the Stand with bar and "click it" into place. It should attach firmly and straight.',
-      image: '/images/displays/vitadreamz-display-setup-display2stand',
+      image: '/images/displays/vitadreamz-display-setup-display2stand.gif',
       tips: ['Display should be level', 'Make sure QR faces customers and the marketing insert is straight']
     },
     {
       title: 'Hang Sample Products',
       instruction: 'Slide the square peg into the hook slat on the sample display, then hang your samples on the hook. Arrange them neatly for best presentation.',
-      image: '/images/displays/vitadreamz-display-setup-hook2stand',
+      image: '/images/displays/vitadreamz-display-setup-hook2stand.gif',
       tips: ['Samples should hang evenly', 'Be sure to "pull up" when grabbing samples as pulling down on samples can flip the display']
     }
   ],
@@ -39,7 +39,7 @@ const assemblySteps: Record<DisplayOption, AssemblyStep[]> = {
     {
       title: 'Attach Display Stand & Set Up',
       instruction: 'Connect the display stand to the back of the QRDisplay using the magnetic attachment. Make sure it\'s secure and the display stands upright. Place your display in a high-visibility area near the checkout or counter.',
-      image: '/images/displays/vitadreamz-display-setup-stand',
+      image: '/images/displays/vitadreamz-display-setup-stand.gif',
       tips: ['Stand should be perpendicular to display', 'Choose eye-level placement', 'Good lighting is important']
     }
   ],
@@ -70,32 +70,7 @@ export default function AssemblePage({ params }: { params: Promise<{ displayId: 
   const [displayId, setDisplayId] = useState<string>('');
   const [option, setOption] = useState<DisplayOption>('A');
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [animFrame, setAnimFrame] = useState(1);
   const { saveProgress } = useWizardProgress(displayId);
-  
-  // Animation configuration for each step
-  const getFrameCount = () => {
-    if (option === 'A') {
-      if (currentStepIndex === 0) return 2; // bar2stand has 2 frames
-      if (currentStepIndex === 1) return 2; // display2stand has 2 frames
-      if (currentStepIndex === 2) return 5; // hook2stand has 5 frames
-    }
-    if (option === 'B') {
-      if (currentStepIndex === 0) return 4; // stand has 4 frames
-    }
-    return 1;
-  };
-  
-  // Animation for steps with multiple images
-  useEffect(() => {
-    const frameCount = getFrameCount();
-    if (frameCount > 1) {
-      const interval = setInterval(() => {
-        setAnimFrame(prev => prev >= frameCount ? 1 : prev + 1);
-      }, 1000); // Switch every 1 second
-      return () => clearInterval(interval);
-    }
-  }, [option, currentStepIndex]);
   
   useEffect(() => {
     params.then(p => {
@@ -118,14 +93,12 @@ export default function AssemblePage({ params }: { params: Promise<{ displayId: 
     } else {
       // Next assembly step
       setCurrentStepIndex(prev => prev + 1);
-      setAnimFrame(1); // Reset animation to first frame
     }
   };
   
   const handleBack = () => {
     if (currentStepIndex > 0) {
       setCurrentStepIndex(prev => prev - 1);
-      setAnimFrame(1); // Reset animation to first frame
     } else {
       router.back();
     }
@@ -183,26 +156,14 @@ export default function AssemblePage({ params }: { params: Promise<{ displayId: 
         
         {/* Image/Icon Placeholder */}
         {currentStep.image.startsWith('/images/') ? (
-          getFrameCount() > 1 ? (
-            // Animated image for steps with multiple frames
-            <div className="rounded-lg overflow-hidden mb-4 border-2 border-purple-300">
-              <img 
-                src={`${currentStep.image}.${animFrame}.jpg`}
-                alt={currentStep.title}
-                className="w-full h-auto transition-opacity duration-300"
-                key={animFrame}
-              />
-            </div>
-          ) : (
-            // Static image for steps with single frame
-            <div className="rounded-lg overflow-hidden mb-4 border-2 border-purple-300">
-              <img 
-                src={currentStep.image}
-                alt={currentStep.title}
-                className="w-full h-auto"
-              />
-            </div>
-          )
+          // Display GIF or static image
+          <div className="rounded-lg overflow-hidden mb-4 border-2 border-purple-300">
+            <img 
+              src={currentStep.image}
+              alt={currentStep.title}
+              className="w-full h-auto"
+            />
+          </div>
         ) : (
           // Fallback to emoji placeholder for steps without images
           <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg p-12 mb-4 text-center border-2 border-dashed border-purple-300">

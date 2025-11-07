@@ -5,15 +5,14 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboardPage() {
   try {
-    // Parallel data fetching for performance with mobile-optimized limits
+    // Parallel data fetching for performance
     const [displays, stores, customers, organizations, promoRedemptions] = await Promise.all([
       prisma.display.findMany({
         include: { 
           organization: true, 
           store: true 
         },
-        orderBy: { createdAt: 'desc' },
-        take: 50 // Reduced for mobile performance
+        orderBy: { createdAt: 'desc' }
       }),
       prisma.store.findMany({
         include: { 
@@ -32,16 +31,14 @@ export default async function AdminDashboardPage() {
             }
           }
         },
-        orderBy: { activatedAt: 'desc' },
-        take: 50 // Reduced for mobile performance
+        orderBy: { activatedAt: 'desc' }
       }),
       prisma.customer.findMany({
         include: { 
           store: true, 
           organization: true 
         },
-        orderBy: { requestedAt: 'desc' },
-        take: 50 // Reduced from 100 to 50 for mobile
+        orderBy: { requestedAt: 'desc' }
       }),
       prisma.organization.findMany({
         select: { 
@@ -59,8 +56,7 @@ export default async function AdminDashboardPage() {
           customer: true,
           store: true
         },
-        orderBy: { createdAt: 'desc' },
-        take: 50 // Reduced for mobile performance
+        orderBy: { createdAt: 'desc' }
       })
     ]);
 

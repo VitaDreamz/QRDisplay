@@ -366,24 +366,16 @@ export async function getShopifyOrder(org: Organization, orderId: string) {
 /**
  * Get a Shopify customer by ID
  */
-export async function getShopifyCustomer(shopifyCustomerId: string) {
+export async function getShopifyCustomer(org: Organization, shopifyCustomerId: string) {
   try {
-    const response = await fetch(
-      `${process.env.SHOPIFY_STORE_URL}/admin/api/2024-10/customers/${shopifyCustomerId}.json`,
-      {
-        headers: {
-          'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN!,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const { shopify, session } = getShopifyClient(org);
+    const client = new shopify.clients.Rest({ session });
 
-    if (!response.ok) {
-      throw new Error(`Shopify API error: ${response.status}`);
-    }
+    const response = await client.get({
+      path: `customers/${shopifyCustomerId}`,
+    });
 
-    const data = await response.json();
-    const customer = data.customer;
+    const customer = response.body.customer as any;
     const defaultAddress = customer.default_address;
 
     return {
@@ -404,5 +396,44 @@ export async function getShopifyCustomer(shopifyCustomerId: string) {
   } catch (error) {
     console.error('Error fetching Shopify customer:', error);
     throw error;
+  }
+}
+
+/**
+ * Search for Shopify customers by email, phone, or business name
+ */
+export async function searchShopifyCustomers(org: Organization, query: string) {
+  try {
+    const { shopify, session } = getShopifyClient(org);
+    const client = new shopify.clients.Rest({ session });
+
+    const response = await client.get({
+      path: `customers/search`,
+      query: { query },
+    });
+
+    const customers = response.body.customers as any[];
+    
+    return customers.map((customer) => {
+      const defaultAddress = customer.default_address;
+      return {
+        id: customer.id.toString(),
+        email: customer.email,
+        phone: customer.phone || defaultAddress?.phone,
+        firstName: customer.first_name,
+        lastName: customer.last_name,
+        companyName: defaultAddress?.company,
+        // Address fields for pre-filling store location
+        address: defaultAddress?.address1,
+        address2: defaultAddress?.address2,
+        city: defaultAddress?.city,
+        province: defaultAddress?.province,
+        zip: defaultAddress?.zip,
+        country: defaultAddress?.country,
+      };
+    });
+  } catch (error) {
+    console.error('Error searching Shopify customers:', error);
+    return [];
   }
 }

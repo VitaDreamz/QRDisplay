@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getShopifyCustomer } from '@/lib/shopify';
+import { getShopifyCustomer, searchShopifyCustomers } from '@/lib/shopify';
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
     const email = searchParams.get('email');
     const phone = searchParams.get('phone');
     const businessName = searchParams.get('businessName');
+    const displayId = searchParams.get('displayId');
 
     if (!email && !phone && !businessName) {
       return NextResponse.json(
@@ -15,6 +16,28 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    if (!displayId) {
+      return NextResponse.json(
+        { error: 'Display ID required' },
+        { status: 400 }
+      );
+    }
+
+    // Get the display to find its organization
+    const display = await prisma.display.findUnique({
+      where: { displayId },
+      include: { organization: true },
+    });
+
+    if (!display?.organization) {
+      return NextResponse.json(
+        { error: 'Display not found or not assigned to an organization' },
+        { status: 404 }
+      );
+    }
+
+    const org = display.organization;
 
     let shopifyCustomer = null;
     let existingStores = [];
@@ -59,7 +82,12 @@ export async function GET(request: NextRequest) {
     
     if (storeWithShopifyId?.shopifyCustomerId) {
       // We have a Shopify customer ID from our database
-      shopifyCustomer = await getShopifyCustomer(storeWithShopifyId.shopifyCustomerId);
+      try {
+        shopifyCustomer = await getShopifyCustomer(org, storeWithShopifyId.shopifyCustomerId);
+      } catch (err) {
+        console.error('Failed to get Shopify customer:', err);
+        // Continue without Shopify customer
+      }
     } else {
       // Try to find customer in Shopify by email/phone/businessName
       try {
@@ -71,38 +99,10 @@ export async function GET(request: NextRequest) {
           query = email || phone || '';
         }
         
-        const searchResponse = await fetch(
-          `${process.env.SHOPIFY_STORE_URL}/admin/api/2024-10/customers/search.json?query=${encodeURIComponent(query)}`,
-          {
-            headers: {
-              'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN!,
-              'Content-Type': 'application/json',
-            },
-          }
-        );
-
-        if (searchResponse.ok) {
-          const data = await searchResponse.json();
-          if (data.customers && data.customers.length > 0) {
-            // Take the first match
-            const customer = data.customers[0];
-            const defaultAddress = customer.default_address;
-            shopifyCustomer = {
-              id: customer.id.toString(),
-              email: customer.email,
-              phone: customer.phone || defaultAddress?.phone,
-              firstName: customer.first_name,
-              lastName: customer.last_name,
-              companyName: defaultAddress?.company,
-              // Flatten address for easy access
-              address: defaultAddress?.address1,
-              address2: defaultAddress?.address2,
-              city: defaultAddress?.city,
-              province: defaultAddress?.province,
-              zip: defaultAddress?.zip,
-              country: defaultAddress?.country,
-            };
-          }
+        const customers = await searchShopifyCustomers(org, query);
+        if (customers.length > 0) {
+          // Take the first match
+          shopifyCustomer = customers[0];
         }
       } catch (err) {
         console.error('Failed to search Shopify:', err);

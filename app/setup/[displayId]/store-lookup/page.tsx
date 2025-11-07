@@ -64,6 +64,7 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
       if (lookupEmail) query.set('email', lookupEmail);
       if (lookupPhone) query.set('phone', lookupPhone);
       if (lookupBusinessName) query.set('businessName', lookupBusinessName);
+      query.set('displayId', displayId);
 
       const res = await fetch(`/api/stores/lookup?${query}`);
       const data = await res.json();

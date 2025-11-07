@@ -265,22 +265,22 @@ export async function POST(req: NextRequest) {
 
     // If a setup photo was uploaded during the wizard on the display, carry it over to the store
     let updatedStore = store;
-    let photoCredit = false;
+    let hasSetupPhoto = false;
     try {
       const displayPhoto = (await prisma.display.findUnique({
         where: { displayId },
       })) as any;
       if (displayPhoto && displayPhoto.setupPhotoUrl) {
+        hasSetupPhoto = true; // Photo exists, should get credit
         updatedStore = await prisma.store.update({
           where: { storeId: store.storeId },
           data: {
             setupPhotoUrl: displayPhoto.setupPhotoUrl,
             setupPhotoUploadedAt: displayPhoto.setupPhotoUploadedAt || new Date(),
-            setupPhotoCredit: !!displayPhoto.setupPhotoCredit,
+            setupPhotoCredit: false, // Will be set to true after credit is added
           } as any,
         });
-        photoCredit = !!displayPhoto.setupPhotoCredit;
-        console.log('✅ Setup photo carried over to store');
+        console.log('✅ Setup photo carried over to store, eligible for $10 credit');
       }
     } catch (carryErr) {
       console.warn('⚠️ Failed to carry over setup photo to store:', carryErr);
@@ -323,7 +323,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Add $10 store credit if they uploaded a setup photo
-      if (photoCredit && !updatedStore.setupPhotoCredit) {
+      if (hasSetupPhoto && !updatedStore.setupPhotoCredit) {
         try {
           console.log(`💰 Adding $10 store credit for setup photo to customer ${shopifyCustomerId}`);
           await addStoreCredit(
@@ -342,7 +342,15 @@ export async function POST(req: NextRequest) {
           console.log(`✅ Added $10 store credit to customer ${shopifyCustomerId}`);
         } catch (creditErr) {
           console.error('⚠️ Failed to add store credit:', creditErr);
+          console.error('⚠️ Full credit error:', JSON.stringify(creditErr, null, 2));
           // Don't fail the activation if store credit fails
+        }
+      } else {
+        if (!hasSetupPhoto) {
+          console.log('ℹ️  No setup photo - skipping $10 credit');
+        }
+        if (updatedStore.setupPhotoCredit) {
+          console.log('ℹ️  Store credit already applied - skipping duplicate');
         }
       }
     } else {

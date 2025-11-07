@@ -207,8 +207,19 @@ Dashboard: qrdisplay.com/store/login/${display.store.storeId}`;
       });
       
       if (org?.shopifyActive) {
-        await syncCustomerToShopify(org, customer);
-        console.log(`✅ Customer ${customer.memberId} synced to Shopify`);
+        const result = await syncCustomerToShopify(org, customer);
+        
+        // Update customer record with Shopify ID
+        await prisma.customer.update({
+          where: { id: customer.id },
+          data: {
+            shopifyCustomerId: result.shopifyCustomerId,
+            syncedToShopify: true,
+            syncedAt: new Date(),
+          },
+        });
+        
+        console.log(`✅ Customer ${customer.memberId} synced to Shopify (${result.isNew ? 'new' : 'existing'} customer #${result.shopifyCustomerId})`);
       }
     } catch (shopifyErr) {
       console.error('❌ Shopify sync failed:', shopifyErr);

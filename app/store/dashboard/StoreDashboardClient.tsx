@@ -3125,7 +3125,38 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
 
                           if (res.ok) {
                             const result = await res.json();
-                            alert(`✅ Order placed successfully!\n\nCheck your email for your payable invoice link to complete your order.`);
+                            
+                            // Build contact info message
+                            const org = data.organization;
+                            const store = data.store;
+                            let contactMsg = '\n\nIf you have any questions please reach out to';
+                            
+                            // Sales rep info (if assigned to this store)
+                            if ((store as any).salesRepName) {
+                              contactMsg += `\nyour sales rep, ${(store as any).salesRepName}`;
+                              if ((store as any).salesRepPhone) {
+                                contactMsg += ` @ ${(store as any).salesRepPhone}`;
+                              }
+                              contactMsg += ',';
+                            }
+                            
+                            // Brand customer service info
+                            contactMsg += '\nor contact our customer service team';
+                            const csContacts = [];
+                            if ((org as any)?.customerServiceEmail) {
+                              csContacts.push((org as any).customerServiceEmail);
+                            }
+                            if ((org as any)?.customerServicePhone) {
+                              csContacts.push((org as any).customerServicePhone);
+                            }
+                            if (csContacts.length > 0) {
+                              contactMsg += ' at ' + csContacts.join(' or ');
+                            }
+                            contactMsg += '.';
+                            
+                            contactMsg += '\n\nPlease allow up to 1-2hrs for your Payable Invoice to arrive (typically within 5 minutes).';
+                            
+                            alert(`✅ Thank you for placing your purchase order!${contactMsg}`);
                             setShowPurchaseRequest(false);
                             setBoxQuantities({});
                             setPurchaseRequestNotes('');
@@ -3174,7 +3205,38 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
 
                           if (res.ok) {
                             const orgName = (data.organization as any)?.name || 'your brand';
-                            alert(`✅ Your order request has been successfully sent to ${orgName}.\n\nYour sales rep will respond back with a payable invoice link for you to complete your order. May take up to 48hrs (at longest).`);
+                            const org = data.organization;
+                            const store = data.store;
+                            
+                            // Build contact info message
+                            let contactMsg = '\n\nIf you have any questions please reach out to';
+                            
+                            // Sales rep info (if assigned to this store)
+                            if ((store as any).salesRepName) {
+                              contactMsg += `\nyour sales rep, ${(store as any).salesRepName}`;
+                              if ((store as any).salesRepPhone) {
+                                contactMsg += ` @ ${(store as any).salesRepPhone}`;
+                              }
+                              contactMsg += ',';
+                            }
+                            
+                            // Brand customer service info
+                            contactMsg += '\nor contact our customer service team';
+                            const csContacts = [];
+                            if ((org as any)?.customerServiceEmail) {
+                              csContacts.push((org as any).customerServiceEmail);
+                            }
+                            if ((org as any)?.customerServicePhone) {
+                              csContacts.push((org as any).customerServicePhone);
+                            }
+                            if (csContacts.length > 0) {
+                              contactMsg += ' at ' + csContacts.join(' or ');
+                            }
+                            contactMsg += '.';
+                            
+                            contactMsg += '\n\nYour sales rep will respond back with a payable invoice link for you to complete your order. May take up to 48hrs (at longest).';
+                            
+                            alert(`✅ Thank you for placing your purchase order!\n\nYour order request has been successfully sent to ${orgName}.${contactMsg}`);
                             setShowPurchaseRequest(false);
                             setBoxQuantities({});
                             setPurchaseRequestNotes('');

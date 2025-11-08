@@ -31,6 +31,10 @@ model Organization {
   emailReplyTo      String?
   websiteUrl        String?
   
+  // Customer Service Contact Info
+  customerServiceEmail String?
+  customerServicePhone String?
+  
   subscriptionStatus String?
   subscriptionPlan   String?
   stripeCustomerId   String?
@@ -110,6 +114,11 @@ model Store {
   // Shopify wholesale account linkage
   shopifyCustomerId String?  // Links this store to a Shopify customer for commission credits
   parentAccountName String?  // For multi-location: "Acme Corp" (shown in UI)
+  
+  // Sales Rep Assignment
+  salesRepName  String?
+  salesRepEmail String?
+  salesRepPhone String?
   
   streetAddress String?
   city          String?

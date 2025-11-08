@@ -13,6 +13,24 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Get the store first to access availableSamples and availableProducts
+    const store = await prisma.store.findUnique({
+      where: { storeId },
+      select: {
+        storeId: true,
+        storeName: true,
+        availableSamples: true,
+        availableProducts: true,
+      },
+    });
+
+    if (!store) {
+      return NextResponse.json(
+        { error: 'Store not found' },
+        { status: 404 }
+      );
+    }
+
     // Get inventory for this store
     const inventory = await prisma.storeInventory.findMany({
       where: { store: { storeId } }, // Query by human-readable storeId
@@ -26,7 +44,10 @@ export async function GET(request: NextRequest) {
       orderBy: { productSku: 'asc' },
     });
 
-    return NextResponse.json({ inventory });
+    return NextResponse.json({ 
+      inventory,
+      store, // Include store data with availableSamples and availableProducts
+    });
   } catch (error) {
     console.error('[API] Error fetching inventory:', error);
     return NextResponse.json(

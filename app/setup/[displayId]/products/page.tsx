@@ -81,82 +81,9 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
           });
           setProducts(filtered);
           setProductsLoaded(true); // Mark as loaded to prevent re-fetching
-
-          // Initialize inventory from existing store or saved progress
-          console.log('[ProductsStep] Full progress object:', progress);
-          console.log('[ProductsStep] Progress data:', { 
-            existingStoreId: progress?.existingStoreId, 
-            hasProductInventory: !!progress?.productInventory 
-          });
           
-          if (progress?.existingStoreId) {
-            console.log('📦 Fetching existing inventory for store:', progress.existingStoreId);
-            // Fetch existing inventory from the store
-            try {
-              const invRes = await fetch(`/api/store/inventory?storeId=${progress.existingStoreId}`);
-              console.log('[ProductsStep] Inventory API response status:', invRes.status);
-              if (invRes.ok) {
-                const invData = await invRes.json();
-                console.log('✅ Loaded existing inventory:', invData);
-                console.log('   Inventory items count:', invData.inventory?.length || 0);
-                
-                // Convert inventory array to our format
-                const existingInv: Record<string, number> = {};
-                const existingSamples: string[] = [];
-                const existingProducts: string[] = [];
-                
-                invData.inventory?.forEach((item: any) => {
-                  existingInv[item.productSku] = item.quantityOnHand || 0;
-                });
-                
-                // Also get existing availableSamples and availableProducts from store
-                if (invData.store) {
-                  if (invData.store.availableSamples) {
-                    existingSamples.push(...invData.store.availableSamples);
-                  }
-                  if (invData.store.availableProducts) {
-                    existingProducts.push(...invData.store.availableProducts);
-                  }
-                }
-                
-                // Initialize for all products (existing + missing)
-                filtered.forEach((p: any) => {
-                  if (!existingInv[p.sku]) {
-                    existingInv[p.sku] = 0;
-                  }
-                });
-                
-                setInventory(existingInv);
-                setSelectedSamples(existingSamples);
-                setSelectedProducts(existingProducts);
-              } else {
-                console.log('⚠️ Could not fetch existing inventory, initializing to 0');
-                initializeDefaultInventory(filtered);
-              }
-            } catch (err) {
-              console.error('[ProductsStep] Error fetching existing inventory:', err);
-              initializeDefaultInventory(filtered);
-            }
-          } else if (progress?.productInventory) {
-            console.log('💾 Loading inventory from saved progress');
-            // Handle both formats: simple numbers or { quantity, isPresale } objects
-            const savedInv: Record<string, number> = {};
-            Object.entries(progress.productInventory).forEach(([sku, value]) => {
-              if (typeof value === 'number') {
-                savedInv[sku] = value;
-              } else if (typeof value === 'object' && value !== null && 'quantity' in value) {
-                savedInv[sku] = value.quantity;
-              }
-            });
-            setInventory(savedInv);
-            if (progress.selectedSamples) setSelectedSamples(progress.selectedSamples);
-            if (progress.selectedProducts) setSelectedProducts(progress.selectedProducts);
-            if (progress.samplesVerified) setSamplesVerified(progress.samplesVerified);
-            if (progress.productsVerified) setProductsVerified(progress.productsVerified);
-          } else {
-            console.log('🆕 Initializing new inventory');
-            initializeDefaultInventory(filtered);
-          }
+          // Initialize default inventory (will be overwritten by second useEffect if store data exists)
+          initializeDefaultInventory(filtered);
         } else {
           console.error('[ProductsStep] Failed to fetch products', productsRes.status);
         }
@@ -166,6 +93,70 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayId]); // Only re-run when displayId changes
+  
+  // Load inventory once products and progress are both available
+  useEffect(() => {
+    if (!products.length || !progress) return;
+    
+    console.log('[ProductsStep] Loading inventory with progress:', progress);
+    
+    if (progress.existingStoreId) {
+      console.log('📦 Fetching existing inventory for store:', progress.existingStoreId);
+      (async () => {
+        try {
+          const invRes = await fetch(`/api/store/inventory?storeId=${progress.existingStoreId}`);
+          if (invRes.ok) {
+            const invData = await invRes.json();
+            console.log('✅ Loaded existing inventory:', invData);
+            
+            const existingInv: Record<string, number> = {};
+            const existingSamples: string[] = [];
+            const existingProducts: string[] = [];
+            
+            invData.inventory?.forEach((item: any) => {
+              existingInv[item.productSku] = item.quantityOnHand || 0;
+            });
+            
+            if (invData.store) {
+              if (invData.store.availableSamples) {
+                existingSamples.push(...invData.store.availableSamples);
+              }
+              if (invData.store.availableProducts) {
+                existingProducts.push(...invData.store.availableProducts);
+              }
+            }
+            
+            products.forEach((p: any) => {
+              if (!existingInv[p.sku]) {
+                existingInv[p.sku] = 0;
+              }
+            });
+            
+            setInventory(existingInv);
+            setSelectedSamples(existingSamples);
+            setSelectedProducts(existingProducts);
+          }
+        } catch (err) {
+          console.error('[ProductsStep] Error fetching existing inventory:', err);
+        }
+      })();
+    } else if (progress.productInventory) {
+      console.log('💾 Loading inventory from saved progress');
+      const savedInv: Record<string, number> = {};
+      Object.entries(progress.productInventory).forEach(([sku, value]) => {
+        if (typeof value === 'number') {
+          savedInv[sku] = value;
+        } else if (typeof value === 'object' && value !== null && 'quantity' in value) {
+          savedInv[sku] = value.quantity;
+        }
+      });
+      setInventory(savedInv);
+      if (progress.selectedSamples) setSelectedSamples(progress.selectedSamples);
+      if (progress.selectedProducts) setSelectedProducts(progress.selectedProducts);
+      if (progress.samplesVerified) setSamplesVerified(progress.samplesVerified);
+      if (progress.productsVerified) setProductsVerified(progress.productsVerified);
+    }
+  }, [products, progress]);
 
   // Helper function to initialize default inventory
   const initializeDefaultInventory = (products: any[]) => {
@@ -386,7 +377,14 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                         <div className="flex items-start justify-between gap-3 mb-3">
                           <div className="flex-1 min-w-0">
                             <h3 className="font-bold text-base mb-1 text-gray-900">{product.name}</h3>
-                            <p className="text-sm text-gray-600">SKU: {product.sku}</p>
+                            {product.description && (
+                              <p className="text-sm text-gray-600 mb-2">{product.description}</p>
+                            )}
+                            {product.category && (
+                              <div className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded mb-2">
+                                {product.category}
+                              </div>
+                            )}
                             <p className="text-sm font-semibold text-gray-900 mt-1">${parseFloat(product.price || 0).toFixed(2)}</p>
                           </div>
                           
@@ -501,13 +499,15 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-3 mb-3">
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-bold text-base text-gray-900">{product.name}</h3>
-                                {product.featured && (
-                                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">⭐</span>
-                                )}
-                              </div>
-                              <p className="text-sm text-gray-600">SKU: {product.sku}</p>
+                              <h3 className="font-bold text-base mb-1 text-gray-900">{product.name}</h3>
+                              {product.description && (
+                                <p className="text-sm text-gray-600 mb-2">{product.description}</p>
+                              )}
+                              {product.category && (
+                                <div className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded mb-2">
+                                  {product.category}
+                                </div>
+                              )}
                               <p className="text-sm font-semibold text-gray-900 mt-1">${parseFloat(product.price).toFixed(2)}</p>
                             </div>
                             

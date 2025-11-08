@@ -53,7 +53,9 @@ export async function GET(request: NextRequest) {
     );
 
     if (!shopifyResponse.ok) {
-      throw new Error('Failed to search Shopify customers');
+      const errorText = await shopifyResponse.text();
+      console.error('Shopify API error:', shopifyResponse.status, errorText);
+      throw new Error(`Failed to search Shopify customers: ${shopifyResponse.status} - ${errorText}`);
     }
 
     const data = await shopifyResponse.json();

@@ -3007,6 +3007,10 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                     return sum + (retailPrice * unitsPerBox * qty);
                   }, 0);
                   
+                  const storeCredit = (data.store as any)?.storeCredit || 0;
+                  const creditApplied = Math.min(storeCredit, totalCost);
+                  const finalTotal = totalCost - creditApplied;
+                  
                   return (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                       <h4 className="font-bold text-sm mb-3">Order Summary</h4>
@@ -3024,9 +3028,19 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                         <div className="border-t border-blue-200 pt-2 mt-2">
                           <div className="flex justify-between font-bold">
                             <span>Subtotal ({totalBoxes} boxes)</span>
-                            <span className="text-green-600">${totalCost.toFixed(2)}</span>
+                            <span>${totalCost.toFixed(2)}</span>
                           </div>
-                          <div className="flex justify-between text-xs text-gray-600 mt-1">
+                          {creditApplied > 0 && (
+                            <div className="flex justify-between text-green-600 font-semibold">
+                              <span>Store Credit Applied</span>
+                              <span>-${creditApplied.toFixed(2)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between font-bold text-lg text-purple-600 mt-2 pt-2 border-t border-blue-200">
+                            <span>Total</span>
+                            <span>${finalTotal.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs text-gray-600 mt-2">
                             <span>Retail Value</span>
                             <span>${totalRetailValue.toFixed(2)}</span>
                           </div>

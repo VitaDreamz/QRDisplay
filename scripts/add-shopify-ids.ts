@@ -17,42 +17,43 @@ const SHOPIFY_MAPPINGS = {
   // WHOLESALE BOXES - These have Shopify variant IDs and are used for draft orders
   'VD-SB-4-BX': {
     shopifyProductId: null, // Will be auto-extracted from variant
-    shopifyVariantId: 'gid://shopify/ProductVariant/7714981609648',
+    shopifyVariantId: 'gid://shopify/ProductVariant/43894434234544',
   },
   'VD-SB-30-BX': {
     shopifyProductId: null,
-    shopifyVariantId: 'gid://shopify/ProductVariant/7714975514800',
+    shopifyVariantId: 'gid://shopify/ProductVariant/43894424928432',
   },
   'VD-SB-60-BX': {
     shopifyProductId: null,
-    shopifyVariantId: 'gid://shopify/ProductVariant/7714980364464',
+    shopifyVariantId: 'gid://shopify/ProductVariant/43894432989360',
   },
   'VD-BB-4-BX': {
     shopifyProductId: null,
-    shopifyVariantId: 'gid://shopify/ProductVariant/7872644219056',
+    shopifyVariantId: 'gid://shopify/ProductVariant/44514733621424',
   },
   'VD-BB-30-BX': {
     shopifyProductId: null,
-    shopifyVariantId: 'gid://shopify/ProductVariant/7872644284592',
+    shopifyVariantId: 'gid://shopify/ProductVariant/44514734637232',
   },
   'VD-BB-60-BX': {
     shopifyProductId: null,
-    shopifyVariantId: 'gid://shopify/ProductVariant/7872645202096',
+    shopifyVariantId: 'gid://shopify/ProductVariant/44514738438320',
   },
   'VD-CC-4-BX': {
     shopifyProductId: null,
-    shopifyVariantId: 'gid://shopify/ProductVariant/7719687946416',
+    shopifyVariantId: 'gid://shopify/ProductVariant/43911534182576',
   },
   'VD-CC-20-BX': {
     shopifyProductId: null,
-    shopifyVariantId: 'gid://shopify/ProductVariant/7719687782576',
+    shopifyVariantId: 'gid://shopify/ProductVariant/43911533953200',
   },
   'VD-CC-60-BX': {
     shopifyProductId: null,
-    shopifyVariantId: 'gid://shopify/ProductVariant/7940841406640',
+    shopifyVariantId: 'gid://shopify/ProductVariant/44744268251312',
   },
   
   // RETAIL PRODUCTS (30ct and 60ct bottles) - Not in Shopify yet, skip for now
+  // Luna Berry products don't have Shopify IDs yet (empty in CSV)
   // These can be added later when they exist in Shopify
 };
 

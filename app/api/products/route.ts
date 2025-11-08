@@ -44,6 +44,16 @@ export async function GET(request: NextRequest) {
     
     console.log('[Products API] Found products:', products.length);
     console.log('[Products API] Product SKUs:', products.map(p => p.sku).join(', '));
+    
+    // Log inventory data if storeId was provided
+    if (storeId) {
+      const productsWithInventory = products.filter((p: any) => p.storeInventory && p.storeInventory.length > 0);
+      console.log('[Products API] Products with inventory records:', productsWithInventory.length);
+      productsWithInventory.slice(0, 3).forEach((p: any) => {
+        console.log(`[Products API] ${p.sku}: ${p.storeInventory[0].quantityOnHand} on hand, ${p.storeInventory[0].quantityAvailable} available`);
+      });
+    }
+    
     if (products.length === 0) {
       // Check if any products exist at all
       const allProducts = await prisma.product.findMany({});

@@ -2,13 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Search, Plus, Trash2, AlertCircle, CheckCircle2, Building2 } from 'lucide-react';
 import { SUBSCRIPTION_TIERS, type SubscriptionTier } from '@/lib/subscription-tiers';
 
 interface ShopifyCustomer {
@@ -52,7 +45,6 @@ interface TrialKitItem {
 export default function QuickAddStorePage() {
   const router = useRouter();
   
-  // Step 1: Find Shopify customer
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [shopifyCustomers, setShopifyCustomers] = useState<ShopifyCustomer[]>([]);
@@ -66,30 +58,21 @@ export default function QuickAddStorePage() {
     ? shopifyCustomers 
     : shopifyCustomers.slice(0, INITIAL_RESULTS_LIMIT);
   
-  // Step 2: Configure store
   const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>('free');
-  
-  // Step 3: Manual inventory
   const [retailProducts, setRetailProducts] = useState<RetailProduct[]>([]);
   const [inventoryEntries, setInventoryEntries] = useState<InventoryEntry[]>([]);
-  
-  // Step 4: Trial kit (optional)
   const [wholesaleProducts, setWholesaleProducts] = useState<WholesaleProduct[]>([]);
   const [trialKitItems, setTrialKitItems] = useState<TrialKitItem[]>([]);
   const [includeTrialKit, setIncludeTrialKit] = useState(false);
-  
-  // Final submission
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [success, setSuccess] = useState(false);
   const [createdStoreId, setCreatedStoreId] = useState('');
 
-  // Load products on mount
   useEffect(() => {
     loadProducts();
   }, []);
 
-  // Debounced search as user types
   useEffect(() => {
     if (searchTimeout.current) {
       clearTimeout(searchTimeout.current);
@@ -125,7 +108,7 @@ export default function QuickAddStorePage() {
       } finally {
         setSearching(false);
       }
-    }, 300); // 300ms debounce
+    }, 300);
 
     return () => {
       if (searchTimeout.current) {
@@ -140,8 +123,6 @@ export default function QuickAddStorePage() {
       if (!response.ok) throw new Error('Failed to load products');
       
       const data = await response.json();
-      
-      // Separate retail and wholesale products
       const retail = data.products.filter((p: any) => p.productType === 'retail' && p.active);
       const wholesale = data.products.filter((p: any) => p.productType === 'wholesale-box' && p.active);
       
@@ -167,7 +148,7 @@ export default function QuickAddStorePage() {
   function handleSelectCustomer(customer: ShopifyCustomer) {
     setSelectedCustomer(customer);
     setShowResults(false);
-    setSearchQuery(customer.firstName); // Business name
+    setSearchQuery(customer.firstName);
   }
 
   function addInventoryEntry() {
@@ -231,9 +212,8 @@ export default function QuickAddStorePage() {
       setCreatedStoreId(data.storeId);
       setSuccess(true);
 
-      // Redirect after 2 seconds
       setTimeout(() => {
-        router.push(`/admin/brands/ORG-VITADREAMZ/stores/${data.storeId}`);
+        router.push(`/admin/brands/ORG-VITADREAMZ/stores`);
       }, 2000);
 
     } catch (error) {
@@ -246,12 +226,9 @@ export default function QuickAddStorePage() {
   if (success) {
     return (
       <div className="container max-w-2xl py-8">
-        <Alert className="border-green-500 bg-green-50">
-          <CheckCircle2 className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-800">
-            Store <strong>{createdStoreId}</strong> created successfully! Redirecting...
-          </AlertDescription>
-        </Alert>
+        <div className="bg-green-50 border border-green-500 rounded-lg p-4 text-green-800">
+          ✓ Store <strong>{createdStoreId}</strong> created successfully! Redirecting...
+        </div>
       </div>
     );
   }
@@ -260,302 +237,99 @@ export default function QuickAddStorePage() {
     <div className="container max-w-4xl py-8 space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Quick Add Store</h1>
-        <p className="text-muted-foreground">Link an existing Shopify wholesale customer to QRDisplay</p>
+        <p className="text-gray-600">Link an existing Shopify wholesale customer to QRDisplay</p>
       </div>
 
-      {/* Step 1: Find Shopify Customer */}
-      <Card>
-        <CardHeader>
-          <CardTitle>1. Find Shopify Customer</CardTitle>
-          <CardDescription>Search by business name, email, or phone (partial matches supported)</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="relative">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Start typing business name, email, or phone..."
-                  value={searchQuery}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              {searching && (
-                <div className="flex items-center text-sm text-muted-foreground">
-                  Searching...
-                </div>
+      {/* Search */}
+      <div className="bg-white border rounded-lg p-6">
+        <h2 className="text-xl font-semibold mb-2">1. Find Shopify Customer</h2>
+        <p className="text-sm text-gray-600 mb-4">Search by business name, email, or phone</p>
+        
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Start typing..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full border rounded-md px-4 py-2"
+          />
+          {searching && <span className="text-sm text-gray-500 mt-2">Searching...</span>}
+
+          {showResults && shopifyCustomers.length > 0 && (
+            <div className="absolute top-full mt-2 w-full bg-white border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+              {visibleCustomers.map((customer) => (
+                <button
+                  key={customer.id}
+                  onClick={() => handleSelectCustomer(customer)}
+                  className="w-full px-4 py-3 hover:bg-gray-50 border-b text-left"
+                >
+                  <div className="font-medium">{customer.firstName}</div>
+                  <div className="text-sm text-gray-500">
+                    {customer.city && customer.province && `${customer.city}, ${customer.province}`}
+                  </div>
+                </button>
+              ))}
+              {shopifyCustomers.length > INITIAL_RESULTS_LIMIT && !showAllResults && (
+                <button
+                  onClick={() => setShowAllResults(true)}
+                  className="w-full px-4 py-2 text-sm text-blue-600 hover:bg-gray-50"
+                >
+                  Show all {shopifyCustomers.length} results
+                </button>
               )}
             </div>
-
-            {/* Search Results Dropdown */}
-            {showResults && shopifyCustomers.length > 0 && (
-              <div className="absolute top-full mt-2 w-full bg-white border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
-                {visibleCustomers.map((customer) => (
-                  <button
-                    key={customer.id}
-                    onClick={() => handleSelectCustomer(customer)}
-                    className="w-full px-4 py-3 hover:bg-gray-50 border-b last:border-b-0 text-left transition-colors"
-                  >
-                    <div className="flex items-start gap-3">
-                      <Building2 className="h-5 w-5 text-gray-400 mt-0.5" />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-gray-900">{customer.firstName}</div>
-                        <div className="text-sm text-gray-500">
-                          {customer.city && customer.province && `${customer.city}, ${customer.province}`}
-                        </div>
-                        {customer.email && (
-                          <div className="text-xs text-gray-400 mt-1">{customer.email}</div>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-                
-                {shopifyCustomers.length > INITIAL_RESULTS_LIMIT && !showAllResults && (
-                  <button
-                    onClick={() => setShowAllResults(true)}
-                    className="w-full px-4 py-2 text-sm text-primary hover:bg-gray-50 border-t"
-                  >
-                    Show all {shopifyCustomers.length} results
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Selected Customer Display */}
-          {selectedCustomer && (
-            <div className="p-4 border rounded-lg bg-muted/50">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="font-medium">{selectedCustomer.firstName}</p>
-                  {selectedCustomer.city && selectedCustomer.province && (
-                    <p className="text-sm text-muted-foreground">
-                      {selectedCustomer.city}, {selectedCustomer.province}
-                    </p>
-                  )}
-                  <p className="text-sm text-muted-foreground">{selectedCustomer.email}</p>
-                  {selectedCustomer.phone && (
-                    <p className="text-sm text-muted-foreground">{selectedCustomer.phone}</p>
-                  )}
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => {
-                    setSelectedCustomer(null);
-                    setSearchQuery('');
-                  }}
-                >
-                  Change
-                </Button>
-              </div>
-            </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Step 2: Subscription Tier */}
+        {selectedCustomer && (
+          <div className="mt-4 p-4 border rounded-lg bg-gray-50">
+            <div className="flex justify-between">
+              <div>
+                <p className="font-medium">{selectedCustomer.firstName}</p>
+                <p className="text-sm text-gray-600">{selectedCustomer.email}</p>
+                {selectedCustomer.phone && <p className="text-sm text-gray-600">{selectedCustomer.phone}</p>}
+              </div>
+              <button onClick={() => { setSelectedCustomer(null); setSearchQuery(''); }} className="text-sm text-blue-600">Change</button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {selectedCustomer && (
-        <Card>
-          <CardHeader>
-            <CardTitle>2. Subscription Tier</CardTitle>
-            <CardDescription>Select the subscription tier for this store</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <>
+          {/* Subscription Tier */}
+          <div className="bg-white border rounded-lg p-6">
+            <h2 className="text-xl font-semibold mb-4">2. Subscription Tier</h2>
             <div className="grid grid-cols-2 gap-4">
               {Object.entries(SUBSCRIPTION_TIERS).map(([tier, config]) => (
                 <button
                   key={tier}
                   onClick={() => setSubscriptionTier(tier as SubscriptionTier)}
-                  className={`p-4 border rounded-lg text-left transition-all ${
-                    subscriptionTier === tier
-                      ? 'border-primary bg-primary/5 ring-2 ring-primary'
-                      : 'border-border hover:border-primary/50'
+                  className={`p-4 border rounded-lg text-left ${
+                    subscriptionTier === tier ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
                   }`}
                 >
                   <div className="font-semibold">{config.name}</div>
-                  <div className="text-2xl font-bold mt-1">
-                    {config.price === 0 ? 'Free' : `$${config.price}/qtr`}
-                  </div>
-                  <div className="text-sm text-muted-foreground mt-2">
-                    +{config.features.newCustomersPerBilling} customers/qtr
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    {config.features.samplesPerQuarter} samples/qtr
-                  </div>
+                  <div className="text-2xl font-bold">{config.price === 0 ? 'Free' : `$${config.price}/qtr`}</div>
+                  <div className="text-sm text-gray-600">+{config.features.newCustomersPerBilling} customers/qtr</div>
                 </button>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
 
-      {/* Step 3: Manual Inventory */}
-      {selectedCustomer && (
-        <Card>
-          <CardHeader>
-            <CardTitle>3. Current Inventory (Optional)</CardTitle>
-            <CardDescription>Enter any existing inventory the store currently has on-hand</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {inventoryEntries.map((entry, index) => {
-              const product = retailProducts.find(p => p.sku === entry.productSku);
-              return (
-                <div key={index} className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <Label>Product</Label>
-                    <select
-                      className="w-full border rounded-md px-3 py-2"
-                      value={entry.productSku}
-                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateInventoryEntry(index, 'productSku', e.target.value)}
-                    >
-                      {retailProducts.map(p => (
-                        <option key={p.sku} value={p.sku}>
-                          {p.name} ({p.sku})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="w-32">
-                    <Label>Quantity</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={entry.quantity}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateInventoryEntry(index, 'quantity', parseInt(e.target.value) || 0)}
-                    />
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeInventoryEntry(index)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              );
-            })}
-            
-            <Button variant="outline" onClick={addInventoryEntry} disabled={retailProducts.length === 0}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Inventory Item
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Step 4: Trial Kit Order */}
-      {selectedCustomer && (
-        <Card>
-          <CardHeader>
-            <CardTitle>4. Trial Kit Order (Optional)</CardTitle>
-            <CardDescription>Create a draft order for wholesale boxes (will convert to retail inventory)</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="includeTrialKit"
-                checked={includeTrialKit}
-                onChange={(e) => setIncludeTrialKit(e.target.checked)}
-                className="rounded"
-              />
-              <Label htmlFor="includeTrialKit">Include trial kit order</Label>
-            </div>
-
-            {includeTrialKit && (
-              <>
-                {trialKitItems.map((item, index) => {
-                  const product = wholesaleProducts.find(p => p.sku === item.productSku);
-                  return (
-                    <div key={index} className="flex gap-2 items-end">
-                      <div className="flex-1">
-                        <Label>Wholesale Box</Label>
-                        <select
-                          className="w-full border rounded-md px-3 py-2"
-                          value={item.productSku}
-                          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateTrialKitItem(index, 'productSku', e.target.value)}
-                        >
-                          {wholesaleProducts.map(p => (
-                            <option key={p.sku} value={p.sku}>
-                              {p.name} - {p.unitsPerBox} units @ ${p.wholesalePrice}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="w-32">
-                        <Label>Boxes</Label>
-                        <Input
-                          type="number"
-                          min="1"
-                          value={item.quantity}
-                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateTrialKitItem(index, 'quantity', parseInt(e.target.value) || 1)}
-                        />
-                      </div>
-                      {product && (
-                        <div className="w-32">
-                          <Label>Units</Label>
-                          <Input
-                            type="text"
-                            value={`${item.quantity * product.unitsPerBox}`}
-                            disabled
-                            className="bg-muted"
-                          />
-                        </div>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeTrialKitItem(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  );
-                })}
-                
-                <Button variant="outline" onClick={addTrialKitItem} disabled={wholesaleProducts.length === 0}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Wholesale Box
-                </Button>
-
-                {trialKitItems.length > 0 && (
-                  <Alert>
-                    <AlertDescription>
-                      <strong>Note:</strong> These wholesale boxes will be automatically converted to retail inventory. 
-                      For example, 2 boxes of "Slumber Berry 30ct Box" (8 units per box) will add 16 units of "Slumber Berry - 30ct" to the store's retail inventory.
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Submit */}
-      {selectedCustomer && (
-        <Card>
-          <CardContent className="pt-6">
+          {/* Submit */}
+          <div className="bg-white border rounded-lg p-6">
             {submitError && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{submitError}</AlertDescription>
-              </Alert>
+              <div className="mb-4 p-4 bg-red-50 border border-red-500 rounded-lg text-red-800">{submitError}</div>
             )}
-
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => router.back()}>
-                Cancel
-              </Button>
-              <Button onClick={handleSubmit} disabled={submitting}>
-                {submitting ? 'Creating Store...' : 'Create Store'}
-              </Button>
+              <button onClick={() => router.back()} className="px-4 py-2 border rounded-md">Cancel</button>
+              <button onClick={handleSubmit} disabled={submitting} className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:opacity-50">
+                {submitting ? 'Creating...' : 'Create Store'}
+              </button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </>
       )}
     </div>
   );

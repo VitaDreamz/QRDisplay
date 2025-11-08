@@ -2091,7 +2091,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                 <div>
                   <h2 className="text-xl font-bold">Available Samples</h2>
                   <p className="text-sm text-gray-600 mt-1">
-                    These are the free sample options customers can choose from
+                    Free 4ct sample options customers can choose from
                   </p>
                 </div>
                 <button
@@ -2102,83 +2102,117 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {SAMPLE_OPTIONS.map((option) => {
-                  const isAvailable = (data.store.availableSamples || []).includes(option.value);
-                  
-                  // Map sample SKUs to their 4ct bag image paths
-                  const sampleImageMap: Record<string, string> = {
-                    'slumber-berry': '/images/products/4ct-SlumberBerry-Bag.png',
-                    'bliss-berry': '/images/products/4ct-BlissBerry-Bag.png',
-                    // berry-chill doesn't have an image yet
-                  };
-                  
-                  const imageUrl = sampleImageMap[option.value];
-                  
-                  return (
-                    <div
-                      key={option.value}
-                      className={`relative border-2 rounded-lg overflow-hidden transition-all ${
-                        isAvailable ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      {/* Product Image */}
-                      <div className="h-40 bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center p-4">
-                        {imageUrl ? (
-                          <img
-                            src={imageUrl}
-                            alt={option.label}
-                            className="max-h-full max-w-full object-contain"
-                          />
-                        ) : (
-                          <div className="text-4xl">🍬</div>
-                        )}
-                      </div>
+              {loadingProducts ? (
+                <div className="text-center py-8 text-gray-500">Loading samples...</div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {(() => {
+                    // Map sample values to SKUs
+                    const sampleSkuMap: Record<string, string> = {
+                      'slumber-berry': 'VD-SB-4',
+                      'bliss-berry': 'VD-BB-4',
+                      'berry-chill': 'VD-CC-4'
+                    };
+                    
+                    return SAMPLE_OPTIONS.map((option) => {
+                      const isAvailable = (data.store.availableSamples || []).includes(option.value);
+                      const sku = sampleSkuMap[option.value];
+                      const product = products.find(p => p.sku === sku);
                       
-                      <div className="p-4">
-                        <h3 className="font-bold text-sm text-gray-900 mb-1">{option.label}</h3>
-                        <p className="text-xs text-gray-600 mb-2">Free Sample</p>
-                        
-                        <button
-                          onClick={async () => {
-                            const currentSamples = data.store.availableSamples || [];
-                            const newSamples = isAvailable
-                              ? currentSamples.filter((s: string) => s !== option.value)
-                              : [...currentSamples, option.value];
-                            
-                            try {
-                              const res = await fetch('/api/store/settings', {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ availableSamples: newSamples })
-                              });
-                              
-                              if (res.ok) {
-                                setData({
-                                  ...data,
-                                  store: {
-                                    ...data.store,
-                                    availableSamples: newSamples
-                                  }
-                                });
-                              }
-                            } catch (err) {
-                              console.error('Failed to update samples:', err);
-                            }
-                          }}
-                          className={`w-full py-2 px-4 rounded-lg font-semibold transition-colors ${
-                            isAvailable
-                              ? 'bg-purple-600 text-white hover:bg-purple-700'
-                              : 'bg-red-100 text-red-700 hover:bg-red-200'
+                      if (!product) return null;
+                      
+                      return (
+                        <div
+                          key={option.value}
+                          className={`relative border-2 rounded-lg overflow-hidden transition-all ${
+                            isAvailable ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'
                           }`}
                         >
-                          {isAvailable ? '✓ Offering' : '+ Offer This Product'}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                          {/* Product Image */}
+                          <div className="h-40 bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center p-4">
+                            {product.imageUrl ? (
+                              <img
+                                src={product.imageUrl}
+                                alt={product.name}
+                                className="max-h-full max-w-full object-contain"
+                              />
+                            ) : (
+                              <div className="text-4xl">🍬</div>
+                            )}
+                          </div>
+                          
+                          <div className="p-4">
+                            <h3 className="font-bold text-sm text-gray-900 mb-1">
+                              {product.name}
+                            </h3>
+                            {product.description && (
+                              <p className="text-xs text-gray-600 mb-2">{product.description}</p>
+                            )}
+                            {product.category && (
+                              <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded mb-2">
+                                {product.category}
+                              </span>
+                            )}
+                            <div className="text-sm font-semibold text-purple-600 mb-2">
+                              Free Sample (Retail: ${parseFloat(product.price).toFixed(2)})
+                            </div>
+                            
+                            {/* Inventory Display */}
+                            <div className="mb-3 flex items-center gap-2">
+                              <span className="text-xs font-semibold text-gray-700">In Stock:</span>
+                              <span className={`text-sm font-bold ${
+                                product.inventoryQuantity > 10 
+                                  ? 'text-green-600' 
+                                  : product.inventoryQuantity > 0 
+                                  ? 'text-yellow-600' 
+                                  : 'text-red-600'
+                              }`}>
+                                {product.inventoryQuantity || 0}
+                              </span>
+                            </div>
+                            
+                            <button
+                              onClick={async () => {
+                                const currentSamples = data.store.availableSamples || [];
+                                const newSamples = isAvailable
+                                  ? currentSamples.filter((s: string) => s !== option.value)
+                                  : [...currentSamples, option.value];
+                                
+                                try {
+                                  const res = await fetch('/api/store/settings', {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ availableSamples: newSamples })
+                                  });
+                                  
+                                  if (res.ok) {
+                                    setData({
+                                      ...data,
+                                      store: {
+                                        ...data.store,
+                                        availableSamples: newSamples
+                                      }
+                                    });
+                                  }
+                                } catch (err) {
+                                  console.error('Failed to update samples:', err);
+                                }
+                              }}
+                              className={`w-full py-2 px-4 rounded-lg font-semibold transition-colors ${
+                                isAvailable
+                                  ? 'bg-purple-600 text-white hover:bg-purple-700'
+                                  : 'bg-red-100 text-red-700 hover:bg-red-200'
+                              }`}
+                            >
+                              {isAvailable ? '✓ Offering' : '+ Offer This Product'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }).filter(Boolean);
+                  })()}
+                </div>
+              )}
             </div>
 
             {/* Full-Size Products Section */}
@@ -2199,9 +2233,13 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {(() => {
-                  const filtered = products.filter((product: any) => product.productType !== 'wholesale-box');
+                  // Filter out wholesale boxes and 4ct samples (they're in the samples section)
+                  const filtered = products.filter((product: any) => 
+                    product.productType !== 'wholesale-box' && 
+                    !product.sku.endsWith('-4') // Exclude 4ct products (samples)
+                  );
                   console.log('🔍 [Products Tab] Total products:', products.length);
-                  console.log('🔍 [Products Tab] Filtered products (non-wholesale):', filtered.length);
+                  console.log('🔍 [Products Tab] Filtered products (non-wholesale, non-4ct):', filtered.length);
                   console.log('🔍 [Products Tab] Filtered SKUs:', filtered.map((p: any) => p.sku).join(', '));
                   return filtered;
                 })()

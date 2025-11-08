@@ -143,43 +143,51 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Tag the Shopify customer with our storeId
+    // Tag the Shopify customer with storeId and tier
     try {
-      const updateResponse = await fetch(
+      // First, get the customer's existing tags
+      const getCustomerResponse = await fetch(
         `https://${shopifyStore}/admin/api/2024-01/customers/${shopifyCustomerId}.json`,
         {
-          method: 'PUT',
           headers: {
             'X-Shopify-Access-Token': shopifyToken,
             'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            customer: {
-              id: shopifyCustomerId,
-              metafields: [
-                {
-                  namespace: 'qrdisplay',
-                  key: 'store_id',
-                  value: storeId,
-                  type: 'single_line_text_field'
-                },
-                {
-                  namespace: 'qrdisplay',
-                  key: 'subscription_tier',
-                  value: subscriptionTier,
-                  type: 'single_line_text_field'
-                }
-              ]
-            }
-          })
+          }
         }
       );
 
-      if (updateResponse.ok) {
-        console.log(`✅ Tagged Shopify customer ${shopifyCustomerId} with storeId: ${storeId}`);
-      } else {
-        const errorText = await updateResponse.text();
-        console.error('Failed to tag Shopify customer:', updateResponse.status, errorText);
+      if (getCustomerResponse.ok) {
+        const { customer: existingCustomer } = await getCustomerResponse.json();
+        const existingTags = existingCustomer.tags ? existingCustomer.tags.split(', ') : [];
+        
+        // Add our new tags
+        const newTags = [storeId, subscriptionTier, 'qrdisplay'];
+        const allTags = [...new Set([...existingTags, ...newTags])]; // Remove duplicates
+        
+        // Update customer with new tags
+        const updateResponse = await fetch(
+          `https://${shopifyStore}/admin/api/2024-01/customers/${shopifyCustomerId}.json`,
+          {
+            method: 'PUT',
+            headers: {
+              'X-Shopify-Access-Token': shopifyToken,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              customer: {
+                id: shopifyCustomerId,
+                tags: allTags.join(', ')
+              }
+            })
+          }
+        );
+
+        if (updateResponse.ok) {
+          console.log(`✅ Tagged Shopify customer ${shopifyCustomerId} with: ${newTags.join(', ')}`);
+        } else {
+          const errorText = await updateResponse.text();
+          console.error('Failed to tag Shopify customer:', updateResponse.status, errorText);
+        }
       }
     } catch (error) {
       console.error('Error tagging Shopify customer:', error);

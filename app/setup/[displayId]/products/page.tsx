@@ -28,6 +28,9 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
   const [productsVerified, setProductsVerified] = useState(false);
 
   const selectedDays = [7, 14, 30]; // Default followup days
+  
+  // Track if we've already loaded products to prevent infinite loop
+  const [productsLoaded, setProductsLoaded] = useState(false);
 
   // Fetch products and initialize state
   useEffect(() => {
@@ -38,6 +41,9 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
       });
       return;
     }
+    
+    // Prevent infinite loop - only load once
+    if (productsLoaded) return;
     
     // Only fetch products once we have displayId
     (async () => {
@@ -74,6 +80,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
             return true;
           });
           setProducts(filtered);
+          setProductsLoaded(true); // Mark as loaded to prevent re-fetching
 
           // Initialize inventory from existing store or saved progress
           console.log('[ProductsStep] Full progress object:', progress);
@@ -157,7 +164,8 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
         console.error('[ProductsStep] Error fetching products', e);
       }
     })();
-  }, [displayId, progress]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayId]); // Only re-run when displayId changes
 
   // Helper function to initialize default inventory
   const initializeDefaultInventory = (products: any[]) => {

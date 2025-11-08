@@ -44,7 +44,14 @@ export async function POST(req: NextRequest) {
       // Multi-location fields
       shopifyCustomerId,
       parentAccountName,
+      productInventory, // New: initial inventory from wizard
+      existingStoreId, // If connecting to existing store
     } = body;
+
+    console.log('🔍 Activation mode check:');
+    console.log('  - existingStoreId:', existingStoreId);
+    console.log('  - shopifyCustomerId:', shopifyCustomerId);
+    console.log('  - isNewLocation:', body.isNewLocation);
 
     // Validate required fields
     const missingFields = [];
@@ -193,17 +200,81 @@ export async function POST(req: NextRequest) {
     }
 
   // Generate Store ID (SID-001, SID-002, etc.)
-  // If display already has a storeId (from failed activation), use it; otherwise generate new one
-  let storeId = display.storeId;
-  
-  if (!storeId) {
-    const storeCount = await prisma.store.count();
-    storeId = generateStoreId(storeCount + 1);
-  }
+  // Check if we're linking to an existing store or creating a new one
+  let storeId: string;
+  let store: any;
+  let isLinkingToExistingStore = false;
+
+  if (existingStoreId) {
+    // Mode 1: Link display to existing store (store was created during onboarding)
+    console.log('📋 Linking to existing store:', existingStoreId);
+    
+    const existingStore = await prisma.store.findUnique({
+      where: { storeId: existingStoreId },
+    });
+    
+    if (!existingStore) {
+      return NextResponse.json(
+        { error: `Store ${existingStoreId} not found in database` },
+        { status: 404 }
+      );
+    }
+    
+    // Update the existing store with any changes from wizard
+    store = await prisma.store.update({
+      where: { storeId: existingStoreId },
+      data: {
+        // Update fields that might have changed during activation wizard
+        adminName,
+        adminEmail,
+        adminPhone,
+        promoOffer: promoOffer || existingStore.promoOffer,
+        returningCustomerPromo: returningCustomerPromo || existingStore.returningCustomerPromo,
+        followupDays: followupDays || existingStore.followupDays,
+        postPurchaseFollowupDays: postPurchaseFollowupDays || existingStore.postPurchaseFollowupDays,
+        staffPin: pin,
+        // Keep existing values for fields not in wizard
+        ownerName: ownerName || existingStore.ownerName,
+        ownerPhone: ownerPhone || existingStore.ownerPhone,
+        ownerEmail: ownerEmail || existingStore.ownerEmail,
+        purchasingManager: purchasingSameAsOwner ? ownerName : (purchasingManager || existingStore.purchasingManager),
+        purchasingPhone: purchasingSameAsOwner ? ownerPhone : (purchasingPhone || existingStore.purchasingPhone),
+        purchasingEmail: purchasingSameAsOwner ? ownerEmail : (purchasingEmail || existingStore.purchasingEmail),
+      },
+    });
+    
+    storeId = existingStoreId;
+    isLinkingToExistingStore = true;
+    console.log('✅ Updated existing store:', storeId);
+    
+  } else {
+    // Mode 2: Create new store (backwards compatibility - Shopify customer exists but no store yet)
+    console.log('🆕 Creating new store...');
+    
+    // If display already has a storeId (from failed activation), use it; otherwise generate new one
+    storeId = display.storeId;
+    
+    if (!storeId) {
+      const storeCount = await prisma.store.count();
+      storeId = generateStoreId(storeCount + 1);
+    }
+
+    // Validate available samples (require at least 1) - only for new stores
+    if (!availableSamples || !Array.isArray(availableSamples) || availableSamples.length === 0) {
+      return NextResponse.json(
+        { error: 'At least one sample product must be selected' },
+        { status: 400 }
+      );
+    }
+    
+    // Available products are optional (stores can add them later in dashboard)
+    const productsToStore = availableProducts && Array.isArray(availableProducts) 
+      ? availableProducts 
+      : [];
 
     // Upsert the store (create if doesn't exist, update if it does)
     // This handles cases where a previous activation partially succeeded
-    const store = await prisma.store.upsert({
+    store = await prisma.store.upsert({
       where: { storeId },
       create: {
         storeId,
@@ -229,7 +300,7 @@ export async function POST(req: NextRequest) {
         purchasingPhone: purchasingSameAsOwner ? ownerPhone : purchasingPhone,
         purchasingEmail: purchasingSameAsOwner ? ownerEmail : purchasingEmail,
         availableSamples,
-        availableProducts,
+        availableProducts: productsToStore,
         // Multi-location fields
         shopifyCustomerId: shopifyCustomerId || null,
         parentAccountName: parentAccountName || null,
@@ -256,12 +327,14 @@ export async function POST(req: NextRequest) {
         purchasingPhone: purchasingSameAsOwner ? ownerPhone : purchasingPhone,
         purchasingEmail: purchasingSameAsOwner ? ownerEmail : purchasingEmail,
         availableSamples,
-        availableProducts,
+        availableProducts: productsToStore,
         // Multi-location fields
         shopifyCustomerId: shopifyCustomerId || null,
         parentAccountName: parentAccountName || null,
       },
     });
+    console.log('✅ Created new store:', storeId);
+  }
 
     // If a setup photo was uploaded during the wizard on the display, carry it over to the store
     let updatedStore = store;
@@ -286,12 +359,79 @@ export async function POST(req: NextRequest) {
       console.warn('⚠️ Failed to carry over setup photo to store:', carryErr);
     }
 
+    // Update/Create inventory records if productInventory was provided
+    if (productInventory && typeof productInventory === 'object') {
+      console.log('📦 Updating inventory records...');
+      const inventoryEntries = Object.entries(productInventory) as Array<[string, { quantity: number; isPresale: boolean }]>;
+      
+      for (const [sku, data] of inventoryEntries) {
+        try {
+          // Get current inventory to calculate delta
+          const currentInventory = await prisma.storeInventory.findUnique({
+            where: {
+              storeId_productSku: {
+                storeId: store.id, // Use database UUID
+                productSku: sku,
+              },
+            },
+          });
+          
+          const previousQty = currentInventory?.quantityOnHand || 0;
+          const newQty = data.quantity;
+          const delta = newQty - previousQty;
+          
+          // Only update if quantity changed or it's a new record
+          if (!currentInventory || delta !== 0) {
+            await prisma.storeInventory.upsert({
+              where: {
+                storeId_productSku: {
+                  storeId: store.id,
+                  productSku: sku,
+                },
+              },
+              create: {
+                storeId: store.id,
+                productSku: sku,
+                quantityOnHand: newQty,
+                quantityReserved: 0,
+                quantityAvailable: newQty,
+              },
+              update: {
+                quantityOnHand: newQty,
+                quantityAvailable: newQty,
+              },
+            });
+            
+            // Log the inventory transaction
+            await prisma.inventoryTransaction.create({
+              data: {
+                storeId: store.id,
+                productSku: sku,
+                type: isLinkingToExistingStore ? 'correction' : 'initial_setup',
+                quantity: delta,
+                balanceAfter: newQty,
+                notes: data.isPresale 
+                  ? (isLinkingToExistingStore ? 'Activation verification - Presale' : 'Initial setup - Presale')
+                  : (isLinkingToExistingStore ? 'Activation verification' : 'Initial setup'),
+              },
+            });
+            
+            console.log(`✅ ${currentInventory ? 'Updated' : 'Created'} inventory for ${sku}: ${previousQty} → ${newQty} units${data.isPresale ? ' (presale)' : ''}`);
+          }
+        } catch (inventoryErr) {
+          console.error(`⚠️ Failed to update inventory for ${sku}:`, inventoryErr);
+          // Continue with other products even if one fails
+        }
+      }
+      console.log('✅ Inventory update complete');
+    }
+
     // Update the display to mark it as active
     await prisma.display.update({
       where: { displayId },
       data: {
         status: 'active',
-        storeId: updatedStore.storeId,
+        storeId: store.storeId,
         activatedAt: new Date(),
       },
     });

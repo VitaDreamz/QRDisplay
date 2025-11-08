@@ -40,11 +40,25 @@ export interface WizardProgress {
   shopifyCustomerId?: string;
   wholesaleBusinessName?: string; // From Shopify firstName (e.g. "Nature's Elite" without "Wholesale")
   isNewLocation?: boolean;
+  existingStoreId?: string; // If store already exists in database
   // Multi-location fields
   hasMultipleLocations?: boolean;
   centralizedPurchasing?: boolean;
   locationName?: string;
   parentAccountName?: string;
+  // Organization pre-fill data (from onboarding)
+  orgOwnerName?: string;
+  orgOwnerPhone?: string;
+  orgOwnerEmail?: string;
+  orgPurchasingManager?: string;
+  orgPurchasingPhone?: string;
+  orgPurchasingEmail?: string;
+  orgCustomerServiceEmail?: string;
+  orgCustomerServicePhone?: string;
+  // Product inventory (Step 8) - can be simple numbers or full objects
+  productInventory?: Record<string, number> | Record<string, { quantity: number; isPresale: boolean }>;
+  selectedSamples?: string[]; // Which samples to make available
+  selectedProducts?: string[]; // Which products to make available for promos
 }
 
 const STORAGE_KEY = 'qrdisplay-wizard-progress';

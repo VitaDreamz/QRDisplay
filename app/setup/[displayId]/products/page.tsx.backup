@@ -3,12 +3,26 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { WizardLayout } from '@/components/wizard/WizardLayout';
-import { useWizardProgress } from '@/hooks/useWizardProgress';
+import { useWizardProgress, type WizardProgress } from '@/hooks/useWizardProgress';
+import { SAMPLE_OPTIONS } from '@/lib/constants';
+
+type ProductWithInventory = {
+  sku: string;
+  name: string;
+  description?: string;
+  price: string;
+  imageUrl?: string;
+  category?: string;
+  productType: string;
+  featured?: boolean;
+  quantity: number; // User-entered inventory
+  isPresale: boolean; // Mark as presale if no inventory
+};
 
 export default function ProductsStep({ params }: { params: Promise<{ displayId: string }> }) {
   const router = useRouter();
   const [displayId, setDisplayId] = useState<string>('');
-  const { progress, saveProgress } = useWizardProgress(displayId);
+  const { progress, saveProgress, clearProgress } = useWizardProgress(displayId);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
@@ -22,8 +36,6 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
   
   // Selected full-size products - which ones to offer for promos
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
-
-  const selectedDays = [7, 14, 30]; // Default followup days
 
   // Fetch products and initialize state
   useEffect(() => {
@@ -92,32 +104,34 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                 setInventory(existingInv);
                 setSelectedSamples(existingSamples);
                 setSelectedProducts(existingProducts);
+                console.log('✅ Inventory initialized from existing store');
               } else {
-                console.log('⚠️ Could not fetch existing inventory, initializing to 0');
+                console.warn('⚠️ Failed to fetch existing inventory, using defaults');
                 initializeDefaultInventory(filtered);
               }
             } catch (err) {
-              console.error('[ProductsStep] Error fetching existing inventory:', err);
+              console.error('❌ Error fetching existing inventory:', err);
               initializeDefaultInventory(filtered);
             }
           } else if (progress?.productInventory) {
-            console.log('💾 Loading inventory from saved progress');
-            // Handle both formats: simple numbers or { quantity, isPresale } objects
-            const savedInv: Record<string, number> = {};
-            Object.entries(progress.productInventory).forEach(([sku, value]) => {
-              if (typeof value === 'number') {
-                savedInv[sku] = value;
-              } else if (typeof value === 'object' && value !== null && 'quantity' in value) {
-                savedInv[sku] = value.quantity;
-              }
+            // Use saved progress inventory
+            const invMap: Record<string, number> = {};
+            Object.entries(progress.productInventory).forEach(([sku, data]) => {
+              invMap[sku] = (data as any).quantity || 0;
             });
-            setInventory(savedInv);
+            setInventory(invMap);
+            
+            // Load selections from progress if available
             if (progress.selectedSamples) setSelectedSamples(progress.selectedSamples);
             if (progress.selectedProducts) setSelectedProducts(progress.selectedProducts);
           } else {
-            console.log('🆕 Initializing new inventory');
+            // Default: all products have 0 quantity, not presale
             initializeDefaultInventory(filtered);
           }
+          
+          // Load confirmation states from progress
+          if (progress?.samplesConfirmed) setSamplesConfirmed(progress.samplesConfirmed);
+          if (progress?.productsConfirmed) setProductsConfirmed(progress.productsConfirmed);
         } else {
           console.error('[ProductsStep] Failed to fetch products', productsRes.status);
         }
@@ -125,7 +139,8 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
         console.error('[ProductsStep] Error fetching products', e);
       }
     });
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
 
   // Helper function to initialize default inventory
   const initializeDefaultInventory = (products: any[]) => {
@@ -154,32 +169,37 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
     }));
   };
 
-  // Validation - require at least one sample and one product selected
+  const toggleSample = (sku: string) => {
+    setSelectedSamples(prev => 
+      prev.includes(sku) ? prev.filter(s => s !== sku) : [...prev, sku]
+    );
+  };
+
+  const toggleProduct = (sku: string) => {
+    setSelectedProducts(prev => 
+      prev.includes(sku) ? prev.filter(s => s !== sku) : [...prev, sku]
+    );
+  };
+
   const isValid = useMemo(() => {
     return selectedSamples.length > 0 && selectedProducts.length > 0;
   }, [selectedSamples, selectedProducts]);
 
-  // Save inventory and selections to wizard progress
-  useEffect(() => {
-    if (displayId) {
-      saveProgress({ 
-        productInventory: inventory,
-        selectedSamples,
-        selectedProducts,
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inventory, selectedSamples, selectedProducts]);
-
-  async function handleActivate() {
-    if (!isValid) {
-      setError('Please select at least one sample and one product');
-      return;
-    }
-
+  const handleActivate = async () => {
+    setLoading(true);
+    setError('');
     try {
-      setLoading(true);
-      setError('');
+      console.log('📋 Current wizard progress:', progress);
+      console.log('📋 Product inventory:', inventory);
+      
+      // Convert followupDays from object to array of day numbers
+      const selectedDays = progress?.followupDays 
+        ? Object.entries(progress.followupDays)
+            .filter(([_, checked]) => checked)
+            .map(([day]) => parseInt(day.replace('day', '')))
+        : [];
+
+      console.log('📅 Selected followup days:', selectedDays);
 
       // Build payload from wizard progress
       // If adminSameAsOwner, copy owner data to admin fields
@@ -232,32 +252,49 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
         productInventory: productInventory, // Pass inventory to API for update/creation
         isNewLocation: progress?.isNewLocation, // Tell API if this is new or existing store
       };
-
-      console.log('[ProductsStep] Activating display with payload:', payload);
-
-      const res = await fetch('/api/displays/activate', {
+      
+      console.log('🚀 Sending activation payload:', payload);
+      console.log('📋 shopifyCustomerId from progress:', progress?.shopifyCustomerId);
+      
+      const response = await fetch('/api/displays/activate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Failed to activate display');
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        const errorMsg = data.error || `Activation failed (${response.status})`;
+        console.error('[Activation Error]', errorMsg, data);
+        setError(errorMsg);
+        setLoading(false);
+        return;
       }
-
-      const data = await res.json();
-      console.log('[ProductsStep] ✅ Display activated:', data);
-
-      // Navigate to next step (add staff)
-      router.push(`/setup/${displayId}/add-staff`);
-    } catch (e: any) {
-      console.error('[ProductsStep] Error activating display:', e);
-      setError(e.message || 'Failed to activate display');
-    } finally {
+      // On success, go to staff page (step 9)
+      const result = await response.json();
+      console.log('[Activation Success]', result);
+      
+      // Save store ID and go to staff page
+      const storeId = result.storeId;
+      saveProgress({ currentStep: 9 });
+      router.push(`/setup/${displayId}/staff?storeId=${storeId}`);
+    } catch (e) {
+      console.error('[Activation Exception]', e);
+      setError(e instanceof Error ? e.message : 'Activation failed.');
       setLoading(false);
     }
   }
+  
+  // Save inventory to progress when it changes
+  useEffect(() => {
+    if (displayId) {
+      saveProgress({ 
+        productInventory: inventory,
+        selectedSamples,
+        selectedProducts,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inventory, selectedSamples, selectedProducts]);
 
   if (!displayId) {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-gray-600">Loading...</div></div>;
@@ -274,9 +311,9 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
     >
       <div className="pb-20">
         <div className="text-center mb-6">
-          <div className="text-5xl mb-3">✅</div>
+          <div className="text-5xl mb-3">�✅</div>
           <h1 className="text-2xl font-bold text-white mb-2">Verify Products & Inventory</h1>
-          <p className="text-pink-200">Select which products to offer and update inventory levels</p>
+          <p className="text-pink-200">Confirm your available samples and products with inventory levels</p>
         </div>
 
         {error && (
@@ -287,88 +324,73 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
 
         {/* Sample Products (4ct) */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mb-6">
-          <div className="mb-4">
-            <h2 className="font-semibold text-lg mb-1">Available Samples (4ct)</h2>
-            <p className="text-sm text-gray-600">Select which samples to offer and update inventory</p>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="font-semibold text-lg">Available Samples (4ct)</h2>
+              <p className="text-sm text-gray-600">Enter current inventory for each sample</p>
+            </div>
+            <button
+              onClick={() => setSamplesConfirmed(!samplesConfirmed)}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                samplesConfirmed
+                  ? 'bg-green-100 text-green-700 border-2 border-green-500'
+                  : 'bg-gray-100 text-gray-600 border-2 border-gray-300 hover:bg-gray-200'
+              }`}
+            >
+              {samplesConfirmed ? '✓ Confirmed' : 'Confirm Inventory'}
+            </button>
           </div>
 
-          {sampleProducts.length === 0 ? (
-            <div className="text-center text-gray-500 py-4">No sample products available</div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {sampleProducts.map((product) => {
-                const isSelected = selectedSamples.includes(product.sku);
-                return (
-                  <div key={product.sku} className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-                    {product.imageUrl && (
-                      <div className="aspect-square bg-gray-100">
-                        <img
-                          src={product.imageUrl}
-                          alt={product.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                    <div className="p-4">
-                      <h3 className="font-semibold text-sm mb-1">{product.name}</h3>
-                      <p className="text-xs text-gray-500 mb-3">SKU: {product.sku}</p>
-                      
-                      {/* Inventory Input */}
-                      <div className="mb-3">
-                        <label className="text-xs font-medium text-gray-700 block mb-1">Inventory on Hand</label>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => updateInventory(product.sku, Math.max(0, (inventory[product.sku] || 0) - 1))}
-                            className="w-8 h-8 rounded-lg border border-gray-300 hover:bg-gray-50 font-bold text-gray-600"
-                          >
-                            −
-                          </button>
-                          <input
-                            type="number"
-                            min="0"
-                            value={inventory[product.sku] || 0}
-                            onChange={(e) => updateInventory(product.sku, parseInt(e.target.value) || 0)}
-                            className="flex-1 px-3 py-2 border rounded-lg text-center font-semibold"
-                          />
-                          <button
-                            onClick={() => updateInventory(product.sku, (inventory[product.sku] || 0) + 1)}
-                            className="w-8 h-8 rounded-lg border border-gray-300 hover:bg-gray-50 font-bold text-gray-600"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                      
-                      {/* Selection Button */}
-                      <button
-                        onClick={() => {
-                          if (isSelected) {
-                            setSelectedSamples(prev => prev.filter(sku => sku !== product.sku));
-                          } else {
-                            setSelectedSamples(prev => [...prev, product.sku]);
-                          }
-                        }}
-                        className={`w-full py-2.5 rounded-lg font-semibold transition-all ${
-                          isSelected
-                            ? 'bg-purple-600 text-white hover:bg-purple-700'
-                            : 'bg-pink-50 text-pink-600 border-2 border-pink-200 hover:bg-pink-100'
-                        }`}
-                      >
-                        {isSelected ? '✓ Offering' : '+ Offer This Product'}
-                      </button>
-                    </div>
+          <div className="space-y-3">
+            {sampleProducts.length === 0 ? (
+              <div className="text-center text-gray-500 py-4">No sample products available</div>
+            ) : (
+              sampleProducts.map((product) => (
+                <div key={product.sku} className="flex items-center gap-4 p-3 rounded-lg border bg-gray-50">
+                  {product.imageUrl && (
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className="w-16 h-16 object-cover rounded border"
+                    />
+                  )}
+                  <div className="flex-1">
+                    <div className="font-medium">{product.name}</div>
+                    <div className="text-xs text-gray-500">SKU: {product.sku}</div>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700">Quantity:</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={inventory[product.sku]?.quantity || 0}
+                      onChange={(e) => updateInventory(product.sku, parseInt(e.target.value) || 0, false)}
+                      className="w-20 px-3 py-2 border rounded-lg text-center font-semibold"
+                    />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
 
         {/* Full-Size Products */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-          <div className="mb-4">
-            <h2 className="font-semibold text-lg mb-1">Full-Size Products</h2>
-            <p className="text-sm text-gray-600">Select which products to offer for promotions and update inventory</p>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="font-semibold text-lg">Full-Size Products</h2>
+              <p className="text-sm text-gray-600">Enter inventory or mark as presale</p>
+            </div>
+            <button
+              onClick={() => setProductsConfirmed(!productsConfirmed)}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                productsConfirmed
+                  ? 'bg-green-100 text-green-700 border-2 border-green-500'
+                  : 'bg-gray-100 text-gray-600 border-2 border-gray-300 hover:bg-gray-200'
+              }`}
+            >
+              {productsConfirmed ? '✓ Confirmed' : 'Confirm Products'}
+            </button>
           </div>
 
           {fullSizeProducts.length === 0 ? (
@@ -377,84 +399,56 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
               <div className="text-xs mt-2">You can add products later from your dashboard.</div>
             </div>
           ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {fullSizeProducts.map((product) => {
-                  const isSelected = selectedProducts.includes(product.sku);
-                  return (
-                    <div key={product.sku} className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-                      {product.imageUrl && (
-                        <div className="aspect-square bg-gray-100">
-                          <img
-                            src={product.imageUrl}
-                            alt={product.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
+            <div className="space-y-3">
+              {fullSizeProducts.map((product) => (
+                <div key={product.sku} className="flex items-center gap-4 p-3 rounded-lg border bg-gray-50">
+                  {product.imageUrl && (
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className="w-16 h-16 object-cover rounded border"
+                    />
+                  )}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{product.name}</span>
+                      {product.featured && (
+                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">⭐ Featured</span>
                       )}
-                      <div className="p-4">
-                        <div className="flex items-start justify-between mb-1">
-                          <h3 className="font-semibold text-sm flex-1">{product.name}</h3>
-                          {product.featured && (
-                            <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold ml-2">⭐</span>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-500 mb-1">SKU: {product.sku}</p>
-                        <p className="text-xs text-gray-700 font-semibold mb-3">${parseFloat(product.price).toFixed(2)}</p>
-                        
-                        {/* Inventory Input */}
-                        <div className="mb-3">
-                          <label className="text-xs font-medium text-gray-700 block mb-1">Inventory on Hand</label>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => updateInventory(product.sku, Math.max(0, (inventory[product.sku] || 0) - 1))}
-                              className="w-8 h-8 rounded-lg border border-gray-300 hover:bg-gray-50 font-bold text-gray-600"
-                            >
-                              −
-                            </button>
-                            <input
-                              type="number"
-                              min="0"
-                              value={inventory[product.sku] || 0}
-                              onChange={(e) => updateInventory(product.sku, parseInt(e.target.value) || 0)}
-                              className="flex-1 px-3 py-2 border rounded-lg text-center font-semibold"
-                            />
-                            <button
-                              onClick={() => updateInventory(product.sku, (inventory[product.sku] || 0) + 1)}
-                              className="w-8 h-8 rounded-lg border border-gray-300 hover:bg-gray-50 font-bold text-gray-600"
-                            >
-                              +
-                            </button>
-                          </div>
-                        </div>
-                        
-                        {/* Selection Button */}
-                        <button
-                          onClick={() => {
-                            if (isSelected) {
-                              setSelectedProducts(prev => prev.filter(sku => sku !== product.sku));
-                            } else {
-                              setSelectedProducts(prev => [...prev, product.sku]);
-                            }
-                          }}
-                          className={`w-full py-2.5 rounded-lg font-semibold transition-all ${
-                            isSelected
-                              ? 'bg-purple-600 text-white hover:bg-purple-700'
-                              : 'bg-pink-50 text-pink-600 border-2 border-pink-200 hover:bg-pink-100'
-                          }`}
-                        >
-                          {isSelected ? '✓ Offering' : '+ Offer This Product'}
-                        </button>
-                      </div>
                     </div>
-                  );
-                })}
-              </div>
-              <p className="text-xs text-gray-500 mt-4">
-                💡 You can offer products with zero inventory - they'll be available for presale
-              </p>
-            </>
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      SKU: {product.sku} • ${parseFloat(product.price).toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm font-medium text-gray-700">Qty:</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={inventory[product.sku]?.quantity || 0}
+                        onChange={(e) => updateInventory(product.sku, parseInt(e.target.value) || 0, inventory[product.sku]?.isPresale || false)}
+                        disabled={inventory[product.sku]?.isPresale}
+                        className="w-20 px-3 py-2 border rounded-lg text-center font-semibold disabled:bg-gray-100 disabled:text-gray-400"
+                      />
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={inventory[product.sku]?.isPresale || false}
+                        onChange={(e) => updateInventory(product.sku, 0, e.target.checked)}
+                        className="w-4 h-4 rounded border-gray-300 text-purple-600"
+                      />
+                      <span className="text-sm text-gray-600">Presale</span>
+                    </label>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
+          <p className="text-xs text-gray-500 mt-3">
+            💡 Mark products as "Presale" if you don't have inventory yet but want to offer them
+          </p>
         </div>
 
         {/* Footer Actions */}

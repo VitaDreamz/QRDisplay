@@ -137,10 +137,61 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
     };
   }, [searchQuery, displayId]);
 
-  const handleSelectResult = (result: SearchResult) => {
+  const handleSelectResult = async (result: SearchResult) => {
     if (result.type === 'shopify' && result.shopifyCustomer) {
       // Save Shopify customer info and continue (convert state to abbreviation)
       console.log('🏪 Saving Shopify customer to progress:', result.shopifyCustomer.id);
+      
+      // Check if a store already exists for this Shopify customer
+      let existingStoreData: any = null;
+      try {
+        const storeRes = await fetch(`/api/stores/lookup?shopifyCustomerId=${result.shopifyCustomer.id}`);
+        if (storeRes.ok) {
+          const storeData = await storeRes.json();
+          if (storeData.existingStores && storeData.existingStores.length > 0) {
+            // Found existing store(s) - use the first one
+            existingStoreData = storeData.existingStores[0];
+            console.log('✅ Found existing store:', existingStoreData.storeId);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to check for existing stores:', err);
+      }
+      
+      // Fetch organization data to pre-fill contact details in Step 7
+      let orgContactData = {};
+      try {
+        const displayRes = await fetch(`/api/displays/${displayId}`);
+        if (displayRes.ok) {
+          const displayData = await displayRes.json();
+          const orgId = displayData.display?.orgId;
+          
+          if (orgId) {
+            // Fetch organization details
+            const orgRes = await fetch(`/api/organizations/${orgId}`);
+            if (orgRes.ok) {
+              const orgData = await orgRes.json();
+              console.log('📋 Fetched organization data for pre-fill:', orgData);
+              
+              // Extract contact info from organization (if sales rep filled it in)
+              orgContactData = {
+                orgOwnerName: orgData.organization?.ownerName,
+                orgOwnerPhone: orgData.organization?.ownerPhone,
+                orgOwnerEmail: orgData.organization?.ownerEmail,
+                orgPurchasingManager: orgData.organization?.purchasingManager,
+                orgPurchasingPhone: orgData.organization?.purchasingPhone,
+                orgPurchasingEmail: orgData.organization?.purchasingEmail,
+                orgCustomerServiceEmail: orgData.organization?.customerServiceEmail,
+                orgCustomerServicePhone: orgData.organization?.customerServicePhone,
+              };
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch organization data:', err);
+        // Continue anyway - fields will just be empty
+      }
+      
       saveProgress({
         currentStep: 7,
         shopifyCustomerId: result.shopifyCustomer.id,
@@ -149,9 +200,11 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
         city: result.shopifyCustomer.city,
         state: toStateAbbreviation(result.shopifyCustomer.province), // Convert to 2-letter code
         zip: result.shopifyCustomer.zip,
-        isNewLocation: true,
+        isNewLocation: !existingStoreData, // True if no store exists yet
+        existingStoreId: existingStoreData?.storeId, // Pass existing store ID if found
+        ...orgContactData, // Include organization contact data for pre-fill
       });
-      console.log('✅ Saved shopifyCustomerId to wizard progress');
+      console.log('✅ Saved shopifyCustomerId, org data, and existing store info to wizard progress');
       router.push(`/setup/${displayId}/activate`);
     } else if (result.type === 'existing' && result.existingStore) {
       // For existing stores, we might want to show more info or prevent duplicate

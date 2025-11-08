@@ -108,16 +108,54 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
       if (progress.followupDays) setFollowupDays(progress.followupDays);
       if (progress.retentionDays) setRetentionDays(progress.retentionDays);
       if (progress.pin) setPin(progress.pin);
-      if (progress.ownerName) setOwnerName(progress.ownerName);
-      if (progress.ownerPhone) setOwnerPhone(progress.ownerPhone);
-      if (progress.ownerEmail) setOwnerEmail(progress.ownerEmail);
+      
+      // Pre-fill from organization data (Step 6) if available, otherwise use saved progress
+      // Owner info
+      if (progress.ownerName) {
+        setOwnerName(progress.ownerName);
+      } else if (progress.orgOwnerName) {
+        console.log('📋 Pre-filling owner from organization data');
+        setOwnerName(progress.orgOwnerName);
+      }
+      
+      if (progress.ownerPhone) {
+        setOwnerPhone(progress.ownerPhone);
+      } else if (progress.orgOwnerPhone) {
+        setOwnerPhone(progress.orgOwnerPhone);
+      }
+      
+      if (progress.ownerEmail) {
+        setOwnerEmail(progress.ownerEmail);
+      } else if (progress.orgOwnerEmail) {
+        setOwnerEmail(progress.orgOwnerEmail);
+      }
+      
+      // Admin info
       if (progress.adminName) setAdminName(progress.adminName);
       if (progress.adminPhone) setAdminPhone(progress.adminPhone);
       if (progress.adminEmail) setAdminEmail(progress.adminEmail);
       if (progress.adminSameAsOwner !== undefined) setAdminSameAsOwner(progress.adminSameAsOwner);
-      if (progress.purchasingManager) setPurchasingManager(progress.purchasingManager);
-      if (progress.purchasingPhone) setPurchasingPhone(progress.purchasingPhone);
-      if (progress.purchasingEmail) setPurchasingEmail(progress.purchasingEmail);
+      
+      // Purchasing manager info
+      if (progress.purchasingManager) {
+        setPurchasingManager(progress.purchasingManager);
+      } else if (progress.orgPurchasingManager) {
+        console.log('📋 Pre-filling purchasing manager from organization data');
+        setPurchasingManager(progress.orgPurchasingManager);
+      }
+      
+      if (progress.purchasingPhone) {
+        setPurchasingPhone(progress.purchasingPhone);
+      } else if (progress.orgPurchasingPhone) {
+        setPurchasingPhone(progress.orgPurchasingPhone);
+      }
+      
+      if (progress.purchasingEmail) {
+        setPurchasingEmail(progress.purchasingEmail);
+      } else if (progress.orgPurchasingEmail) {
+        setPurchasingEmail(progress.orgPurchasingEmail);
+      }
+      
       if (progress.purchasingSameAsOwner !== undefined) setPurchasingSameAsOwner(progress.purchasingSameAsOwner);
     }
   }, [progress, displayId]);

@@ -744,8 +744,11 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
     setLoadingProducts(true);
     try {
       const orgId = (data.organization as any)?.orgId;
+      console.log('🔍 [Products Tab] data.store:', data.store);
+      console.log('🔍 [Products Tab] data.store keys:', Object.keys(data.store));
       const storeDbId = (data.store as any).id; // Use database ID, not human-readable storeId
       console.log('🔍 [Products Tab] Fetching products for orgId:', orgId);
+      console.log('🔍 [Products Tab] storeDbId extracted:', storeDbId);
       console.log('🔍 [Products Tab] Fetching inventory for store:', data.store.storeId, '(DB ID:', storeDbId, ')');
       if (!orgId) {
         console.error('❌ [Products Tab] No orgId found');

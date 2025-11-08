@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { WizardLayout } from '@/components/wizard/WizardLayout';
 import { useWizardProgress } from '@/hooks/useWizardProgress';
+import { toStateAbbreviation } from '@/lib/states';
 
 export default function ProductsStep({ params }: { params: Promise<{ displayId: string }> }) {
   const router = useRouter();
@@ -249,7 +250,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
         adminPhone: adminPhone || '',
         address: progress?.address || '',
         city: progress?.city || '',
-        state: progress?.state || '',
+        state: toStateAbbreviation(progress?.state || ''),
         zip: progress?.zip || '',
         timezone: progress?.timezone || '',
         promoOffer: progress?.promoPercentage ? `${progress.promoPercentage}% Off In-Store Purchase` : '20% Off In-Store Purchase',

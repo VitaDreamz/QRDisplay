@@ -162,6 +162,11 @@ export async function POST(request: NextRequest) {
       note: draftOrderNote,
       email: customer.email,
       shipping_address: shippingAddr,
+      tags: [
+        `StoreID:${storeId}`,
+        (store as any).salesRepName ? `SalesRep:${(store as any).salesRepName}` : '',
+        org.name || 'VitaDreamz',
+      ].filter(Boolean).join(', '),
     };
 
     // Add discount if store credit is being applied

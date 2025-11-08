@@ -190,7 +190,7 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
           storeName: store.storeName,
           address: store.streetAddress,
           city: store.city,
-          state: store.state, // Already in 2-letter format from database
+          state: toStateAbbreviation(store.state), // Convert to 2-letter code
           zip: store.zipCode,
           timezone: store.timezone || 'America/New_York',
           promoPercentage: promoMatch ? promoMatch[1] : '20',

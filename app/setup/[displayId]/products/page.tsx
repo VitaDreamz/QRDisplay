@@ -352,16 +352,39 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
 
           {samplesVerified ? (
             // Collapsed confirmed view
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <div className="text-2xl">✅</div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-emerald-900 mb-2">Samples Confirmed</h3>
-                  <div className="space-y-1">
-                    {selectedSamples.length === 0 ? (
-                      <p className="text-sm text-emerald-700">No samples selected</p>
-                    ) : (
-                      selectedSamples.map(sku => {
+            selectedSamples.length === 0 ? (
+              // No samples selected - warning state
+              <div className="bg-gray-50 border-2 border-gray-300 rounded-lg p-6">
+                <div className="flex items-start gap-3">
+                  <div className="text-3xl">⚠️</div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-gray-900 text-lg mb-2">No Samples Offered</h3>
+                    <p className="text-sm text-gray-600 mb-3">
+                      You've verified without selecting any samples. This display will not offer any sample products to customers.
+                    </p>
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-3">
+                      <p className="text-xs text-yellow-800">
+                        💡 <strong>Tip:</strong> Offering samples is a great way to introduce customers to your products and drive sales.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setSamplesVerified(false)}
+                      className="text-sm text-purple-600 hover:text-purple-700 font-semibold underline"
+                    >
+                      Click "✓ Verified" above to add samples
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              // Has samples selected - confirmed state
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <div className="text-2xl">✅</div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-emerald-900 mb-2">Samples Confirmed</h3>
+                    <div className="space-y-1">
+                      {selectedSamples.map(sku => {
                         const product = sampleProducts.find(p => p.sku === sku);
                         return product ? (
                           <div key={sku} className="flex items-center justify-between text-sm">
@@ -369,18 +392,18 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                             <span className="text-emerald-600">{inventory[sku] || 0} units</span>
                           </div>
                         ) : null;
-                      })
-                    )}
+                      })}
+                    </div>
+                    <button
+                      onClick={() => setSamplesVerified(false)}
+                      className="mt-3 text-xs text-emerald-700 hover:text-emerald-800 underline"
+                    >
+                      Click "✓ Verified" above to make changes
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setSamplesVerified(false)}
-                    className="mt-3 text-xs text-emerald-700 hover:text-emerald-800 underline"
-                  >
-                    Click "✓ Verified" above to make changes
-                  </button>
                 </div>
               </div>
-            </div>
+            )
           ) : sampleProducts.length === 0 ? (
             <div className="text-center text-gray-500 py-4">No sample products available</div>
           ) : (
@@ -507,16 +530,39 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
 
           {productsVerified ? (
             // Collapsed confirmed view
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <div className="text-2xl">✅</div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-emerald-900 mb-2">Products Confirmed</h3>
-                  <div className="space-y-1">
-                    {selectedProducts.length === 0 ? (
-                      <p className="text-sm text-emerald-700">No products selected</p>
-                    ) : (
-                      selectedProducts.map(sku => {
+            selectedProducts.length === 0 ? (
+              // No products selected - warning state
+              <div className="bg-gray-50 border-2 border-gray-300 rounded-lg p-6">
+                <div className="flex items-start gap-3">
+                  <div className="text-3xl">⚠️</div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-gray-900 text-lg mb-2">No Products Offered</h3>
+                    <p className="text-sm text-gray-600 mb-3">
+                      You've verified without selecting any full-size products. This display will not offer promotional discounts on products.
+                    </p>
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-3">
+                      <p className="text-xs text-yellow-800">
+                        💡 <strong>Tip:</strong> Offering promotional discounts on products helps convert sample customers into paying customers.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setProductsVerified(false)}
+                      className="text-sm text-purple-600 hover:text-purple-700 font-semibold underline"
+                    >
+                      Click "✓ Verified" above to add products
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              // Has products selected - confirmed state
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <div className="text-2xl">✅</div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-emerald-900 mb-2">Products Confirmed</h3>
+                    <div className="space-y-1">
+                      {selectedProducts.map(sku => {
                         const product = fullSizeProducts.find(p => p.sku === sku);
                         return product ? (
                           <div key={sku} className="flex items-center justify-between text-sm">
@@ -524,18 +570,18 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                             <span className="text-emerald-600">{inventory[sku] || 0} units</span>
                           </div>
                         ) : null;
-                      })
-                    )}
+                      })}
+                    </div>
+                    <button
+                      onClick={() => setProductsVerified(false)}
+                      className="mt-3 text-xs text-emerald-700 hover:text-emerald-800 underline"
+                    >
+                      Click "✓ Verified" above to make changes
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setProductsVerified(false)}
-                    className="mt-3 text-xs text-emerald-700 hover:text-emerald-800 underline"
-                  >
-                    Click "✓ Verified" above to make changes
-                  </button>
                 </div>
               </div>
-            </div>
+            )
           ) : fullSizeProducts.length === 0 ? (
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center text-gray-500 text-sm">
               <div>No full-size products available yet.</div>

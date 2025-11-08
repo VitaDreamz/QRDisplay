@@ -40,6 +40,9 @@ export async function POST(request: NextRequest) {
       orgId
     } = body;
 
+    console.log('📦 [Quick Add] Received inventory entries:', inventoryEntries);
+    console.log('📦 [Quick Add] Inventory count:', inventoryEntries.length);
+
     // Validate required fields
     if (!shopifyCustomerId || !subscriptionTier || !orgId) {
       return NextResponse.json(
@@ -195,8 +198,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Add manual inventory entries
+    console.log('📦 [Quick Add] Processing inventory entries:', inventoryEntries);
     if (inventoryEntries.length > 0) {
       for (const entry of inventoryEntries as InventoryEntry[]) {
+        console.log(`📦 [Quick Add] Creating inventory for ${entry.productSku}: ${entry.quantity} units`);
         if (entry.quantity > 0) {
           await prisma.storeInventory.create({
             data: {
@@ -219,8 +224,12 @@ export async function POST(request: NextRequest) {
               notes: 'Initial inventory entry during store setup'
             }
           });
+          console.log(`✅ [Quick Add] Created inventory for ${entry.productSku}`);
         }
       }
+      console.log(`✅ [Quick Add] Finished processing ${inventoryEntries.length} inventory entries`);
+    } else {
+      console.log('⚠️ [Quick Add] No inventory entries to process');
     }
 
     // Process trial kit items (wholesale boxes -> retail inventory)

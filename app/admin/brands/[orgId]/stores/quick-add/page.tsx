@@ -204,30 +204,35 @@ export default function QuickAddStorePage() {
     setSubmitting(true);
     setSubmitError('');
 
+    const payload = {
+      shopifyCustomerId: selectedCustomer.id,
+      businessName,
+      streetAddress,
+      city,
+      state,
+      zipCode,
+      ownerName,
+      ownerPhone,
+      ownerEmail,
+      adminName,
+      adminPhone,
+      adminEmail,
+      purchasingName,
+      purchasingPhone,
+      purchasingEmail,
+      subscriptionTier,
+      inventoryEntries,
+      orgId: 'ORG-VITADREAMZ'
+    };
+
+    console.log('📦 [Quick Add] Submitting with inventory entries:', inventoryEntries);
+    console.log('📦 [Quick Add] Full payload:', payload);
+
     try {
       const response = await fetch('/api/admin/stores/quick-add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          shopifyCustomerId: selectedCustomer.id,
-          businessName,
-          streetAddress,
-          city,
-          state,
-          zipCode,
-          ownerName,
-          ownerPhone,
-          ownerEmail,
-          adminName,
-          adminPhone,
-          adminEmail,
-          purchasingName,
-          purchasingPhone,
-          purchasingEmail,
-          subscriptionTier,
-          inventoryEntries,
-          orgId: 'ORG-VITADREAMZ'
-        })
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {

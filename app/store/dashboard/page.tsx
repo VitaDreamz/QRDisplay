@@ -17,7 +17,38 @@ export default async function StoreDashboardPage() {
 
   // Fetch store data
   const store = await prisma.store.findUnique({
-    where: { storeId }
+    where: { storeId },
+    select: {
+      id: true,
+      storeId: true,
+      orgId: true,
+      storeName: true,
+      streetAddress: true,
+      city: true,
+      state: true,
+      zipCode: true,
+      ownerName: true,
+      ownerPhone: true,
+      ownerEmail: true,
+      adminName: true,
+      adminEmail: true,
+      adminPhone: true,
+      purchasingManager: true,
+      purchasingPhone: true,
+      purchasingEmail: true,
+      subscriptionTier: true,
+      staffPin: true,
+      storeCredit: true,
+      availableSamples: true,
+      availableProducts: true,
+      promoOffer: true,
+      returningCustomerPromo: true,
+      followupDays: true,
+      postPurchaseFollowupDays: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+    }
   });
 
   if (!store) {

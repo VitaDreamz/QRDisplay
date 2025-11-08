@@ -90,6 +90,63 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Get organization's Shopify credentials for API calls
+    const org = await prisma.organization.findUnique({
+      where: { orgId },
+      select: {
+        shopifyStoreName: true,
+        shopifyAccessToken: true
+      }
+    });
+
+    if (!org?.shopifyStoreName || !org?.shopifyAccessToken) {
+      console.error('Shopify not configured for organization');
+      // Continue anyway - store is created, just can't tag in Shopify
+    } else {
+      // Tag the Shopify customer with our storeId
+      try {
+        const updateResponse = await fetch(
+          `https://${org.shopifyStoreName}/admin/api/2024-01/customers/${shopifyCustomerId}.json`,
+          {
+            method: 'PUT',
+            headers: {
+              'X-Shopify-Access-Token': org.shopifyAccessToken,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              customer: {
+                id: shopifyCustomerId,
+                metafields: [
+                  {
+                    namespace: 'qrdisplay',
+                    key: 'store_id',
+                    value: storeId,
+                    type: 'single_line_text_field'
+                  },
+                  {
+                    namespace: 'qrdisplay',
+                    key: 'subscription_tier',
+                    value: subscriptionTier,
+                    type: 'single_line_text_field'
+                  }
+                ]
+              }
+            })
+          }
+        );
+
+        if (updateResponse.ok) {
+          console.log(`✅ Tagged Shopify customer ${shopifyCustomerId} with storeId: ${storeId}`);
+        } else {
+          const errorText = await updateResponse.text();
+          console.error('Failed to tag Shopify customer:', updateResponse.status, errorText);
+        }
+      } catch (error) {
+        console.error('Error tagging Shopify customer:', error);
+        // Don't fail the whole operation - store is created successfully
+      }
+    }
+
     // Add manual inventory entries
     if (inventoryEntries.length > 0) {
       for (const entry of inventoryEntries as InventoryEntry[]) {

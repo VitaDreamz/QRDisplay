@@ -21,6 +21,20 @@ export async function POST(request: NextRequest) {
     const {
       shopifyCustomerId,
       subscriptionTier,
+      businessName,
+      streetAddress,
+      city,
+      state,
+      zipCode,
+      ownerName,
+      ownerPhone,
+      ownerEmail,
+      adminName,
+      adminPhone,
+      adminEmail,
+      purchasingName,
+      purchasingPhone,
+      purchasingEmail,
       inventoryEntries = [],
       trialKitItems = [],
       orgId
@@ -30,6 +44,21 @@ export async function POST(request: NextRequest) {
     if (!shopifyCustomerId || !subscriptionTier || !orgId) {
       return NextResponse.json(
         { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // Validate contact information
+    if (!ownerName || !ownerEmail) {
+      return NextResponse.json(
+        { error: 'Owner name and email are required' },
+        { status: 400 }
+      );
+    }
+
+    if (!adminName || !adminEmail) {
+      return NextResponse.json(
+        { error: 'Program admin name and email are required' },
         { status: 400 }
       );
     }
@@ -81,25 +110,29 @@ export async function POST(request: NextRequest) {
     const tierConfig = getTierConfig(subscriptionTier as SubscriptionTier);
 
     // Create store record
-    // Note: In Shopify, wholesale customers have:
-    // - First Name = Business Name (e.g., "ABC Liquor Store")
-    // - Last Name = "Wholesale"
-    // - We only pull business info from Shopify, contact people entered manually
     const store = await prisma.store.create({
       data: {
         storeId,
         orgId,
         shopifyCustomerId: customer.id.toString(),
-        storeName: customer.first_name, // Business name is in firstName
-        streetAddress: customer.default_address?.address1 || null,
+        storeName: businessName || customer.first_name,
+        streetAddress: streetAddress || customer.default_address?.address1 || null,
         address2: customer.default_address?.address2 || null,
-        city: customer.default_address?.city || null,
-        state: customer.default_address?.province || null,
-        zipCode: customer.default_address?.zip || null,
-        // Owner, admin, purchasing manager info entered manually during onboarding
-        // Business contact info (if available from Shopify)
-        ownerEmail: customer.email || null,
-        ownerPhone: customer.phone || customer.default_address?.phone || null,
+        city: city || customer.default_address?.city || null,
+        state: state || customer.default_address?.province || null,
+        zipCode: zipCode || customer.default_address?.zip || null,
+        // Owner contact
+        ownerName,
+        ownerPhone: ownerPhone || null,
+        ownerEmail,
+        // Program administrator
+        adminName,
+        adminPhone: adminPhone || null,
+        adminEmail,
+        // Purchasing manager (optional)
+        purchasingManager: purchasingName || null,
+        purchasingPhone: purchasingPhone || null,
+        purchasingEmail: purchasingEmail || null,
         status: 'active',
         subscriptionTier,
         subscriptionStatus: 'active',

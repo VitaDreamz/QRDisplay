@@ -34,7 +34,11 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    if (!org?.shopifyStoreName || !org?.shopifyAccessToken) {
+    // Use org credentials if available, otherwise fall back to environment variables
+    const shopifyStore = org?.shopifyStoreName || process.env.SHOPIFY_STORE;
+    const shopifyToken = org?.shopifyAccessToken || process.env.SHOPIFY_ACCESS_TOKEN;
+
+    if (!shopifyStore || !shopifyToken) {
       return NextResponse.json(
         { error: 'Shopify not configured for this organization' },
         { status: 400 }
@@ -43,10 +47,10 @@ export async function GET(request: NextRequest) {
 
     // Search Shopify customers
     const shopifyResponse = await fetch(
-      `https://${org.shopifyStoreName}/admin/api/2024-01/customers/search.json?query=${encodeURIComponent(query)}`,
+      `https://${shopifyStore}/admin/api/2024-01/customers/search.json?query=${encodeURIComponent(query)}`,
       {
         headers: {
-          'X-Shopify-Access-Token': org.shopifyAccessToken,
+          'X-Shopify-Access-Token': shopifyToken,
           'Content-Type': 'application/json'
         }
       }

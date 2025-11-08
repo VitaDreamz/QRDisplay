@@ -59,6 +59,8 @@ export interface WizardProgress {
   productInventory?: Record<string, number> | Record<string, { quantity: number; isPresale: boolean }>;
   selectedSamples?: string[]; // Which samples to make available
   selectedProducts?: string[]; // Which products to make available for promos
+  samplesVerified?: boolean; // User confirmed sample inventory is accurate
+  productsVerified?: boolean; // User confirmed product inventory is accurate
 }
 
 const STORAGE_KEY = 'qrdisplay-wizard-progress';

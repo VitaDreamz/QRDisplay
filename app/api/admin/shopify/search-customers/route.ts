@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { decryptSafe } from '@/lib/encryption';
 
 export async function GET(request: NextRequest) {
   try {
@@ -34,11 +35,17 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Use org credentials if available, otherwise fall back to environment variables
-    const shopifyStore = org?.shopifyStoreName || process.env.SHOPIFY_STORE;
-    const shopifyToken = org?.shopifyAccessToken || process.env.SHOPIFY_ACCESS_TOKEN;
+    // Decrypt access token (store name is NOT encrypted)
+    const shopifyStore = org?.shopifyStoreName || null;
+    const shopifyToken = org?.shopifyAccessToken 
+      ? decryptSafe(org.shopifyAccessToken) 
+      : null;
 
-    if (!shopifyStore || !shopifyToken) {
+    // Use org credentials if available, otherwise fall back to environment variables
+    const finalShopifyStore = shopifyStore || process.env.SHOPIFY_STORE;
+    const finalShopifyToken = shopifyToken || process.env.SHOPIFY_ACCESS_TOKEN;
+
+    if (!finalShopifyStore || !finalShopifyToken) {
       return NextResponse.json(
         { error: 'Shopify not configured for this organization' },
         { status: 400 }
@@ -47,10 +54,10 @@ export async function GET(request: NextRequest) {
 
     // Search Shopify customers
     const shopifyResponse = await fetch(
-      `https://${shopifyStore}/admin/api/2024-01/customers/search.json?query=${encodeURIComponent(query)}`,
+      `https://${finalShopifyStore}/admin/api/2024-01/customers/search.json?query=${encodeURIComponent(query)}`,
       {
         headers: {
-          'X-Shopify-Access-Token': shopifyToken,
+          'X-Shopify-Access-Token': finalShopifyToken,
           'Content-Type': 'application/json'
         }
       }

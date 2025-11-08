@@ -73,13 +73,15 @@ export async function GET(request: NextRequest) {
     let existingStores = [];
 
     // Search our database for stores matching the query
-    // Check email, phone, and business name (partial match)
+    // Check store name, city, storeId, email, and phone (partial match)
     const stores = await prisma.store.findMany({
       where: {
         OR: [
+          { storeId: { contains: query, mode: 'insensitive' } },
+          { storeName: { contains: query, mode: 'insensitive' } },
+          { city: { contains: query, mode: 'insensitive' } },
           { adminEmail: { contains: query, mode: 'insensitive' } },
           { adminPhone: { contains: query, mode: 'insensitive' } },
-          { storeName: { contains: query, mode: 'insensitive' } },
         ],
       },
       select: {
@@ -89,7 +91,10 @@ export async function GET(request: NextRequest) {
         state: true,
         shopifyCustomerId: true,
       },
-      take: 50, // Increase limit to show more results
+      take: 50,
+      orderBy: [
+        { storeId: 'asc' }, // Sort by Store ID for easier browsing
+      ],
     });
 
     existingStores = stores.map(s => ({
@@ -99,21 +104,10 @@ export async function GET(request: NextRequest) {
       state: s.state,
     }));
 
-    // Search Shopify directly for ALL matching customers
-    try {
-      const customers = await searchShopifyCustomers(org, query);
-      
-      // Filter to only wholesale customers (lastName = "Wholesale")
-      shopifyCustomers = customers.filter(c => 
-        c.lastName?.toLowerCase() === 'wholesale'
-      );
-    } catch (err) {
-      console.error('Failed to search Shopify:', err);
-      // Continue without Shopify customers
-    }
-
+    // Only return existing stores - no Shopify search needed
+    // Stores are created during onboarding, so they should already exist
     return NextResponse.json({
-      shopifyCustomers, // Return array of all matching customers
+      shopifyCustomers: [], // No longer searching Shopify in this step
       existingStores,
     });
   } catch (error) {

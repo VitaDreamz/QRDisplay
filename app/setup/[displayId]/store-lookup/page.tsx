@@ -93,26 +93,14 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
 
         const results: SearchResult[] = [];
 
-        // Add ALL Shopify customers (filtered to wholesale only on backend)
-        if (data.shopifyCustomers && data.shopifyCustomers.length > 0) {
-          data.shopifyCustomers.forEach((customer: ShopifyCustomer) => {
-            results.push({
-              type: 'shopify',
-              shopifyCustomer: customer,
-              displayText: customer.firstName, // Business name
-              subText: `${customer.city || 'Unknown City'}, ${customer.province || 'Unknown State'}`, // Just location, no email/phone
-            });
-          });
-        }
-
-        // Add existing stores
+        // Only show existing stores from our database
         if (data.existingStores && data.existingStores.length > 0) {
           data.existingStores.forEach((store: ExistingStore) => {
             results.push({
               type: 'existing',
               existingStore: store,
               displayText: store.storeName,
-              subText: `${store.city}, ${store.state} • Already in system`,
+              subText: `${store.city}, ${store.state} • Store ID: ${store.storeId}`,
             });
           });
         }
@@ -138,25 +126,9 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
   }, [searchQuery, displayId]);
 
   const handleSelectResult = async (result: SearchResult) => {
-    if (result.type === 'shopify' && result.shopifyCustomer) {
-      // Save Shopify customer info and continue (convert state to abbreviation)
-      console.log('🏪 Saving Shopify customer to progress:', result.shopifyCustomer.id);
-      
-      // Check if a store already exists for this Shopify customer
-      let existingStoreData: any = null;
-      try {
-        const storeRes = await fetch(`/api/stores/lookup?shopifyCustomerId=${result.shopifyCustomer.id}`);
-        if (storeRes.ok) {
-          const storeData = await storeRes.json();
-          if (storeData.existingStores && storeData.existingStores.length > 0) {
-            // Found existing store(s) - use the first one
-            existingStoreData = storeData.existingStores[0];
-            console.log('✅ Found existing store:', existingStoreData.storeId);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to check for existing stores:', err);
-      }
+    if (result.type === 'existing' && result.existingStore) {
+      // User selected an existing store - load its data
+      console.log('🏪 Selecting existing store:', result.existingStore.storeId);
       
       // Fetch organization data to pre-fill contact details in Step 7
       let orgContactData = {};
@@ -167,13 +139,11 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
           const orgId = displayData.display?.orgId;
           
           if (orgId) {
-            // Fetch organization details
             const orgRes = await fetch(`/api/organizations/${orgId}`);
             if (orgRes.ok) {
               const orgData = await orgRes.json();
               console.log('📋 Fetched organization data for pre-fill:', orgData);
               
-              // Extract contact info from organization (if sales rep filled it in)
               orgContactData = {
                 orgOwnerName: orgData.organization?.ownerName,
                 orgOwnerPhone: orgData.organization?.ownerPhone,
@@ -189,27 +159,19 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
         }
       } catch (err) {
         console.error('Failed to fetch organization data:', err);
-        // Continue anyway - fields will just be empty
       }
       
       saveProgress({
         currentStep: 7,
-        shopifyCustomerId: result.shopifyCustomer.id,
-        wholesaleBusinessName: result.shopifyCustomer.firstName,
-        address: result.shopifyCustomer.address,
-        city: result.shopifyCustomer.city,
-        state: toStateAbbreviation(result.shopifyCustomer.province), // Convert to 2-letter code
-        zip: result.shopifyCustomer.zip,
-        isNewLocation: !existingStoreData, // True if no store exists yet
-        existingStoreId: existingStoreData?.storeId, // Pass existing store ID if found
-        ...orgContactData, // Include organization contact data for pre-fill
+        wholesaleBusinessName: result.existingStore.storeName,
+        city: result.existingStore.city,
+        state: result.existingStore.state,
+        isNewLocation: false, // This is an existing store
+        existingStoreId: result.existingStore.storeId,
+        ...orgContactData,
       });
-      console.log('✅ Saved shopifyCustomerId, org data, and existing store info to wizard progress');
+      console.log('✅ Saved existing store info to wizard progress');
       router.push(`/setup/${displayId}/activate`);
-    } else if (result.type === 'existing' && result.existingStore) {
-      // For existing stores, we might want to show more info or prevent duplicate
-      // For now, let's just show the account was found
-      alert('This location is already set up in our system. Please contact support if you need to update it.');
     }
   };
 
@@ -242,10 +204,10 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
         <div className="text-center mb-8">
           <div className="text-5xl mb-3">🔍</div>
           <h1 className="text-2xl font-bold text-white mb-2">
-            Find Your Wholesale Account
+            Find Your Store
           </h1>
           <p className="text-pink-200 text-sm">
-            Search by business name, email, or phone number
+            Search by store name, city, or Store ID
           </p>
         </div>
 
@@ -256,7 +218,7 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by business name, email, or phone..."
+              placeholder="Search by store name, city, or Store ID..."
               className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 pr-10 text-lg focus:border-purple-500 focus:outline-none"
               autoFocus
             />
@@ -268,7 +230,7 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
           </div>
 
           <p className="text-xs text-purple-200 mt-2">
-            Enter your business name (e.g., "Nature's Elite"), email address, or phone number
+            Enter your store name (e.g., "Nature's Elite"), city, or Store ID (e.g., "SID-019")
           </p>
 
           {/* Search Results Dropdown */}
@@ -301,7 +263,7 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
           {showResults && searchResults.length === 0 && searchQuery.length >= 2 && !searching && (
             <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4">
               <div className="text-gray-600 text-sm text-center">
-                No accounts found for "{searchQuery}"
+                No stores found for "{searchQuery}"
               </div>
             </div>
           )}
@@ -309,12 +271,12 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
 
         {/* Create New Account Link */}
         <div className="text-center mt-8 pt-6 border-t border-white/20">
-          <p className="text-purple-200 text-sm mb-3">Can't find your account?</p>
+          <p className="text-purple-200 text-sm mb-3">Don't see your store in the system?</p>
           <button
             onClick={handleCreateNewAccount}
             className="text-blue-300 hover:text-blue-200 font-medium underline"
           >
-            Create a new wholesale account
+            Set up as a new store
           </button>
         </div>
       </div>

@@ -22,6 +22,10 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
   
   // Selected full-size products - which ones to offer for promos
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  
+  // Verification state for inventory counts
+  const [samplesVerified, setSamplesVerified] = useState(false);
+  const [productsVerified, setProductsVerified] = useState(false);
 
   const selectedDays = [7, 14, 30]; // Default followup days
 
@@ -64,14 +68,22 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
           setProducts(filtered);
 
           // Initialize inventory from existing store or saved progress
+          console.log('[ProductsStep] Full progress object:', progress);
+          console.log('[ProductsStep] Progress data:', { 
+            existingStoreId: progress?.existingStoreId, 
+            hasProductInventory: !!progress?.productInventory 
+          });
+          
           if (progress?.existingStoreId) {
             console.log('📦 Fetching existing inventory for store:', progress.existingStoreId);
             // Fetch existing inventory from the store
             try {
               const invRes = await fetch(`/api/store/inventory?storeId=${progress.existingStoreId}`);
+              console.log('[ProductsStep] Inventory API response status:', invRes.status);
               if (invRes.ok) {
                 const invData = await invRes.json();
                 console.log('✅ Loaded existing inventory:', invData);
+                console.log('   Inventory items count:', invData.inventory?.length || 0);
                 
                 // Convert inventory array to our format
                 const existingInv: Record<string, number> = {};
@@ -124,6 +136,8 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
             setInventory(savedInv);
             if (progress.selectedSamples) setSelectedSamples(progress.selectedSamples);
             if (progress.selectedProducts) setSelectedProducts(progress.selectedProducts);
+            if (progress.samplesVerified) setSamplesVerified(progress.samplesVerified);
+            if (progress.productsVerified) setProductsVerified(progress.productsVerified);
           } else {
             console.log('🆕 Initializing new inventory');
             initializeDefaultInventory(filtered);
@@ -176,10 +190,12 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
         productInventory: inventory,
         selectedSamples,
         selectedProducts,
+        samplesVerified,
+        productsVerified,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inventory, selectedSamples, selectedProducts]);
+  }, [inventory, selectedSamples, selectedProducts, samplesVerified, productsVerified]);
 
   async function handleActivate() {
     if (!isValid) {
@@ -298,9 +314,21 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
 
         {/* Sample Products (4ct) */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mb-6">
-          <div className="mb-4">
-            <h2 className="font-semibold text-lg mb-1">Available Samples (4ct)</h2>
-            <p className="text-sm text-gray-600">Select which samples to offer and update inventory</p>
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h2 className="font-semibold text-lg mb-1">Available Samples (4ct)</h2>
+              <p className="text-sm text-gray-600">Select which samples to offer and update inventory</p>
+            </div>
+            <button
+              onClick={() => setSamplesVerified(!samplesVerified)}
+              className={`px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition-all ${
+                samplesVerified
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  : 'bg-red-600 text-white hover:bg-red-700'
+              }`}
+            >
+              {samplesVerified ? '✓ Verified' : 'Verify as Accurate'}
+            </button>
           </div>
 
           {sampleProducts.length === 0 ? (
@@ -351,10 +379,10 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                             className={`px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition-all ${
                               isSelected
                                 ? 'bg-purple-600 text-white hover:bg-purple-700'
-                                : 'bg-white text-purple-600 border-2 border-purple-200 hover:bg-purple-50'
+                                : 'bg-pink-600 text-white hover:bg-pink-700'
                             }`}
                           >
-                            {isSelected ? '✓ Offering' : '+ Offer'}
+                            {isSelected ? 'Offering This Product' : '+ Offer This Product'}
                           </button>
                         </div>
                         
@@ -395,9 +423,21 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
 
         {/* Full-Size Products */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-          <div className="mb-4">
-            <h2 className="font-semibold text-lg mb-1">Full-Size Products</h2>
-            <p className="text-sm text-gray-600">Select which products to offer for promotions and update inventory</p>
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h2 className="font-semibold text-lg mb-1">Full-Size Products</h2>
+              <p className="text-sm text-gray-600">Select which products to offer for promotions and update inventory</p>
+            </div>
+            <button
+              onClick={() => setProductsVerified(!productsVerified)}
+              className={`px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition-all ${
+                productsVerified
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  : 'bg-red-600 text-white hover:bg-red-700'
+              }`}
+            >
+              {productsVerified ? '✓ Verified' : 'Verify as Accurate'}
+            </button>
           </div>
 
           {fullSizeProducts.length === 0 ? (
@@ -457,10 +497,10 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                               className={`px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition-all ${
                                 isSelected
                                   ? 'bg-purple-600 text-white hover:bg-purple-700'
-                                  : 'bg-white text-purple-600 border-2 border-purple-200 hover:bg-purple-50'
+                                  : 'bg-pink-600 text-white hover:bg-pink-700'
                               }`}
                             >
-                              {isSelected ? '✓ Offering' : '+ Offer'}
+                              {isSelected ? 'Offering This Product' : '+ Offer This Product'}
                             </button>
                           </div>
                           

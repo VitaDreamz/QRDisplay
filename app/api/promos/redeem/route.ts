@@ -5,7 +5,7 @@ import { addCustomerTimelineEvent, updateCustomerStage } from '@/lib/shopify';
 
 export async function POST(request: NextRequest) {
   try {
-    const { slug, pin, purchaseAmount, discountAmount } = await request.json();
+    const { slug, pin, purchaseAmount, discountAmount, productSku, finalPrice, discountPercent } = await request.json();
 
     if (!slug || !pin) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -20,8 +20,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid promo link' }, { status: 404 });
     }
 
-    if (shortlink.action !== 'promo-redeem') {
+    const isDirect = shortlink.action === 'promo-redeem-direct';
+    
+    if (shortlink.action !== 'promo-redeem' && !isDirect) {
       return NextResponse.json({ error: 'Not a promo link' }, { status: 400 });
+    }
+    
+    // For direct purchases, require product info
+    if (isDirect && (!productSku || !finalPrice || !discountPercent)) {
+      return NextResponse.json({ error: 'Missing product information for direct purchase' }, { status: 400 });
     }
 
     // 2. Validate not expired (72 hours)
@@ -76,6 +83,11 @@ export async function POST(request: NextRequest) {
     }
 
     // 6. Create PromoRedemption record
+    const finalPurchaseAmount = isDirect ? parseFloat(finalPrice.toString()) : (purchaseAmount ? parseFloat(purchaseAmount) : null);
+    const finalDiscountAmount = isDirect 
+      ? (parseFloat(finalPrice.toString()) / (1 - discountPercent / 100)) * (discountPercent / 100)
+      : (discountAmount ? parseFloat(discountAmount) : null);
+    
     await prisma.promoRedemption.create({
       data: {
         customerId: customer.id,
@@ -85,23 +97,80 @@ export async function POST(request: NextRequest) {
         promoSlug: slug,
         redeemedAt: new Date(),
         redeemedBy: staffMember ? `staff-${staffMember.staffId}` : 'admin',
-        purchaseAmount: purchaseAmount ? parseFloat(purchaseAmount) : null,
-        discountAmount: discountAmount ? parseFloat(discountAmount) : null,
+        purchaseAmount: finalPurchaseAmount,
+        discountAmount: finalDiscountAmount,
         // Track which staff member redeemed (if applicable)
         ...(staffMember ? { redeemedByStaffId: staffMember.id } as any : {})
       }
     });
 
-    // 7. Update customer
+    // 7. For direct purchases: Decrement inventory and track staff sales
+    if (isDirect && productSku) {
+      try {
+        // Decrement inventory
+        const inventoryItem = await prisma.storeInventory.findUnique({
+          where: {
+            storeId_productSku: {
+              storeId: store.id,
+              productSku: productSku
+            }
+          }
+        });
+
+        if (inventoryItem && inventoryItem.quantityOnHand > 0) {
+          await prisma.storeInventory.update({
+            where: {
+              storeId_productSku: {
+                storeId: store.id,
+                productSku: productSku
+              }
+            },
+            data: {
+              quantityOnHand: { decrement: 1 }
+            }
+          });
+
+          // Create inventory transaction
+          await prisma.inventoryTransaction.create({
+            data: {
+              storeId: store.id,
+              productSku: productSku,
+              quantity: -1,
+              type: 'sale',
+              balanceAfter: inventoryItem.quantityOnHand - 1,
+              notes: `Direct purchase by ${customer.firstName} ${customer.lastName} (${customer.memberId})`
+            }
+          });
+        }
+
+        // Track staff sales
+        if (staffMember) {
+          await prisma.staff.update({
+            where: { id: staffMember.id },
+            data: {
+              salesGenerated: { increment: 1 }
+            }
+          });
+        }
+      } catch (invErr) {
+        console.error('❌ Inventory/staff tracking failed:', invErr);
+        // Continue anyway - the sale is complete
+      }
+    }
+
+    // 8. Update customer
     await prisma.customer.update({
       where: { id: customer.id },
       data: {
         promoRedeemed: true,
-        promoRedeemedAt: new Date()
+        promoRedeemedAt: new Date(),
+        currentStage: isDirect ? 'purchased' : 'purchased',
+        stageChangedAt: new Date(),
+        promoRedeemedByStaffId: staffMember?.id
       }
     });
 
-    // 8. Mark shortlink used
+    // 9. Mark shortlink used
     await prisma.shortlink.update({
       where: { slug },
       data: {

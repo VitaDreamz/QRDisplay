@@ -32,7 +32,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
 
       try {
         // Get orgId directly from the display (it's assigned when display ships)
-        const displayRes = await fetch(`/api/displays/${p.displayId}`);
+        const displayRes = await fetch(`/api/displays/${p.displayId}/info`);
         if (!displayRes.ok) {
           console.error('[ProductsStep] Failed to fetch display', displayRes.status);
           setError('Failed to load display information');

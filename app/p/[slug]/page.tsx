@@ -121,6 +121,44 @@ export default function PromoRedemptionPage({ params }: { params: Promise<{ slug
     }
   }
 
+  async function handleDirectPurchase() {
+    if (submitting || !selectedProduct || !staffPin) return;
+    
+    // Validate PIN format (4 digits)
+    if (!/^\d{4}$/.test(staffPin)) {
+      setError('Please enter a valid 4-digit PIN');
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/promos/redeem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          slug,
+          pin: staffPin,
+          productSku: selectedProduct.sku,
+          finalPrice: selectedProduct.finalPrice,
+          discountPercent,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error || 'Could not complete purchase');
+        setSubmitting(false);
+        return;
+      }
+      
+      // Redirect to purchase success page
+      window.location.href = `/p/${slug}/success`;
+    } catch (e) {
+      setError('Network error');
+      setSubmitting(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-svh flex items-center justify-center bg-gradient-to-br from-purple-700 to-purple-500">
@@ -296,80 +334,148 @@ export default function PromoRedemptionPage({ params }: { params: Promise<{ slug
           <h3 className="text-sm font-semibold text-purple-800 mb-2">YOUR OFFER</h3>
           <p className="text-3xl font-bold text-purple-600 mb-2">{promoOffer}</p>
           <p className="text-sm text-gray-600">
-            Select a product below to request this promo.
+            {isDirect ? 'Show this to a staff member to complete your purchase.' : 'Select a product below to request this promo.'}
           </p>
         </div>
 
-        {/* Product Cards */}
-        <div className="mb-6">
-          <h3 className="font-semibold text-[#2b2b2b] mb-3">Choose Your Product</h3>
-          <div className="flex flex-col gap-3">
-            {products.length === 0 && <div className="text-gray-500 text-center py-4">No products available for this promo.</div>}
-            {products.map((product) => (
-              <button
-                key={product.sku}
-                type="button"
-                className={`w-full text-left border-2 rounded-xl p-4 transition-all ${
-                  selectedProduct?.sku === product.sku 
-                    ? 'border-purple-600 bg-purple-50 shadow-md' 
-                    : 'border-gray-200 bg-white'
-                } hover:border-purple-400 active:scale-[0.98]`}
-                onClick={() => setSelectedProduct(product)}
-                disabled={submitting}
-              >
+        {/* Direct Purchase Flow - Show selected product and PIN entry */}
+        {isDirect && selectedProduct ? (
+          <>
+            {/* Selected Product Display */}
+            <div className="mb-6">
+              <h3 className="font-semibold text-[#2b2b2b] mb-3">Your Product</h3>
+              <div className="w-full border-2 border-purple-600 bg-purple-50 rounded-xl p-4 shadow-md">
                 <div className="flex gap-3 items-center">
-                  {/* Product Image */}
-                  {product.imageUrl && (
+                  {selectedProduct.imageUrl && (
                     <img
-                      src={product.imageUrl}
-                      alt={product.name}
+                      src={selectedProduct.imageUrl}
+                      alt={selectedProduct.name}
                       className="w-20 h-20 object-cover rounded-lg border border-gray-200 flex-shrink-0"
                     />
                   )}
                   
-                  {/* Product Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="font-bold text-base mb-1">{product.name}</div>
-                    {product.description && (
-                      <div className="text-xs text-gray-600 mb-2 line-clamp-1">{product.description}</div>
+                    <div className="font-bold text-base mb-1">{selectedProduct.name}</div>
+                    {selectedProduct.description && (
+                      <div className="text-xs text-gray-600 mb-2 line-clamp-1">{selectedProduct.description}</div>
                     )}
                     
-                    {/* Pricing */}
                     <div className="flex items-baseline gap-2">
                       <div className="text-xs text-gray-500 line-through">
-                        ${product.originalPrice.toFixed(2)}
+                        ${selectedProduct.originalPrice.toFixed(2)}
                       </div>
                       <div className="text-xl font-bold text-emerald-600">
-                        ${product.finalPrice.toFixed(2)}
+                        ${selectedProduct.finalPrice.toFixed(2)}
                       </div>
                     </div>
                     <div className="text-xs text-emerald-600 font-semibold mt-0.5">
-                      Save ${product.savings.toFixed(2)} ({discountPercent}% off)
+                      Save ${selectedProduct.savings.toFixed(2)} ({discountPercent}% off)
                     </div>
                   </div>
-                  
-                  {/* Selection Indicator */}
-                  {selectedProduct?.sku === product.sku && (
-                    <div className="flex-shrink-0">
-                      <div className="w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center">
-                        <span className="text-white text-sm">✓</span>
-                      </div>
-                    </div>
-                  )}
                 </div>
-              </button>
-            ))}
-          </div>
-        </div>
+              </div>
+            </div>
 
-        {/* Request to Redeem Promo Button */}
-        <button
-          className="w-full h-14 text-lg font-semibold bg-purple-600 text-white rounded-xl active:bg-purple-700 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={submitting || !selectedProduct}
-          onClick={handleRequestRedeem}
-        >
-          {submitting ? 'Requesting…' : selectedProduct ? `Request to Redeem Promo for ${selectedProduct.name}` : 'Select a Product'}
-        </button>
+            {/* PIN Entry */}
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-[#2b2b2b] mb-2">
+                Staff PIN <span className="text-red-600">*</span>
+              </label>
+              <input
+                type="tel"
+                inputMode="numeric"
+                maxLength={4}
+                placeholder="Enter 4-digit PIN"
+                className="w-full h-14 px-4 text-2xl text-center tracking-widest border-2 border-gray-300 rounded-xl focus:border-purple-600 focus:ring-2 focus:ring-purple-200 focus:outline-none"
+                value={staffPin}
+                onChange={(e) => setStaffPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                disabled={submitting}
+              />
+              <p className="text-xs text-gray-600 mt-2 text-center">
+                Ask a staff member to enter their PIN to complete the purchase
+              </p>
+            </div>
+
+            {/* Complete Purchase Button */}
+            <button
+              className="w-full h-14 text-lg font-semibold bg-purple-600 text-white rounded-xl active:bg-purple-700 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={submitting || staffPin.length !== 4}
+              onClick={handleDirectPurchase}
+            >
+              {submitting ? 'Processing…' : 'Complete Purchase'}
+            </button>
+          </>
+        ) : !isDirect ? (
+          <>
+            {/* Regular Promo Flow - Product Selection */}
+            <div className="mb-6">
+              <h3 className="font-semibold text-[#2b2b2b] mb-3">Choose Your Product</h3>
+              <div className="flex flex-col gap-3">
+                {products.length === 0 && <div className="text-gray-500 text-center py-4">No products available for this promo.</div>}
+                {products.map((product) => (
+                  <button
+                    key={product.sku}
+                    type="button"
+                    className={`w-full text-left border-2 rounded-xl p-4 transition-all ${
+                      selectedProduct?.sku === product.sku 
+                        ? 'border-purple-600 bg-purple-50 shadow-md' 
+                        : 'border-gray-200 bg-white'
+                    } hover:border-purple-400 active:scale-[0.98]`}
+                    onClick={() => setSelectedProduct(product)}
+                    disabled={submitting}
+                  >
+                    <div className="flex gap-3 items-center">
+                      {product.imageUrl && (
+                        <img
+                          src={product.imageUrl}
+                          alt={product.name}
+                          className="w-20 h-20 object-cover rounded-lg border border-gray-200 flex-shrink-0"
+                        />
+                      )}
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-base mb-1">{product.name}</div>
+                        {product.description && (
+                          <div className="text-xs text-gray-600 mb-2 line-clamp-1">{product.description}</div>
+                        )}
+                        
+                        <div className="flex items-baseline gap-2">
+                          <div className="text-xs text-gray-500 line-through">
+                            ${product.originalPrice.toFixed(2)}
+                          </div>
+                          <div className="text-xl font-bold text-emerald-600">
+                            ${product.finalPrice.toFixed(2)}
+                          </div>
+                        </div>
+                        <div className="text-xs text-emerald-600 font-semibold mt-0.5">
+                          Save ${product.savings.toFixed(2)} ({discountPercent}% off)
+                        </div>
+                      </div>
+                      
+                      {selectedProduct?.sku === product.sku && (
+                        <div className="flex-shrink-0">
+                          <div className="w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center">
+                            <span className="text-white text-sm">✓</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Request to Redeem Promo Button */}
+            <button
+              className="w-full h-14 text-lg font-semibold bg-purple-600 text-white rounded-xl active:bg-purple-700 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={submitting || !selectedProduct}
+              onClick={handleRequestRedeem}
+            >
+              {submitting ? 'Requesting…' : selectedProduct ? `Request to Redeem Promo for ${selectedProduct.name}` : 'Select a Product'}
+            </button>
+          </>
+        ) : null}
+        
         {error && (
           <div className="text-red-600 text-sm text-center mt-2">{error}</div>
         )}

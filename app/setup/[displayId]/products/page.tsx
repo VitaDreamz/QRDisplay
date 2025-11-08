@@ -306,67 +306,85 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
           {sampleProducts.length === 0 ? (
             <div className="text-center text-gray-500 py-4">No sample products available</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-3">
               {sampleProducts.map((product) => {
                 const isSelected = selectedSamples.includes(product.sku);
                 return (
-                  <div key={product.sku} className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-                    {product.imageUrl && (
-                      <div className="aspect-square bg-gray-100">
-                        <img
-                          src={product.imageUrl}
-                          alt={product.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                    <div className="p-4">
-                      <h3 className="font-semibold text-sm mb-1">{product.name}</h3>
-                      <p className="text-xs text-gray-500 mb-3">SKU: {product.sku}</p>
-                      
-                      {/* Inventory Input */}
-                      <div className="mb-3">
-                        <label className="text-xs font-medium text-gray-700 block mb-1">Inventory on Hand</label>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => updateInventory(product.sku, Math.max(0, (inventory[product.sku] || 0) - 1))}
-                            className="w-8 h-8 rounded-lg border border-gray-300 hover:bg-gray-50 font-bold text-gray-600"
-                          >
-                            −
-                          </button>
-                          <input
-                            type="number"
-                            min="0"
-                            value={inventory[product.sku] || 0}
-                            onChange={(e) => updateInventory(product.sku, parseInt(e.target.value) || 0)}
-                            className="flex-1 px-3 py-2 border rounded-lg text-center font-semibold"
+                  <div 
+                    key={product.sku} 
+                    className={`border-2 rounded-xl p-4 transition-all ${
+                      isSelected 
+                        ? 'border-purple-500 bg-purple-50' 
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-start gap-4">
+                      {/* Product Image */}
+                      {product.imageUrl && (
+                        <div className="w-24 h-24 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
                           />
+                        </div>
+                      )}
+                      
+                      {/* Product Info & Controls */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-base mb-1 text-gray-900">{product.name}</h3>
+                            <p className="text-sm text-gray-600">SKU: {product.sku}</p>
+                            <p className="text-sm font-semibold text-gray-900 mt-1">${parseFloat(product.price || 0).toFixed(2)}</p>
+                          </div>
+                          
+                          {/* Selection Button */}
                           <button
-                            onClick={() => updateInventory(product.sku, (inventory[product.sku] || 0) + 1)}
-                            className="w-8 h-8 rounded-lg border border-gray-300 hover:bg-gray-50 font-bold text-gray-600"
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedSamples(prev => prev.filter(sku => sku !== product.sku));
+                              } else {
+                                setSelectedSamples(prev => [...prev, product.sku]);
+                              }
+                            }}
+                            className={`px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition-all ${
+                              isSelected
+                                ? 'bg-purple-600 text-white hover:bg-purple-700'
+                                : 'bg-white text-purple-600 border-2 border-purple-200 hover:bg-purple-50'
+                            }`}
                           >
-                            +
+                            {isSelected ? '✓ Offering' : '+ Offer'}
                           </button>
                         </div>
+                        
+                        {/* Inventory Control */}
+                        <div className="flex items-center gap-3">
+                          <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">Inventory:</label>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => updateInventory(product.sku, Math.max(0, (inventory[product.sku] || 0) - 1))}
+                              className="w-10 h-10 rounded-lg border-2 border-gray-300 hover:bg-gray-50 font-bold text-gray-700 text-lg"
+                            >
+                              −
+                            </button>
+                            <input
+                              type="number"
+                              min="0"
+                              value={inventory[product.sku] || 0}
+                              onChange={(e) => updateInventory(product.sku, parseInt(e.target.value) || 0)}
+                              className="w-20 h-10 px-3 border-2 border-gray-300 rounded-lg text-center font-bold text-lg"
+                            />
+                            <button
+                              onClick={() => updateInventory(product.sku, (inventory[product.sku] || 0) + 1)}
+                              className="w-10 h-10 rounded-lg border-2 border-gray-300 hover:bg-gray-50 font-bold text-gray-700 text-lg"
+                            >
+                              +
+                            </button>
+                            <span className="text-sm text-gray-600 ml-2">units on hand</span>
+                          </div>
+                        </div>
                       </div>
-                      
-                      {/* Selection Button */}
-                      <button
-                        onClick={() => {
-                          if (isSelected) {
-                            setSelectedSamples(prev => prev.filter(sku => sku !== product.sku));
-                          } else {
-                            setSelectedSamples(prev => [...prev, product.sku]);
-                          }
-                        }}
-                        className={`w-full py-2.5 rounded-lg font-semibold transition-all ${
-                          isSelected
-                            ? 'bg-purple-600 text-white hover:bg-purple-700'
-                            : 'bg-pink-50 text-pink-600 border-2 border-pink-200 hover:bg-pink-100'
-                        }`}
-                      >
-                        {isSelected ? '✓ Offering' : '+ Offer This Product'}
-                      </button>
                     </div>
                   </div>
                 );
@@ -389,73 +407,90 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-3">
                 {fullSizeProducts.map((product) => {
                   const isSelected = selectedProducts.includes(product.sku);
                   return (
-                    <div key={product.sku} className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-                      {product.imageUrl && (
-                        <div className="aspect-square bg-gray-100">
-                          <img
-                            src={product.imageUrl}
-                            alt={product.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      )}
-                      <div className="p-4">
-                        <div className="flex items-start justify-between mb-1">
-                          <h3 className="font-semibold text-sm flex-1">{product.name}</h3>
-                          {product.featured && (
-                            <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold ml-2">⭐</span>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-500 mb-1">SKU: {product.sku}</p>
-                        <p className="text-xs text-gray-700 font-semibold mb-3">${parseFloat(product.price).toFixed(2)}</p>
-                        
-                        {/* Inventory Input */}
-                        <div className="mb-3">
-                          <label className="text-xs font-medium text-gray-700 block mb-1">Inventory on Hand</label>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => updateInventory(product.sku, Math.max(0, (inventory[product.sku] || 0) - 1))}
-                              className="w-8 h-8 rounded-lg border border-gray-300 hover:bg-gray-50 font-bold text-gray-600"
-                            >
-                              −
-                            </button>
-                            <input
-                              type="number"
-                              min="0"
-                              value={inventory[product.sku] || 0}
-                              onChange={(e) => updateInventory(product.sku, parseInt(e.target.value) || 0)}
-                              className="flex-1 px-3 py-2 border rounded-lg text-center font-semibold"
+                    <div 
+                      key={product.sku} 
+                      className={`border-2 rounded-xl p-4 transition-all ${
+                        isSelected 
+                          ? 'border-purple-500 bg-purple-50' 
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-start gap-4">
+                        {/* Product Image */}
+                        {product.imageUrl && (
+                          <div className="w-24 h-24 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
+                            <img
+                              src={product.imageUrl}
+                              alt={product.name}
+                              className="w-full h-full object-cover"
                             />
+                          </div>
+                        )}
+                        
+                        {/* Product Info & Controls */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-3 mb-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-bold text-base text-gray-900">{product.name}</h3>
+                                {product.featured && (
+                                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">⭐</span>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-600">SKU: {product.sku}</p>
+                              <p className="text-sm font-semibold text-gray-900 mt-1">${parseFloat(product.price).toFixed(2)}</p>
+                            </div>
+                            
+                            {/* Selection Button */}
                             <button
-                              onClick={() => updateInventory(product.sku, (inventory[product.sku] || 0) + 1)}
-                              className="w-8 h-8 rounded-lg border border-gray-300 hover:bg-gray-50 font-bold text-gray-600"
+                              onClick={() => {
+                                if (isSelected) {
+                                  setSelectedProducts(prev => prev.filter(sku => sku !== product.sku));
+                                } else {
+                                  setSelectedProducts(prev => [...prev, product.sku]);
+                                }
+                              }}
+                              className={`px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition-all ${
+                                isSelected
+                                  ? 'bg-purple-600 text-white hover:bg-purple-700'
+                                  : 'bg-white text-purple-600 border-2 border-purple-200 hover:bg-purple-50'
+                              }`}
                             >
-                              +
+                              {isSelected ? '✓ Offering' : '+ Offer'}
                             </button>
                           </div>
+                          
+                          {/* Inventory Control */}
+                          <div className="flex items-center gap-3">
+                            <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">Inventory:</label>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => updateInventory(product.sku, Math.max(0, (inventory[product.sku] || 0) - 1))}
+                                className="w-10 h-10 rounded-lg border-2 border-gray-300 hover:bg-gray-50 font-bold text-gray-700 text-lg"
+                              >
+                                −
+                              </button>
+                              <input
+                                type="number"
+                                min="0"
+                                value={inventory[product.sku] || 0}
+                                onChange={(e) => updateInventory(product.sku, parseInt(e.target.value) || 0)}
+                                className="w-20 h-10 px-3 border-2 border-gray-300 rounded-lg text-center font-bold text-lg"
+                              />
+                              <button
+                                onClick={() => updateInventory(product.sku, (inventory[product.sku] || 0) + 1)}
+                                className="w-10 h-10 rounded-lg border-2 border-gray-300 hover:bg-gray-50 font-bold text-gray-700 text-lg"
+                              >
+                                +
+                              </button>
+                              <span className="text-sm text-gray-600 ml-2">units on hand</span>
+                            </div>
+                          </div>
                         </div>
-                        
-                        {/* Selection Button */}
-                        <button
-                          onClick={() => {
-                            if (isSelected) {
-                              setSelectedProducts(prev => prev.filter(sku => sku !== product.sku));
-                            } else {
-                              setSelectedProducts(prev => [...prev, product.sku]);
-                            }
-                          }}
-                          className={`w-full py-2.5 rounded-lg font-semibold transition-all ${
-                            isSelected
-                              ? 'bg-purple-600 text-white hover:bg-purple-700'
-                              : 'bg-pink-50 text-pink-600 border-2 border-pink-200 hover:bg-pink-100'
-                          }`}
-                        >
-                          {isSelected ? '✓ Offering' : '+ Offer This Product'}
-                        </button>
                       </div>
                     </div>
                   );

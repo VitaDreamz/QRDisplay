@@ -744,13 +744,15 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
     setLoadingProducts(true);
     try {
       const orgId = (data.organization as any)?.orgId;
+      const storeId = data.store.storeId;
       console.log('🔍 [Products Tab] Fetching products for orgId:', orgId);
+      console.log('🔍 [Products Tab] Fetching inventory for storeId:', storeId);
       if (!orgId) {
         console.error('❌ [Products Tab] No orgId found');
         setLoadingProducts(false);
         return;
       }
-      const res = await fetch(`/api/products?orgId=${orgId}`);
+      const res = await fetch(`/api/products?orgId=${orgId}&storeId=${storeId}`);
       console.log('🔍 [Products Tab] API response status:', res.status);
       if (res.ok) {
         const productsData = await res.json();
@@ -758,7 +760,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
         console.log('🔍 [Products Tab] Products data:', productsData.products);
         // Log detailed info about each product
         productsData.products?.forEach((p: any) => {
-          console.log(`📦 Product: ${p.sku} | Type: ${p.productType} | Active: ${p.active} | Name: ${p.name}`);
+          console.log(`📦 Product: ${p.sku} | Type: ${p.productType} | Active: ${p.active} | Name: ${p.name} | Inventory: ${p.inventoryQuantity}`);
         });
         setProducts(productsData.products || []);
       } else {
@@ -2247,8 +2249,22 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                             {product.category}
                           </span>
                         )}
-                        <div className="text-lg font-bold text-purple-600 mb-3">
+                        <div className="text-lg font-bold text-purple-600 mb-2">
                           ${parseFloat(product.price).toFixed(2)}
+                        </div>
+                        
+                        {/* Inventory Display */}
+                        <div className="mb-3 flex items-center gap-2">
+                          <span className="text-xs font-semibold text-gray-700">In Stock:</span>
+                          <span className={`text-sm font-bold ${
+                            product.inventoryQuantity > 10 
+                              ? 'text-green-600' 
+                              : product.inventoryQuantity > 0 
+                              ? 'text-yellow-600' 
+                              : 'text-red-600'
+                          }`}>
+                            {product.inventoryQuantity || 0}
+                          </span>
                         </div>
                         
                         <button

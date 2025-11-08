@@ -8,10 +8,12 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const orgId = searchParams.get('orgId');
     const productType = searchParams.get('productType');
+    const storeId = searchParams.get('storeId');
     
     console.log('[Products API] GET request received');
     console.log('[Products API] orgId param:', orgId);
     console.log('[Products API] productType param:', productType);
+    console.log('[Products API] storeId param:', storeId);
     console.log('[Products API] DATABASE_URL:', process.env.DATABASE_URL?.substring(0, 50) + '...');
     
     // Build where clause with optional filters
@@ -27,7 +29,17 @@ export async function GET(request: NextRequest) {
         { featured: 'desc' },
         { active: 'desc' },
         { name: 'asc' }
-      ]
+      ],
+      // Include inventory data if storeId is provided
+      ...(storeId ? {
+        include: {
+          storeInventory: {
+            where: {
+              storeId: storeId
+            }
+          }
+        }
+      } : {})
     });
     
     console.log('[Products API] Found products:', products.length);
@@ -41,7 +53,15 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    return NextResponse.json({ products });
+    // Transform inventory data for easier consumption
+    const productsWithInventory = products.map((product: any) => ({
+      ...product,
+      inventoryQuantity: product.storeInventory?.[0]?.quantityOnHand || 0,
+      inventoryAvailable: product.storeInventory?.[0]?.quantityAvailable || 0,
+      storeInventory: undefined // Remove the array to keep response clean
+    }));
+    
+    return NextResponse.json({ products: productsWithInventory });
   } catch (error) {
     console.error('[Products API] GET error:', error);
     return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });

@@ -776,6 +776,32 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
     setLoadingProducts(false);
   };
 
+  // Update inventory quantity
+  const updateInventory = async (productSku: string, newQuantity: number) => {
+    if (newQuantity < 0) return;
+    
+    try {
+      const res = await fetch('/api/store/inventory/adjust', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productSku,
+          quantity: newQuantity,
+          type: 'manual_adjustment'
+        })
+      });
+      
+      if (res.ok) {
+        // Refresh products to get updated inventory
+        await fetchProducts();
+      } else {
+        console.error('Failed to update inventory');
+      }
+    } catch (err) {
+      console.error('Error updating inventory:', err);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'staff') {
       fetchStaff();
@@ -2161,18 +2187,41 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                               Free Sample (Retail: ${parseFloat(product.price).toFixed(2)})
                             </div>
                             
-                            {/* Inventory Display */}
-                            <div className="mb-3 flex items-center gap-2">
-                              <span className="text-xs font-semibold text-gray-700">In Stock:</span>
-                              <span className={`text-sm font-bold ${
-                                product.inventoryQuantity > 10 
-                                  ? 'text-green-600' 
-                                  : product.inventoryQuantity > 0 
-                                  ? 'text-yellow-600' 
-                                  : 'text-red-600'
-                              }`}>
-                                {product.inventoryQuantity || 0}
-                              </span>
+                            {/* Inventory Display with Controls */}
+                            <div className="mb-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-semibold text-gray-700">In Stock:</span>
+                                <span className={`text-sm font-bold ${
+                                  product.inventoryQuantity > 10 
+                                    ? 'text-green-600' 
+                                    : product.inventoryQuantity > 0 
+                                    ? 'text-yellow-600' 
+                                    : 'text-red-600'
+                                }`}>
+                                  {product.inventoryQuantity || 0}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => updateInventory(product.sku, Math.max(0, (product.inventoryQuantity || 0) - 1))}
+                                  className="flex-1 px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 font-bold text-sm"
+                                >
+                                  −
+                                </button>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={product.inventoryQuantity || 0}
+                                  onChange={(e) => updateInventory(product.sku, parseInt(e.target.value) || 0)}
+                                  className="flex-1 text-center bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"
+                                />
+                                <button
+                                  onClick={() => updateInventory(product.sku, (product.inventoryQuantity || 0) + 1)}
+                                  className="flex-1 px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 font-bold text-sm"
+                                >
+                                  +
+                                </button>
+                              </div>
                             </div>
                             
                             <button
@@ -2295,18 +2344,41 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                           ${parseFloat(product.price).toFixed(2)}
                         </div>
                         
-                        {/* Inventory Display */}
-                        <div className="mb-3 flex items-center gap-2">
-                          <span className="text-xs font-semibold text-gray-700">In Stock:</span>
-                          <span className={`text-sm font-bold ${
-                            product.inventoryQuantity > 10 
-                              ? 'text-green-600' 
-                              : product.inventoryQuantity > 0 
-                              ? 'text-yellow-600' 
-                              : 'text-red-600'
-                          }`}>
-                            {product.inventoryQuantity || 0}
-                          </span>
+                        {/* Inventory Display with Controls */}
+                        <div className="mb-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-semibold text-gray-700">In Stock:</span>
+                            <span className={`text-sm font-bold ${
+                              product.inventoryQuantity > 10 
+                                ? 'text-green-600' 
+                                : product.inventoryQuantity > 0 
+                                ? 'text-yellow-600' 
+                                : 'text-red-600'
+                            }`}>
+                              {product.inventoryQuantity || 0}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => updateInventory(product.sku, Math.max(0, (product.inventoryQuantity || 0) - 1))}
+                              className="flex-1 px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 font-bold text-sm"
+                            >
+                              −
+                            </button>
+                            <input
+                              type="number"
+                              min="0"
+                              value={product.inventoryQuantity || 0}
+                              onChange={(e) => updateInventory(product.sku, parseInt(e.target.value) || 0)}
+                              className="flex-1 text-center bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"
+                            />
+                            <button
+                              onClick={() => updateInventory(product.sku, (product.inventoryQuantity || 0) + 1)}
+                              className="flex-1 px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 font-bold text-sm"
+                            >
+                              +
+                            </button>
+                          </div>
                         </div>
                         
                         <button

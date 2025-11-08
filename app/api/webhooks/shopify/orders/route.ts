@@ -189,6 +189,25 @@ async function handleOrderPaid(orgId: string, order: ShopifyOrder, topic: string
     console.log(`   Store: ${customer.store?.storeName} (${customer.store?.storeId})`);
     console.log(`   Days to conversion: ${daysToConversion}`);
 
+    // Apply store credit to the store
+    const storeId = customer.attributedStoreId || customer.storeId;
+    if (storeId) {
+      try {
+        await applyStoreCredit(storeId, commissionAmount, conversion.id, customer.store?.storeName || 'Store');
+        
+        // Mark conversion as paid
+        await prisma.conversion.update({
+          where: { id: conversion.id },
+          data: { paid: true },
+        });
+        
+        console.log(`💳 Store credit applied: $${commissionAmount.toFixed(2)} to ${customer.store?.storeName}`);
+      } catch (creditErr) {
+        console.error('❌ Failed to apply store credit:', creditErr);
+        // Don't fail the whole process if credit application fails
+      }
+    }
+
     // Update customer stage to converted
     if ((customer as any).shopifyCustomerId) {
       try {
@@ -205,13 +224,7 @@ async function handleOrderPaid(orgId: string, order: ShopifyOrder, topic: string
       }
     }
 
-    // TODO: Apply store credit to wholesale store
-    // This will be implemented in a separate function that:
-    // 1. Uses Shopify API to create/update store credit
-    // 2. Marks conversion as paid
-    // 3. Sends notification to store owner
-
-    await logWebhook(orgId, customer.id, topic, order, 'success', `Conversion tracked: $${commissionAmount.toFixed(2)}`);
+    await logWebhook(orgId, customer.id, topic, order, 'success', `Conversion tracked: $${commissionAmount.toFixed(2)} - Credit applied`);
   } catch (error) {
     console.error('❌ Error handling order paid:', error);
     await logWebhook(
@@ -224,6 +237,51 @@ async function handleOrderPaid(orgId: string, order: ShopifyOrder, topic: string
     );
     throw error;
   }
+}
+
+/**
+ * Apply store credit for commission earned
+ */
+async function applyStoreCredit(
+  storeId: string,
+  amount: number,
+  conversionId: string,
+  storeName: string
+) {
+  // Get current store credit balance
+  const store = await prisma.store.findUnique({
+    where: { id: storeId },
+    select: { storeCredit: true },
+  });
+
+  if (!store) {
+    throw new Error(`Store not found: ${storeId}`);
+  }
+
+  const previousBalance = parseFloat(store.storeCredit.toString());
+  const newBalance = previousBalance + amount;
+
+  // Update store credit balance
+  await prisma.store.update({
+    where: { id: storeId },
+    data: { storeCredit: newBalance },
+  });
+
+  // Create credit transaction record
+  await prisma.storeCreditTransaction.create({
+    data: {
+      storeId,
+      amount,
+      type: 'commission',
+      reason: `Commission earned from retail customer purchase (Conversion #${conversionId})`,
+      balance: newBalance,
+    },
+  });
+
+  console.log(`💰 Store credit applied to ${storeName}:`);
+  console.log(`   Previous balance: $${previousBalance.toFixed(2)}`);
+  console.log(`   Commission earned: $${amount.toFixed(2)}`);
+  console.log(`   New balance: $${newBalance.toFixed(2)}`);
 }
 
 /**

@@ -212,8 +212,11 @@ export async function POST(request: NextRequest) {
       console.log(`💰 [Draft Order] Deducted $${creditToApply.toFixed(2)} credit. New balance: $${newBalance.toFixed(2)}`);
     }
 
-    // Send invoice email via Shopify
+    // Send invoice email via Shopify (with delay to let order finish calculating)
     try {
+      // Wait 2 seconds for Shopify to finish calculating the order
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       await client.post({
         path: `draft_orders/${draftOrder.id}/send_invoice`,
         data: {

@@ -3007,12 +3007,25 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                     return sum + (retailPrice * unitsPerBox * qty);
                   }, 0);
                   
-                  const storeCredit = (data.store as any)?.storeCredit || 0;
+                  const storeCredit = Number((data.store as any)?.storeCredit || 0);
                   const creditApplied = Math.min(storeCredit, totalCost);
-                  const finalTotal = totalCost - creditApplied;
+                  const finalTotal = Math.max(0, totalCost - creditApplied);
+                  
+                  // Debug logging
+                  console.log('💰 Order Summary Debug:', {
+                    storeCredit,
+                    totalCost,
+                    creditApplied,
+                    finalTotal
+                  });
                   
                   return (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                      {storeCredit > 0 && (
+                        <div className="bg-green-100 border border-green-300 rounded-md p-2 mb-3 text-sm">
+                          <span className="font-semibold text-green-800">💰 Available Store Credit: ${storeCredit.toFixed(2)}</span>
+                        </div>
+                      )}
                       <h4 className="font-bold text-sm mb-3">Order Summary</h4>
                       <div className="space-y-2 text-sm">
                         {selectedBoxes.map(([sku, qty]) => {
@@ -3130,7 +3143,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                       disabled={sendingPurchaseRequest || Object.values(boxQuantities).every(q => q === 0)}
                       className="w-full sm:flex-1 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 active:bg-purple-800 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-base flex items-center justify-center gap-2"
                     >
-                      {sendingPurchaseRequest ? 'Placing Order...' : 'Place Order'}
+                      {sendingPurchaseRequest ? 'Submitting PO...' : '📋 Submit a PO'}
                     </button>
                   ) : (
                     // MANUAL PATH: Send email request to organization
@@ -3178,7 +3191,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                       disabled={sendingPurchaseRequest || Object.values(boxQuantities).every(q => q === 0)}
                       className="w-full sm:flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 active:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed font-bold text-base"
                     >
-                      {sendingPurchaseRequest ? 'Sending...' : '📧 Send Order Request'}
+                      {sendingPurchaseRequest ? 'Submitting PO...' : '� Submit a PO'}
                     </button>
                   )}
                 </div>

@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const SHOPIFY_STORE = process.env.SHOPIFY_STORE!;
-const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN!;
+import prisma from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('query');
+    const orgId = searchParams.get('orgId');
 
     if (!query) {
       return NextResponse.json(
@@ -15,16 +14,39 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    if (!orgId) {
+      return NextResponse.json(
+        { error: 'orgId parameter is required' },
+        { status: 400 }
+      );
+    }
+
     if (query.length < 2) {
       return NextResponse.json({ customers: [] });
     }
 
+    // Get organization's Shopify credentials
+    const org = await prisma.organization.findUnique({
+      where: { orgId },
+      select: {
+        shopifyStoreName: true,
+        shopifyAccessToken: true
+      }
+    });
+
+    if (!org?.shopifyStoreName || !org?.shopifyAccessToken) {
+      return NextResponse.json(
+        { error: 'Shopify not configured for this organization' },
+        { status: 400 }
+      );
+    }
+
     // Search Shopify customers
     const shopifyResponse = await fetch(
-      `https://${SHOPIFY_STORE}/admin/api/2024-01/customers/search.json?query=${encodeURIComponent(query)}`,
+      `https://${org.shopifyStoreName}/admin/api/2024-01/customers/search.json?query=${encodeURIComponent(query)}`,
       {
         headers: {
-          'X-Shopify-Access-Token': SHOPIFY_ACCESS_TOKEN,
+          'X-Shopify-Access-Token': org.shopifyAccessToken,
           'Content-Type': 'application/json'
         }
       }

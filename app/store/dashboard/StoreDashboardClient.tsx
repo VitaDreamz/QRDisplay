@@ -941,19 +941,19 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-blue-900 pb-20 md:pb-0">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 md:px-6 py-2 md:py-5">
+      <div className="bg-white/10 backdrop-blur-sm border-b border-white/20 px-4 md:px-6 py-2 md:py-5">
         <div className="flex flex-col items-center text-center">
-          <h1 className="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 mb-1.5">
+          <h1 className="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-200 via-purple-200 to-blue-200 mb-1.5">
             {data.store.storeName}
           </h1>
           {data.organization?.name && (
             <div className="flex flex-col items-center">
-              <p className="text-sm md:text-base font-semibold text-gray-800">
+              <p className="text-sm md:text-base font-semibold text-white">
                 {data.organization.name} Samples Dashboard
               </p>
-              <p className="text-[10px] text-gray-500 mt-0.5">
+              <p className="text-[10px] text-pink-200 mt-0.5">
                 powered by QRDisplay
               </p>
             </div>
@@ -965,12 +965,12 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
       {activeTab !== 'settings' && (
         <div className={`px-4 md:px-6 py-2 md:py-3 ${(activeTab === 'customers' || activeTab === 'products') ? 'hidden md:block' : ''}`}>
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2 md:gap-4">
-            <div className="bg-white rounded-xl p-3 md:p-6 shadow-sm hover:shadow transition">
+            <div className="bg-white rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition">
               <div className="text-xs text-gray-600 font-medium">Samples Requested</div>
               <div className="text-2xl md:text-3xl font-bold text-blue-600 mt-1">{data.customers.length}</div>
               <div className="text-xs text-gray-500 mt-1">📋 Total requests</div>
             </div>
-            <div className="bg-white rounded-xl p-3 md:p-6 shadow-sm hover:shadow transition">
+            <div className="bg-white rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition">
               <div className="text-xs text-gray-600 font-medium">Samples Redeemed</div>
               <div className="text-2xl md:text-3xl font-bold text-green-600 mt-1">{stats.samplesRedeemed}</div>
               <div className="text-xs text-gray-500 mt-1">✅ +{todayRedeemed} today</div>
@@ -978,21 +978,21 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                 {data.customers.length > 0 ? ((stats.samplesRedeemed / data.customers.length) * 100).toFixed(1) : 0}% conversion
               </div>
             </div>
-            <div className="bg-white rounded-xl p-3 md:p-6 shadow-sm hover:shadow transition">
+            <div className="bg-white rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition">
               <div className="text-xs text-gray-600 font-medium">Pending Orders</div>
               <div className="text-2xl md:text-3xl font-bold text-amber-600 mt-1">{pendingIntents.length + readyIntents.length}</div>
               <div className="text-xs text-gray-500 mt-1">
                 ⏳ {readyIntents.length} ready, {pendingIntents.length} requested
               </div>
             </div>
-            <div className="bg-white rounded-xl p-3 md:p-6 shadow-sm hover:shadow transition">
+            <div className="bg-white rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition">
               <div className="text-xs text-gray-600 font-medium">Pending Sales</div>
               <div className="text-2xl md:text-3xl font-bold text-orange-600 mt-1">
                 ${stats.pendingSales.toFixed(2)}
               </div>
               <div className="text-xs text-gray-500 mt-1">💵 In progress</div>
             </div>
-            <div className="bg-white rounded-xl p-3 md:p-6 shadow-sm hover:shadow transition">
+            <div className="bg-white rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition">
               <div className="text-xs text-gray-600 font-medium">Total Orders</div>
               <div className="text-2xl md:text-3xl font-bold text-indigo-600 mt-1">{fulfilledIntents.length}</div>
               <div className="text-xs text-gray-500 mt-1">🛍️ Completed sales</div>
@@ -2771,12 +2771,12 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-area-inset-bottom">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/10 backdrop-blur-md border-t border-white/20 safe-area-inset-bottom">
         <div className={`grid ${role === 'owner' ? 'grid-cols-5' : 'grid-cols-3'}`}>
           <button
             onClick={() => setActiveTab('overview')}
             className={`flex flex-col items-center justify-center h-14 space-y-1 ${
-              activeTab === 'overview' ? 'bg-purple-600 text-white' : 'text-gray-600'
+              activeTab === 'overview' ? 'bg-purple-600 text-white' : 'text-white'
             }`}
           >
             <span className="text-xl">📊</span>
@@ -2785,7 +2785,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
           <button
             onClick={() => setActiveTab('customers')}
             className={`flex flex-col items-center justify-center h-14 space-y-1 ${
-              activeTab === 'customers' ? 'bg-purple-600 text-white' : 'text-gray-600'
+              activeTab === 'customers' ? 'bg-purple-600 text-white' : 'text-white'
             }`}
           >
             <span className="text-xl">👥</span>
@@ -2794,7 +2794,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
           <button
             onClick={() => setActiveTab('products')}
             className={`flex flex-col items-center justify-center h-14 space-y-1 ${
-              activeTab === 'products' ? 'bg-purple-600 text-white' : 'text-gray-600'
+              activeTab === 'products' ? 'bg-purple-600 text-white' : 'text-white'
             }`}
           >
             <span className="text-xl">🛍️</span>
@@ -2805,7 +2805,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
               <button
                 onClick={() => setActiveTab('staff')}
                 className={`flex flex-col items-center justify-center h-14 space-y-1 ${
-                  activeTab === 'staff' ? 'bg-purple-600 text-white' : 'text-gray-600'
+                  activeTab === 'staff' ? 'bg-purple-600 text-white' : 'text-white'
                 }`}
               >
                 <span className="text-xl">🏆</span>
@@ -2814,7 +2814,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
               <button
                 onClick={() => setActiveTab('settings')}
                 className={`flex flex-col items-center justify-center h-14 space-y-1 ${
-                  activeTab === 'settings' ? 'bg-purple-600 text-white' : 'text-gray-600'
+                  activeTab === 'settings' ? 'bg-purple-600 text-white' : 'text-white'
                 }`}
               >
                 <span className="text-xl">⚙️</span>

@@ -40,37 +40,16 @@ export async function POST(request: NextRequest) {
 
     // Fetch all products from Shopify
     const allProducts: any[] = [];
-    let hasNextPage = true;
-    let pageInfo = null;
+    let pageInfo: string | null = null;
 
-    while (hasNextPage) {
-      const params: any = { limit: 250 };
-      if (pageInfo) {
-        params.page_info = pageInfo;
-      }
+    // Simple pagination: just fetch first page for now
+    const response = await client.get({
+      path: 'products',
+      query: { limit: 250 }
+    });
 
-      const response = await client.get({
-        path: 'products',
-        query: params
-      });
-
-      const products = (response.body as any).products || [];
-      allProducts.push(...products);
-
-      // Check for pagination
-      const linkHeader = response.headers?.get('link');
-      if (linkHeader && linkHeader.includes('rel="next"')) {
-        // Extract page_info from link header
-        const nextMatch = linkHeader.match(/<[^>]*page_info=([^&>]+)[^>]*>;\s*rel="next"/);
-        if (nextMatch) {
-          pageInfo = nextMatch[1];
-        } else {
-          hasNextPage = false;
-        }
-      } else {
-        hasNextPage = false;
-      }
-    }
+    const products = (response.body as any).products || [];
+    allProducts.push(...products);
 
     console.log(`📦 [Fetch Products] Retrieved ${allProducts.length} products from Shopify`);
 

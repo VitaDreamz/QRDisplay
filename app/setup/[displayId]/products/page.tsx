@@ -29,8 +29,9 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
 
   const selectedDays = [7, 14, 30]; // Default followup days
   
-  // Track if we've already loaded products to prevent infinite loop
+  // Track if we've already loaded to prevent infinite loop
   const [productsLoaded, setProductsLoaded] = useState(false);
+  const [inventoryLoaded, setInventoryLoaded] = useState(false);
 
   // Fetch products and initialize state
   useEffect(() => {
@@ -96,9 +97,10 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
   
   // Load inventory once products and progress are both available
   useEffect(() => {
-    if (!products.length || !progress) return;
+    if (!products.length || !progress || inventoryLoaded) return;
     
     console.log('[ProductsStep] Loading inventory with progress:', progress);
+    setInventoryLoaded(true); // Mark as loaded immediately to prevent re-runs
     
     if (progress.existingStoreId) {
       console.log('📦 Fetching existing inventory for store:', progress.existingStoreId);

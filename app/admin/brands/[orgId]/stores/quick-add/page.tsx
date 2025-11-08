@@ -225,29 +225,33 @@ export default function QuickAddStorePage() {
 
   if (success) {
     return (
-      <div className="container max-w-2xl py-8">
-        <div className="bg-green-50 border border-green-500 rounded-lg p-4 text-green-800">
-          ✓ Store <strong>{createdStoreId}</strong> created successfully! Redirecting...
+      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-blue-900 flex items-center justify-center p-4">
+        <div className="bg-green-500/20 border-2 border-green-400/50 backdrop-blur-sm rounded-lg p-6 text-green-100 max-w-md">
+          <div className="text-center">
+            <div className="text-4xl mb-3">✓</div>
+            <p className="text-lg">Store <strong className="text-white">{createdStoreId}</strong> created successfully!</p>
+            <p className="text-sm text-green-200 mt-2">Redirecting...</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container max-w-4xl py-8 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Quick Add Store</h1>
-        <p className="text-gray-600">Link an existing Shopify wholesale customer to QRDisplay</p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-blue-900 py-8">
+      <div className="container max-w-4xl mx-auto px-4 space-y-6">
+        <div>
+          <h1 className="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-200 via-purple-200 to-blue-200">Quick Add Store</h1>
+          <p className="text-purple-200 mt-2">Link an existing Shopify wholesale customer to QRDisplay</p>
+        </div>
 
-      {/* Search */}
-      <div className="bg-white border rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-2">1. Find Shopify Customer</h2>
-        <p className="text-sm text-gray-600 mb-4">Search by business name, email, or phone</p>
-        
-        <div className="relative">
-          <input
-            type="text"
+        {/* Search */}
+        <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-6 shadow-lg">
+          <h2 className="text-xl font-semibold text-white mb-2">1. Find Shopify Customer</h2>
+          <p className="text-sm text-purple-200 mb-4">Search by business name, email, or phone</p>
+          
+          <div className="relative">\n            <input
+              type="text"
             placeholder="Start typing..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -318,19 +322,20 @@ export default function QuickAddStorePage() {
           </div>
 
           {/* Submit */}
-          <div className="bg-white border rounded-lg p-6">
+          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-6 shadow-lg">
             {submitError && (
-              <div className="mb-4 p-4 bg-red-50 border border-red-500 rounded-lg text-red-800">{submitError}</div>
+              <div className="mb-4 p-4 bg-red-500/20 border-2 border-red-400/50 backdrop-blur-sm rounded-lg text-red-100">{submitError}</div>
             )}
             <div className="flex justify-end gap-2">
-              <button onClick={() => router.back()} className="px-4 py-2 border rounded-md">Cancel</button>
-              <button onClick={handleSubmit} disabled={submitting} className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:opacity-50">
+              <button onClick={() => router.back()} className="px-4 py-2 bg-white/10 backdrop-blur-sm border-2 border-white/30 text-white rounded-md hover:bg-white/20">Cancel</button>
+              <button onClick={handleSubmit} disabled={submitting} className="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-md shadow-lg shadow-purple-500/50 hover:from-purple-600 hover:to-blue-600 disabled:opacity-50">
                 {submitting ? 'Creating...' : 'Create Store'}
               </button>
             </div>
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }

@@ -135,6 +135,7 @@ model Store {
   salesRepPhone String?
   
   streetAddress String?
+  address2      String?  // Suite, unit, apt number
   city          String?
   state         String?
   zipCode       String?

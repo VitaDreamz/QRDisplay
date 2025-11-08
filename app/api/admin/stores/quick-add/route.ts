@@ -64,23 +64,22 @@ export async function POST(request: NextRequest) {
     // Note: In Shopify, wholesale customers have:
     // - First Name = Business Name (e.g., "ABC Liquor Store")
     // - Last Name = "Wholesale"
+    // - We only pull business info from Shopify, contact people entered manually
     const store = await prisma.store.create({
       data: {
         id: storeId,
         orgId,
         shopifyCustomerId: customer.id.toString(),
         storeName: customer.first_name, // Business name is in firstName
-        address: customer.default_address ? {
-          address1: customer.default_address.address1,
-          address2: customer.default_address.address2 || null,
-          city: customer.default_address.city,
-          state: customer.default_address.province,
-          zip: customer.default_address.zip,
-          country: customer.default_address.country
-        } : {},
-        contactName: customer.company || customer.first_name,
-        contactEmail: customer.email,
-        contactPhone: customer.phone || customer.default_address?.phone || '',
+        streetAddress: customer.default_address?.address1 || null,
+        address2: customer.default_address?.address2 || null,
+        city: customer.default_address?.city || null,
+        state: customer.default_address?.province || null,
+        zipCode: customer.default_address?.zip || null,
+        // Owner, admin, purchasing manager info entered manually during onboarding
+        // Business contact info (if available from Shopify)
+        ownerEmail: customer.email || null,
+        ownerPhone: customer.phone || customer.default_address?.phone || null,
         status: 'active',
         subscriptionTier,
         subscriptionStatus: 'active',

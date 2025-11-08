@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getTierConfig } from '@/lib/subscription-tiers';
 import { applyWholesaleToStoreInventory } from '@/lib/inventory-conversion';
+import { decryptSafe } from '@/lib/encryption';
 import type { SubscriptionTier } from '@/lib/subscription-tiers';
-
-const SHOPIFY_STORE = process.env.SHOPIFY_STORE!;
-const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN!;
 
 interface InventoryEntry {
   productSku: string;
@@ -36,12 +34,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get organization's Shopify credentials
+    const org = await prisma.organization.findUnique({
+      where: { orgId },
+      select: {
+        shopifyStoreName: true,
+        shopifyAccessToken: true
+      }
+    });
+
+    // Decrypt credentials (store name is plain text, access token is encrypted)
+    const shopifyStore = org?.shopifyStoreName || process.env.SHOPIFY_STORE;
+    const shopifyToken = org?.shopifyAccessToken 
+      ? decryptSafe(org.shopifyAccessToken) 
+      : process.env.SHOPIFY_ACCESS_TOKEN;
+
+    if (!shopifyStore || !shopifyToken) {
+      return NextResponse.json(
+        { error: 'Shopify not configured for this organization' },
+        { status: 400 }
+      );
+    }
+
     // Get Shopify customer details
     const shopifyResponse = await fetch(
-      `https://${SHOPIFY_STORE}/admin/api/2024-01/customers/${shopifyCustomerId}.json`,
+      `https://${shopifyStore}/admin/api/2024-01/customers/${shopifyCustomerId}.json`,
       {
         headers: {
-          'X-Shopify-Access-Token': SHOPIFY_ACCESS_TOKEN,
+          'X-Shopify-Access-Token': shopifyToken,
           'Content-Type': 'application/json'
         }
       }
@@ -90,61 +110,47 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Get organization's Shopify credentials for API calls
-    const org = await prisma.organization.findUnique({
-      where: { orgId },
-      select: {
-        shopifyStoreName: true,
-        shopifyAccessToken: true
-      }
-    });
-
-    if (!org?.shopifyStoreName || !org?.shopifyAccessToken) {
-      console.error('Shopify not configured for organization');
-      // Continue anyway - store is created, just can't tag in Shopify
-    } else {
-      // Tag the Shopify customer with our storeId
-      try {
-        const updateResponse = await fetch(
-          `https://${org.shopifyStoreName}/admin/api/2024-01/customers/${shopifyCustomerId}.json`,
-          {
-            method: 'PUT',
-            headers: {
-              'X-Shopify-Access-Token': org.shopifyAccessToken,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              customer: {
-                id: shopifyCustomerId,
-                metafields: [
-                  {
-                    namespace: 'qrdisplay',
-                    key: 'store_id',
-                    value: storeId,
-                    type: 'single_line_text_field'
-                  },
-                  {
-                    namespace: 'qrdisplay',
-                    key: 'subscription_tier',
-                    value: subscriptionTier,
-                    type: 'single_line_text_field'
-                  }
-                ]
-              }
-            })
-          }
-        );
-
-        if (updateResponse.ok) {
-          console.log(`✅ Tagged Shopify customer ${shopifyCustomerId} with storeId: ${storeId}`);
-        } else {
-          const errorText = await updateResponse.text();
-          console.error('Failed to tag Shopify customer:', updateResponse.status, errorText);
+    // Tag the Shopify customer with our storeId
+    try {
+      const updateResponse = await fetch(
+        `https://${shopifyStore}/admin/api/2024-01/customers/${shopifyCustomerId}.json`,
+        {
+          method: 'PUT',
+          headers: {
+            'X-Shopify-Access-Token': shopifyToken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            customer: {
+              id: shopifyCustomerId,
+              metafields: [
+                {
+                  namespace: 'qrdisplay',
+                  key: 'store_id',
+                  value: storeId,
+                  type: 'single_line_text_field'
+                },
+                {
+                  namespace: 'qrdisplay',
+                  key: 'subscription_tier',
+                  value: subscriptionTier,
+                  type: 'single_line_text_field'
+                }
+              ]
+            }
+          })
         }
-      } catch (error) {
-        console.error('Error tagging Shopify customer:', error);
-        // Don't fail the whole operation - store is created successfully
+      );
+
+      if (updateResponse.ok) {
+        console.log(`✅ Tagged Shopify customer ${shopifyCustomerId} with storeId: ${storeId}`);
+      } else {
+        const errorText = await updateResponse.text();
+        console.error('Failed to tag Shopify customer:', updateResponse.status, errorText);
       }
+    } catch (error) {
+      console.error('Error tagging Shopify customer:', error);
+      // Don't fail the whole operation - store is created successfully
     }
 
     // Add manual inventory entries
@@ -206,11 +212,11 @@ export async function POST(request: NextRequest) {
         }));
 
         const draftOrderResponse = await fetch(
-          `https://${SHOPIFY_STORE}/admin/api/2024-01/draft_orders.json`,
+          `https://${shopifyStore}/admin/api/2024-01/draft_orders.json`,
           {
             method: 'POST',
             headers: {
-              'X-Shopify-Access-Token': SHOPIFY_ACCESS_TOKEN,
+              'X-Shopify-Access-Token': shopifyToken,
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({

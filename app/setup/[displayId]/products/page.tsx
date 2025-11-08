@@ -31,14 +31,24 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
       setDisplayId(p.displayId);
 
       try {
-        // First, get the display to find its orgId
+        // Get orgId directly from the display (it's assigned when display ships)
         const displayRes = await fetch(`/api/displays/${p.displayId}`);
         if (!displayRes.ok) {
           console.error('[ProductsStep] Failed to fetch display', displayRes.status);
+          setError('Failed to load display information');
           return;
         }
+        
         const displayData = await displayRes.json();
-        const orgId = displayData.display?.orgId || 'ORG-VITADREAMZ';
+        const orgId = displayData.display?.orgId;
+        
+        if (!orgId) {
+          console.error('[ProductsStep] Display has no orgId assigned');
+          setError('Display is not assigned to an organization');
+          return;
+        }
+        
+        console.log('[ProductsStep] Using orgId from display:', orgId);
         
         // Fetch retail products for this organization
         const productsRes = await fetch(`/api/products?orgId=${orgId}&productType=retail`);
@@ -271,6 +281,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
       displayId={displayId}
       showNext={false}
       showBack={false}
+      onBack={() => router.push(`/setup/${displayId}/activate`)}
     >
       <div className="pb-20">
         <div className="text-center mb-6">
@@ -462,7 +473,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
           <button
             type="button"
             onClick={() => router.push(`/setup/${displayId}/activate`)}
-            className="w-full py-3 rounded-lg font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50"
+            className="w-full py-3 rounded-lg font-semibold text-white bg-white/10 backdrop-blur-sm border-2 border-white/30 hover:bg-white/20 transition-all"
           >
             ← Back
           </button>
@@ -473,7 +484,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
             className={`w-full py-3 rounded-lg font-bold text-white transition-all ${
               loading || !isValid
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 shadow-lg'
+                : 'bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 shadow-lg shadow-purple-500/50'
             }`}
           >
             {loading ? 'Activating...' : 'Next: Add Staff →'}

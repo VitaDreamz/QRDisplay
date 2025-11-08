@@ -23,6 +23,35 @@ export async function GET(
       );
     }
 
+    // Check if store has products in stock
+    let hasProductsInStock = false;
+    let availableProductsWithInventory: any[] = [];
+    
+    if (display.store && display.store.availableProducts && display.store.availableProducts.length > 0) {
+      // Fetch inventory for available products
+      const inventory = await prisma.storeInventory.findMany({
+        where: {
+          storeId: display.store.id,
+          productSku: { in: display.store.availableProducts },
+          quantityOnHand: { gt: 0 }
+        },
+        include: {
+          product: true
+        }
+      });
+      
+      hasProductsInStock = inventory.length > 0;
+      availableProductsWithInventory = inventory.map((item: any) => ({
+        sku: item.product.sku,
+        name: item.product.name,
+        description: item.product.description,
+        price: item.product.price,
+        msrp: item.product.msrp,
+        imageUrl: item.product.imageUrl,
+        quantityOnHand: item.quantityOnHand
+      }));
+    }
+
     return NextResponse.json({
       orgId: display.organization.orgId,
       name: display.organization.name,
@@ -31,6 +60,8 @@ export async function GET(
       supportPhone: display.organization.supportPhone,
       storeName: display.store?.storeName || null,
       availableSamples: display.store?.availableSamples || [],
+      availableProducts: availableProductsWithInventory,
+      hasProductsInStock,
       promoOffer: display.store?.promoOffer || '$5 deal',
     });
   } catch (error) {

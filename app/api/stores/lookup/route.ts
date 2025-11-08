@@ -38,6 +38,8 @@ export async function GET(request: NextRequest) {
           purchasingPhone: true,
           purchasingEmail: true,
           staffPin: true,
+          promoOffer: true,
+          returningCustomerPromo: true,
           shopifyCustomerId: true,
           availableSamples: true,
           availableProducts: true,

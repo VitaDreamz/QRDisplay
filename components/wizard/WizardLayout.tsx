@@ -70,7 +70,7 @@ export function WizardLayout({
             {showBack && currentStep > 1 && (
               <button
                 onClick={handleBack}
-                className="flex-1 h-12 px-6 text-white bg-white/10 backdrop-blur-sm border-2 border-white/30 rounded-lg font-semibold hover:bg-white/20 active:scale-[0.98] transition-all"
+                className="flex-1 h-12 px-6 text-white bg-white/20 backdrop-blur-sm border-2 border-white/50 rounded-lg font-semibold hover:bg-white/30 hover:border-white/70 active:scale-[0.98] transition-all shadow-lg"
               >
                 ← Back
               </button>

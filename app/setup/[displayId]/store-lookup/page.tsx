@@ -150,7 +150,9 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
         
         // Fetch organization data to pre-fill contact details in Step 7
         let orgContactData = {};
+        
         try {
+          // Get orgId from the display (already assigned when display ships)
           const displayRes = await fetch(`/api/displays/${displayId}`);
           if (displayRes.ok) {
             const displayData = await displayRes.json();
@@ -179,6 +181,10 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
           console.error('Failed to fetch organization data:', err);
         }
         
+        // Extract promo percentages from offer strings (e.g., "20% off first purchase" -> "20")
+        const promoMatch = store.promoOffer?.match(/(\d+)%/);
+        const returningPromoMatch = store.returningCustomerPromo?.match(/(\d+)%/);
+        
         saveProgress({
           currentStep: 7,
           storeName: store.storeName,
@@ -187,6 +193,8 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
           state: store.state, // Already in 2-letter format from database
           zip: store.zipCode,
           timezone: store.timezone || 'America/New_York',
+          promoPercentage: promoMatch ? promoMatch[1] : '20',
+          returningPromoPercentage: returningPromoMatch ? returningPromoMatch[1] : '10',
           // Pre-fill contact info from existing store
           ownerName: store.ownerName,
           ownerPhone: store.ownerPhone,

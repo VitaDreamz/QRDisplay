@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     // - We only pull business info from Shopify, contact people entered manually
     const store = await prisma.store.create({
       data: {
-        id: storeId,
+        storeId,
         orgId,
         shopifyCustomerId: customer.id.toString(),
         storeName: customer.first_name, // Business name is in firstName

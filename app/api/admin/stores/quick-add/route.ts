@@ -61,12 +61,15 @@ export async function POST(request: NextRequest) {
     const tierConfig = getTierConfig(subscriptionTier as SubscriptionTier);
 
     // Create store record
+    // Note: In Shopify, wholesale customers have:
+    // - First Name = Business Name (e.g., "ABC Liquor Store")
+    // - Last Name = "Wholesale"
     const store = await prisma.store.create({
       data: {
         id: storeId,
         orgId,
         shopifyCustomerId: customer.id.toString(),
-        name: customer.company || `${customer.first_name} ${customer.last_name}`,
+        storeName: customer.first_name, // Business name is in firstName
         address: customer.default_address ? {
           address1: customer.default_address.address1,
           address2: customer.default_address.address2 || null,
@@ -75,16 +78,16 @@ export async function POST(request: NextRequest) {
           zip: customer.default_address.zip,
           country: customer.default_address.country
         } : {},
-        contactName: `${customer.first_name} ${customer.last_name}`,
+        contactName: customer.company || customer.first_name,
         contactEmail: customer.email,
         contactPhone: customer.phone || customer.default_address?.phone || '',
         status: 'active',
         subscriptionTier,
         subscriptionStatus: 'active',
-        customerSlotsGranted: tierConfig.newCustomersPerBilling,
-        samplesPerQuarter: tierConfig.samplesPerQuarter,
-        commissionRate: tierConfig.commissionRate,
-        promoReimbursementRate: tierConfig.promoReimbursementRate
+        customerSlotsGranted: tierConfig.features.newCustomersPerBilling,
+        samplesPerQuarter: tierConfig.features.samplesPerQuarter,
+        commissionRate: tierConfig.features.commissionRate,
+        promoReimbursementRate: tierConfig.features.promoReimbursementRate
       }
     });
 
@@ -158,7 +161,7 @@ export async function POST(request: NextRequest) {
               draft_order: {
                 customer: { id: customer.id },
                 line_items: lineItems,
-                note: `Trial kit order for ${store.name} (${store.id})`,
+                note: `Trial kit order for ${store.storeName} (${store.id})`,
                 tags: 'trial-kit, qrdisplay'
               }
             })
@@ -178,7 +181,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       storeId: store.id,
-      storeName: store.name,
+      storeName: store.storeName,
       subscriptionTier: store.subscriptionTier,
       inventoryAdded: inventoryEntries.length + trialKitItems.length
     });

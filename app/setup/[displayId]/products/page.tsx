@@ -40,7 +40,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
         }
         
         const displayData = await displayRes.json();
-        const orgId = displayData.display?.orgId;
+        const orgId = displayData.orgId;
         
         if (!orgId) {
           console.error('[ProductsStep] Display has no orgId assigned');

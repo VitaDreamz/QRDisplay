@@ -242,7 +242,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      storeId: store.id,
+      storeId: store.storeId,  // Human-readable ID like "SID-001"
       storeName: store.storeName,
       subscriptionTier: store.subscriptionTier,
       inventoryAdded: inventoryEntries.length + trialKitItems.length

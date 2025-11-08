@@ -226,12 +226,13 @@ export default function QuickAddStorePage() {
   if (success) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-blue-900 flex items-center justify-center p-4">
-        <div className="bg-green-500/20 border-2 border-green-400/50 backdrop-blur-sm rounded-lg p-6 text-green-100 max-w-md">
-          <div className="text-center">
-            <div className="text-4xl mb-3">✓</div>
-            <p className="text-lg">Store <strong className="text-white">{createdStoreId}</strong> created successfully!</p>
-            <p className="text-sm text-green-200 mt-2">Redirecting...</p>
-          </div>
+        <div className="bg-green-500/20 border-2 border-green-400/50 backdrop-blur-sm rounded-lg p-8 text-center max-w-md">
+          <div className="text-6xl mb-4">✓</div>
+          <h2 className="text-2xl font-bold text-white mb-2">Store Created!</h2>
+          <p className="text-green-100">
+            <strong className="text-white">{createdStoreId}</strong> has been added successfully.
+          </p>
+          <p className="text-sm text-green-200 mt-3">Redirecting to stores...</p>
         </div>
       </div>
     );
@@ -239,102 +240,160 @@ export default function QuickAddStorePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-blue-900 py-8">
-      <div className="container max-w-4xl mx-auto px-4 space-y-6">
-        <div>
-          <h1 className="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-200 via-purple-200 to-blue-200">Quick Add Store</h1>
-          <p className="text-purple-200 mt-2">Link an existing Shopify wholesale customer to QRDisplay</p>
+      <div className="container max-w-2xl mx-auto px-4">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="text-5xl mb-3">🏪</div>
+          <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-200 via-purple-200 to-blue-200 mb-2">
+            Quick Add Store
+          </h1>
+          <p className="text-purple-200">Link an existing Shopify wholesale customer</p>
         </div>
 
-        {/* Search */}
-        <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-6 shadow-lg">
-          <h2 className="text-xl font-semibold text-white mb-2">1. Find Shopify Customer</h2>
-          <p className="text-sm text-purple-200 mb-4">Search by business name, email, or phone</p>
-          
-          <div className="relative">\n            <input
-              type="text"
-            placeholder="Start typing..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full border rounded-md px-4 py-2"
-          />
-          {searching && <span className="text-sm text-gray-500 mt-2">Searching...</span>}
+        {!selectedCustomer ? (
+          /* Step 1: Search for Customer */
+          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-6 shadow-lg">
+            <h2 className="text-xl font-semibold text-white mb-2">Find Wholesale Customer</h2>
+            <p className="text-sm text-purple-200 mb-4">Search by business name, email, or phone</p>
+            
+            <div className="relative mb-4">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by business name, email, or phone..."
+                className="w-full border-2 border-white/30 bg-white/5 backdrop-blur-sm rounded-lg px-4 py-3 pr-10 text-white placeholder-purple-300 focus:border-purple-400 focus:outline-none"
+                autoFocus
+              />
+              {searching && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="animate-spin h-5 w-5 border-2 border-purple-400 border-t-transparent rounded-full"></div>
+                </div>
+              )}
 
-          {showResults && shopifyCustomers.length > 0 && (
-            <div className="absolute top-full mt-2 w-full bg-white border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
-              {visibleCustomers.map((customer) => (
-                <button
-                  key={customer.id}
-                  onClick={() => handleSelectCustomer(customer)}
-                  className="w-full px-4 py-3 hover:bg-gray-50 border-b text-left"
-                >
-                  <div className="font-medium">{customer.firstName}</div>
-                  <div className="text-sm text-gray-500">
-                    {customer.city && customer.province && `${customer.city}, ${customer.province}`}
+              {/* Search Results Dropdown */}
+              {showResults && shopifyCustomers.length > 0 && (
+                <div className="absolute z-10 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-xl max-h-[400px] overflow-y-auto">
+                  {visibleCustomers.map((customer) => (
+                    <button
+                      key={customer.id}
+                      onClick={() => handleSelectCustomer(customer)}
+                      className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-gray-100 transition-colors"
+                    >
+                      <div className="font-medium text-gray-900">{customer.firstName}</div>
+                      <div className="text-sm text-gray-600 mt-0.5">
+                        {customer.city && customer.province ? `${customer.city}, ${customer.province}` : 'Location not specified'}
+                      </div>
+                    </button>
+                  ))}
+                  
+                  {/* Show More Button */}
+                  {!showAllResults && shopifyCustomers.length > INITIAL_RESULTS_LIMIT && (
+                    <button
+                      onClick={() => setShowAllResults(true)}
+                      className="w-full text-left px-4 py-3 text-blue-600 hover:bg-blue-50 font-medium transition-colors border-t border-gray-200"
+                    >
+                      Show {shopifyCustomers.length - INITIAL_RESULTS_LIMIT} more
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* No Results */}
+              {showResults && shopifyCustomers.length === 0 && searchQuery.length >= 2 && !searching && (
+                <div className="absolute z-10 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg p-4">
+                  <div className="text-gray-600 text-sm text-center">
+                    No wholesale customers found for "{searchQuery}"
                   </div>
-                </button>
-              ))}
-              {shopifyCustomers.length > INITIAL_RESULTS_LIMIT && !showAllResults && (
-                <button
-                  onClick={() => setShowAllResults(true)}
-                  className="w-full px-4 py-2 text-sm text-blue-600 hover:bg-gray-50"
-                >
-                  Show all {shopifyCustomers.length} results
-                </button>
+                </div>
               )}
             </div>
-          )}
-        </div>
 
-        {selectedCustomer && (
-          <div className="mt-4 p-4 border rounded-lg bg-gray-50">
-            <div className="flex justify-between">
-              <div>
-                <p className="font-medium">{selectedCustomer.firstName}</p>
-                <p className="text-sm text-gray-600">{selectedCustomer.email}</p>
-                {selectedCustomer.phone && <p className="text-sm text-gray-600">{selectedCustomer.phone}</p>}
+            <p className="text-xs text-purple-200">
+              Enter business name (e.g., "ABC Liquor"), email address, or phone number
+            </p>
+          </div>
+        ) : (
+          /* Step 2: Configure Store */
+          <div className="space-y-6">
+            {/* Selected Customer */}
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-6 shadow-lg">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="text-white font-semibold mb-1">Selected Business</h3>
+                  <p className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-200 via-purple-200 to-blue-200">
+                    {selectedCustomer.firstName}
+                  </p>
+                  <p className="text-sm text-purple-200 mt-1">
+                    {selectedCustomer.city && selectedCustomer.province 
+                      ? `${selectedCustomer.city}, ${selectedCustomer.province}` 
+                      : 'Location to be confirmed'}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => { setSelectedCustomer(null); setSearchQuery(''); }} 
+                  className="text-sm text-blue-300 hover:text-blue-200 underline"
+                >
+                  Change
+                </button>
               </div>
-              <button onClick={() => { setSelectedCustomer(null); setSearchQuery(''); }} className="text-sm text-blue-600">Change</button>
+            </div>
+
+            {/* Subscription Tier */}
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-6 shadow-lg">
+              <h2 className="text-xl font-semibold text-white mb-4">Choose Subscription Tier</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {Object.entries(SUBSCRIPTION_TIERS).map(([tier, config]) => (
+                  <button
+                    key={tier}
+                    onClick={() => setSubscriptionTier(tier as SubscriptionTier)}
+                    className={`p-4 border-2 rounded-lg text-left transition-all ${
+                      subscriptionTier === tier 
+                        ? 'border-purple-400 bg-purple-500/20 shadow-lg shadow-purple-500/50' 
+                        : 'border-white/30 bg-white/5 hover:border-purple-300'
+                    }`}
+                  >
+                    <div className="font-semibold text-white mb-1">{config.name}</div>
+                    <div className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-200 to-blue-200 mb-2">
+                      {config.price === 0 ? 'Free' : `$${config.price}`}
+                      <span className="text-sm text-purple-200">{config.price === 0 ? '' : '/qtr'}</span>
+                    </div>
+                    <div className="text-sm text-purple-200">
+                      • +{config.features.newCustomersPerBilling} customers/quarter<br/>
+                      • {config.features.samplesPerQuarter} samples/quarter<br/>
+                      • {config.features.commissionRate}% commission<br/>
+                      • {config.features.promoReimbursementRate}% promo reimbursement
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Submit */}
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-6 shadow-lg">
+              {submitError && (
+                <div className="mb-4 p-4 bg-red-500/20 border-2 border-red-400/50 backdrop-blur-sm rounded-lg text-red-100">
+                  {submitError}
+                </div>
+              )}
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => router.back()} 
+                  className="flex-1 px-6 py-3 bg-white/10 backdrop-blur-sm border-2 border-white/30 text-white rounded-lg font-semibold hover:bg-white/20 transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleSubmit} 
+                  disabled={submitting} 
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg font-semibold shadow-lg shadow-purple-500/50 hover:from-purple-600 hover:to-blue-600 disabled:opacity-50 transition-all"
+                >
+                  {submitting ? 'Creating...' : 'Create Store'}
+                </button>
+              </div>
             </div>
           </div>
         )}
-      </div>
-
-      {selectedCustomer && (
-        <>
-          {/* Subscription Tier */}
-          <div className="bg-white border rounded-lg p-6">
-            <h2 className="text-xl font-semibold mb-4">2. Subscription Tier</h2>
-            <div className="grid grid-cols-2 gap-4">
-              {Object.entries(SUBSCRIPTION_TIERS).map(([tier, config]) => (
-                <button
-                  key={tier}
-                  onClick={() => setSubscriptionTier(tier as SubscriptionTier)}
-                  className={`p-4 border rounded-lg text-left ${
-                    subscriptionTier === tier ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
-                  }`}
-                >
-                  <div className="font-semibold">{config.name}</div>
-                  <div className="text-2xl font-bold">{config.price === 0 ? 'Free' : `$${config.price}/qtr`}</div>
-                  <div className="text-sm text-gray-600">+{config.features.newCustomersPerBilling} customers/qtr</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Submit */}
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-6 shadow-lg">
-            {submitError && (
-              <div className="mb-4 p-4 bg-red-500/20 border-2 border-red-400/50 backdrop-blur-sm rounded-lg text-red-100">{submitError}</div>
-            )}
-            <div className="flex justify-end gap-2">
-              <button onClick={() => router.back()} className="px-4 py-2 bg-white/10 backdrop-blur-sm border-2 border-white/30 text-white rounded-md hover:bg-white/20">Cancel</button>
-              <button onClick={handleSubmit} disabled={submitting} className="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-md shadow-lg shadow-purple-500/50 hover:from-purple-600 hover:to-blue-600 disabled:opacity-50">
-                {submitting ? 'Creating...' : 'Create Store'}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
       </div>
     </div>
   );

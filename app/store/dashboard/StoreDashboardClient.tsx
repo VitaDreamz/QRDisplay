@@ -89,6 +89,13 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
   // Products state
   const [products, setProducts] = useState<any[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [editingInventory, setEditingInventory] = useState<{
+    productSku: string;
+    productName: string;
+    currentQuantity: number;
+    newQuantity: number;
+    reason: string;
+  } | null>(null);
   
   // Modals
   const [editingPromo, setEditingPromo] = useState(false);
@@ -777,23 +784,25 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
   };
 
   // Update inventory quantity
-  const updateInventory = async (productSku: string, newQuantity: number) => {
-    if (newQuantity < 0) return;
+  const updateInventory = async () => {
+    if (!editingInventory) return;
     
     try {
       const res = await fetch('/api/store/inventory/adjust', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          productSku,
-          quantity: newQuantity,
-          type: 'manual_adjustment'
+          productSku: editingInventory.productSku,
+          quantity: editingInventory.newQuantity,
+          type: editingInventory.reason || 'manual_adjustment',
+          notes: editingInventory.reason
         })
       });
       
       if (res.ok) {
         // Refresh products to get updated inventory
         await fetchProducts();
+        setEditingInventory(null);
       } else {
         console.error('Failed to update inventory');
       }
@@ -2183,15 +2192,29 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                 {product.category}
                               </span>
                             )}
-                            <div className="text-sm font-semibold text-purple-600 mb-2">
+                            <div className="text-sm font-semibold text-purple-600 mb-3">
                               Free Sample (Retail: ${parseFloat(product.price).toFixed(2)})
                             </div>
                             
-                            {/* Inventory Display with Controls */}
-                            <div className="mb-3">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-semibold text-gray-700">In Stock:</span>
-                                <span className={`text-sm font-bold ${
+                            {/* Inventory Display - Clickable */}
+                            <button
+                              onClick={() => setEditingInventory({
+                                productSku: product.sku,
+                                productName: product.name,
+                                currentQuantity: product.inventoryQuantity || 0,
+                                newQuantity: product.inventoryQuantity || 0,
+                                reason: 'restock'
+                              })}
+                              className="w-full mb-3 p-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors group"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Inventory</span>
+                                <svg className="w-4 h-4 text-gray-400 group-hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </div>
+                              <div className="flex items-baseline gap-2 mt-1">
+                                <span className={`text-3xl font-bold ${
                                   product.inventoryQuantity > 10 
                                     ? 'text-green-600' 
                                     : product.inventoryQuantity > 0 
@@ -2200,29 +2223,9 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                 }`}>
                                   {product.inventoryQuantity || 0}
                                 </span>
+                                <span className="text-sm text-gray-500">in stock</span>
                               </div>
-                              <div className="flex items-center gap-1">
-                                <button
-                                  onClick={() => updateInventory(product.sku, Math.max(0, (product.inventoryQuantity || 0) - 1))}
-                                  className="flex-1 px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 font-bold text-sm"
-                                >
-                                  −
-                                </button>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={product.inventoryQuantity || 0}
-                                  onChange={(e) => updateInventory(product.sku, parseInt(e.target.value) || 0)}
-                                  className="flex-1 text-center bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"
-                                />
-                                <button
-                                  onClick={() => updateInventory(product.sku, (product.inventoryQuantity || 0) + 1)}
-                                  className="flex-1 px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 font-bold text-sm"
-                                >
-                                  +
-                                </button>
-                              </div>
-                            </div>
+                            </button>
                             
                             <button
                               onClick={async () => {
@@ -2340,15 +2343,29 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                             {product.category}
                           </span>
                         )}
-                        <div className="text-lg font-bold text-purple-600 mb-2">
+                        <div className="text-lg font-bold text-purple-600 mb-3">
                           ${parseFloat(product.price).toFixed(2)}
                         </div>
                         
-                        {/* Inventory Display with Controls */}
-                        <div className="mb-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-semibold text-gray-700">In Stock:</span>
-                            <span className={`text-sm font-bold ${
+                        {/* Inventory Display - Clickable */}
+                        <button
+                          onClick={() => setEditingInventory({
+                            productSku: product.sku,
+                            productName: product.name,
+                            currentQuantity: product.inventoryQuantity || 0,
+                            newQuantity: product.inventoryQuantity || 0,
+                            reason: 'restock'
+                          })}
+                          className="w-full mb-3 p-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors group"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Inventory</span>
+                            <svg className="w-4 h-4 text-gray-400 group-hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </div>
+                          <div className="flex items-baseline gap-2 mt-1">
+                            <span className={`text-3xl font-bold ${
                               product.inventoryQuantity > 10 
                                 ? 'text-green-600' 
                                 : product.inventoryQuantity > 0 
@@ -2357,29 +2374,9 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                             }`}>
                               {product.inventoryQuantity || 0}
                             </span>
+                            <span className="text-sm text-gray-500">in stock</span>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => updateInventory(product.sku, Math.max(0, (product.inventoryQuantity || 0) - 1))}
-                              className="flex-1 px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 font-bold text-sm"
-                            >
-                              −
-                            </button>
-                            <input
-                              type="number"
-                              min="0"
-                              value={product.inventoryQuantity || 0}
-                              onChange={(e) => updateInventory(product.sku, parseInt(e.target.value) || 0)}
-                              className="flex-1 text-center bg-gray-50 border border-gray-300 rounded px-2 py-1 text-sm"
-                            />
-                            <button
-                              onClick={() => updateInventory(product.sku, (product.inventoryQuantity || 0) + 1)}
-                              className="flex-1 px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 font-bold text-sm"
-                            >
-                              +
-                            </button>
-                          </div>
-                        </div>
+                        </button>
                         
                         <button
                           onClick={async () => {
@@ -4266,6 +4263,115 @@ Thanks for choosing ${orgName}!`;
                 className="px-6 bg-gray-200 py-3 rounded hover:bg-gray-300"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Inventory Edit Modal */}
+      {editingInventory && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900">Adjust Inventory</h2>
+              <p className="text-sm text-gray-600 mt-1">{editingInventory.productName}</p>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              {/* Current Quantity Display */}
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <div className="text-xs text-gray-600 uppercase tracking-wide mb-1">Current Quantity</div>
+                <div className="text-3xl font-bold text-gray-900">{editingInventory.currentQuantity}</div>
+              </div>
+
+              {/* New Quantity Controls */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">New Quantity</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setEditingInventory({
+                      ...editingInventory,
+                      newQuantity: Math.max(0, editingInventory.newQuantity - 1)
+                    })}
+                    className="w-12 h-12 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-bold text-xl transition-colors"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editingInventory.newQuantity}
+                    onChange={(e) => setEditingInventory({
+                      ...editingInventory,
+                      newQuantity: Math.max(0, parseInt(e.target.value) || 0)
+                    })}
+                    className="flex-1 text-center text-2xl font-bold bg-white border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-purple-500 focus:outline-none"
+                  />
+                  <button
+                    onClick={() => setEditingInventory({
+                      ...editingInventory,
+                      newQuantity: editingInventory.newQuantity + 1
+                    })}
+                    className="w-12 h-12 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-bold text-xl transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
+                
+                {/* Change Indicator */}
+                {editingInventory.newQuantity !== editingInventory.currentQuantity && (
+                  <div className="mt-2 text-sm font-semibold">
+                    {editingInventory.newQuantity > editingInventory.currentQuantity ? (
+                      <span className="text-green-600">
+                        +{editingInventory.newQuantity - editingInventory.currentQuantity} units
+                      </span>
+                    ) : (
+                      <span className="text-red-600">
+                        {editingInventory.newQuantity - editingInventory.currentQuantity} units
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Reason Dropdown */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Reason</label>
+                <select
+                  value={editingInventory.reason}
+                  onChange={(e) => setEditingInventory({
+                    ...editingInventory,
+                    reason: e.target.value
+                  })}
+                  className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+                >
+                  <option value="restock">Restock</option>
+                  <option value="correction">Correction</option>
+                  <option value="damage">Damage</option>
+                  <option value="theft">Theft/Loss</option>
+                  <option value="sample_redemption">Sample Redeemed</option>
+                  <option value="promotion">Promotional Sale</option>
+                  <option value="return">Customer Return</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-6 border-t border-gray-200 flex gap-3">
+              <button
+                onClick={() => setEditingInventory(null)}
+                className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={updateInventory}
+                disabled={editingInventory.newQuantity === editingInventory.currentQuantity}
+                className="flex-1 px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Save Changes
               </button>
             </div>
           </div>

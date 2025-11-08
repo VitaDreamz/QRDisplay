@@ -31,12 +31,20 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
 
   // Fetch products and initialize state
   useEffect(() => {
-    params.then(async (p) => {
-      setDisplayId(p.displayId);
+    // Wait for both displayId and progress to be loaded
+    if (!displayId) {
+      params.then(async (p) => {
+        setDisplayId(p.displayId);
+      });
+      return;
+    }
+    
+    // Only fetch products once we have displayId
+    (async () => {
 
       try {
         // Get orgId directly from the display (it's assigned when display ships)
-        const displayRes = await fetch(`/api/displays/${p.displayId}/info`);
+        const displayRes = await fetch(`/api/displays/${displayId}/info`);
         if (!displayRes.ok) {
           console.error('[ProductsStep] Failed to fetch display', displayRes.status);
           setError('Failed to load display information');
@@ -148,8 +156,8 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
       } catch (e) {
         console.error('[ProductsStep] Error fetching products', e);
       }
-    });
-  }, []);
+    })();
+  }, [displayId, progress]);
 
   // Helper function to initialize default inventory
   const initializeDefaultInventory = (products: any[]) => {
@@ -178,10 +186,10 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
     }));
   };
 
-  // Validation - require at least one sample and one product selected
+  // Validation - require at least one sample and one product selected, AND both sections verified
   const isValid = useMemo(() => {
-    return selectedSamples.length > 0 && selectedProducts.length > 0;
-  }, [selectedSamples, selectedProducts]);
+    return selectedSamples.length > 0 && selectedProducts.length > 0 && samplesVerified && productsVerified;
+  }, [selectedSamples, selectedProducts, samplesVerified, productsVerified]);
 
   // Save inventory and selections to wizard progress
   useEffect(() => {
@@ -199,7 +207,11 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
 
   async function handleActivate() {
     if (!isValid) {
-      setError('Please select at least one sample and one product');
+      if (!samplesVerified || !productsVerified) {
+        setError('Please verify inventory for both samples and full-size products by clicking "Verify as Accurate"');
+      } else {
+        setError('Please select at least one sample and one product');
+      }
       return;
     }
 
@@ -340,12 +352,15 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                 return (
                   <div 
                     key={product.sku} 
-                    className={`border-2 rounded-xl p-4 transition-all ${
-                      isSelected 
-                        ? 'border-purple-500 bg-purple-50' 
-                        : 'border-gray-200 bg-white hover:border-gray-300'
-                    }`}
+                    className="relative bg-gradient-to-br from-purple-50 via-blue-50 to-purple-50 rounded-2xl p-6 border border-gray-200 transition-all hover:shadow-md"
                   >
+                    {product.featured && (
+                      <div className="absolute top-3 right-3">
+                        <span className="inline-flex items-center gap-1 bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+                          ⭐ Featured
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-start gap-4">
                       {/* Product Image */}
                       {product.imageUrl && (
@@ -379,7 +394,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                             className={`px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition-all ${
                               isSelected
                                 ? 'bg-purple-600 text-white hover:bg-purple-700'
-                                : 'bg-pink-600 text-white hover:bg-pink-700'
+                                : 'bg-red-100 text-red-600 border-2 border-red-200 hover:bg-red-200'
                             }`}
                           >
                             {isSelected ? 'Offering This Product' : '+ Offer This Product'}
@@ -453,12 +468,15 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                   return (
                     <div 
                       key={product.sku} 
-                      className={`border-2 rounded-xl p-4 transition-all ${
-                        isSelected 
-                          ? 'border-purple-500 bg-purple-50' 
-                          : 'border-gray-200 bg-white hover:border-gray-300'
-                      }`}
+                      className="relative bg-gradient-to-br from-purple-50 via-blue-50 to-purple-50 rounded-2xl p-6 border border-gray-200 transition-all hover:shadow-md"
                     >
+                      {product.featured && (
+                        <div className="absolute top-3 right-3">
+                          <span className="inline-flex items-center gap-1 bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+                            ⭐ Featured
+                          </span>
+                        </div>
+                      )}
                       <div className="flex items-start gap-4">
                         {/* Product Image */}
                         {product.imageUrl && (
@@ -497,7 +515,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                               className={`px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition-all ${
                                 isSelected
                                   ? 'bg-purple-600 text-white hover:bg-purple-700'
-                                  : 'bg-pink-600 text-white hover:bg-pink-700'
+                                  : 'bg-red-100 text-red-600 border-2 border-red-200 hover:bg-red-200'
                               }`}
                             >
                               {isSelected ? 'Offering This Product' : '+ Offer This Product'}

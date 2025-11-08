@@ -62,7 +62,7 @@ export function WizardLayout({
       
       {/* Main content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-md mx-auto px-4 py-6">
+        <div className={`mx-auto px-4 py-6 ${currentStep === 8 ? 'max-w-4xl' : 'max-w-md'}`}>
           {children}
           
           {/* Navigation buttons */}

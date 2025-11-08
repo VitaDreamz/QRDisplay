@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { SUBSCRIPTION_TIERS, type SubscriptionTier, formatTierBenefits } from '@/lib/subscription-tiers';
 
 export default function CreateWholesaleAccountPage() {
   const router = useRouter();
@@ -11,6 +12,9 @@ export default function CreateWholesaleAccountPage() {
     businessName: '',
     businessType: 'retail', // retail, restaurant, spa, etc.
     taxId: '',
+    
+    // Subscription Tier
+    subscriptionTier: 'free' as SubscriptionTier,
     
     // Primary Contact
     contactName: '',
@@ -58,7 +62,7 @@ export default function CreateWholesaleAccountPage() {
 
       if (res.ok) {
         const result = await res.json();
-        alert(`✅ Wholesale account created successfully!\n\nCustomer ID: ${result.customerId}\nEmail: ${formData.contactEmail}`);
+        alert(`✅ Wholesale account created successfully!\n\nStore ID: ${result.storeId}\nStore Name: ${result.storeName}\nShopify Customer ID: ${result.customerId}\nEmail: ${formData.contactEmail}\nSubscription Tier: ${result.subscriptionTier.toUpperCase()}\n\nThe store can now activate their display when it arrives!`);
         router.push('/admin/brands/ORG-VITADREAMZ/wholesale-customers');
       } else {
         const error = await res.json();
@@ -135,6 +139,64 @@ export default function CreateWholesaleAccountPage() {
                   placeholder="XX-XXXXXXX"
                 />
               </div>
+            </div>
+          </div>
+
+          {/* Subscription Tier Selection */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-bold mb-4">Subscription Tier</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Select the subscription tier for this store. Benefits accumulate each quarter they remain subscribed.
+            </p>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {(Object.keys(SUBSCRIPTION_TIERS) as SubscriptionTier[]).map((tierId) => {
+                const tier = SUBSCRIPTION_TIERS[tierId];
+                const isSelected = formData.subscriptionTier === tierId;
+                
+                return (
+                  <div
+                    key={tierId}
+                    onClick={() => updateField('subscriptionTier', tierId)}
+                    className={`
+                      relative p-4 rounded-lg border-2 cursor-pointer transition-all
+                      ${isSelected 
+                        ? 'border-purple-600 bg-purple-50 shadow-md' 
+                        : 'border-gray-200 hover:border-purple-300 hover:shadow'
+                      }
+                    `}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900">{tier.name}</h3>
+                        <p className="text-2xl font-bold text-purple-600 mt-1">
+                          {tier.price === 0 ? 'Free' : `$${tier.price}/qtr`}
+                        </p>
+                      </div>
+                      {isSelected && (
+                        <div className="w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center">
+                          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <p className="text-sm text-gray-600 mb-3">{tier.description}</p>
+                    
+                    <div className="space-y-1">
+                      {formatTierBenefits(tierId).map((benefit, idx) => (
+                        <div key={idx} className="flex items-start gap-2 text-sm">
+                          <span className="text-purple-600 mt-0.5">✓</span>
+                          <span className={isSelected ? 'text-gray-900' : 'text-gray-600'}>
+                            {benefit}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -266,13 +328,13 @@ export default function CreateWholesaleAccountPage() {
               </label>
             </div>
             
-            {!formData.sameAsBinding && (
+            {!formData.sameAsbilling && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium mb-2">Address Line 1 *</label>
                   <input
                     type="text"
-                    required={!formData.sameAsBinding}
+                    required={!formData.sameAsbilling}
                     value={formData.shippingAddress1}
                     onChange={(e) => updateField('shippingAddress1', e.target.value)}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
@@ -293,7 +355,7 @@ export default function CreateWholesaleAccountPage() {
                   <label className="block text-sm font-medium mb-2">City *</label>
                   <input
                     type="text"
-                    required={!formData.sameAsBinding}
+                    required={!formData.sameAsbilling}
                     value={formData.shippingCity}
                     onChange={(e) => updateField('shippingCity', e.target.value)}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
@@ -304,7 +366,7 @@ export default function CreateWholesaleAccountPage() {
                   <label className="block text-sm font-medium mb-2">State *</label>
                   <input
                     type="text"
-                    required={!formData.sameAsBinding}
+                    required={!formData.sameAsbilling}
                     value={formData.shippingState}
                     onChange={(e) => updateField('shippingState', e.target.value)}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
@@ -316,7 +378,7 @@ export default function CreateWholesaleAccountPage() {
                   <label className="block text-sm font-medium mb-2">ZIP Code *</label>
                   <input
                     type="text"
-                    required={!formData.sameAsBinding}
+                    required={!formData.sameAsbilling}
                     value={formData.shippingZip}
                     onChange={(e) => updateField('shippingZip', e.target.value)}
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"

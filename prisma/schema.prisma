@@ -115,6 +115,20 @@ model Store {
   shopifyCustomerId String?  // Links this store to a Shopify customer for commission credits
   parentAccountName String?  // For multi-location: "Acme Corp" (shown in UI)
   
+  // Subscription & Billing (Store pays Organization via Recharge)
+  subscriptionTier        String    @default("free") // free, basic, dreamer, mega
+  subscriptionStatus      String    @default("active") // active, past_due, canceled, trialing
+  rechargeCustomerId      String? // Customer ID in org's Recharge account
+  rechargeSubscriptionId  String? // Subscription ID in org's Recharge account
+  nextBillingDate         DateTime?
+  trialEndsAt             DateTime?
+  
+  // Subscription Benefits (accumulate with each billing cycle)
+  customerSlotsGranted    Int       @default(10) // Total customer slots granted (accumulates each billing)
+  samplesPerQuarter       Int       @default(10)
+  commissionRate          Float     @default(5.0) // Percentage
+  promoReimbursementRate  Float     @default(10.0) // Percentage of promo value as store credit
+  
   // Sales Rep Assignment
   salesRepName  String?
   salesRepEmail String?
@@ -158,8 +172,81 @@ model Store {
   promoRedemptions PromoRedemption[]
   conversions  Conversion[]
   creditTransactions StoreCreditTransaction[]
+  inventory    StoreInventory[]
+  inventoryTransactions InventoryTransaction[]
+  productHolds ProductHold[]
   
   @@map("stores")
+}
+
+// Store Inventory Tracking
+model StoreInventory {
+  id              String   @id @default(cuid())
+  storeId         String
+  productSku      String
+  
+  quantityOnHand  Int      @default(0)  // Physical inventory in store
+  quantityReserved Int     @default(0)  // Reserved for customer holds (2hr)
+  quantityAvailable Int    @default(0)  // onHand - reserved (computed)
+  
+  lastRestocked   DateTime?
+  updatedAt       DateTime @updatedAt
+  
+  store   Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productSku], references: [sku])
+  
+  @@unique([storeId, productSku])
+  @@index([storeId])
+  @@map("store_inventory")
+}
+
+// Inventory Transaction Log
+model InventoryTransaction {
+  id          String   @id @default(cuid())
+  storeId     String
+  productSku  String
+  
+  type        String   // "restock", "sample_redemption", "promo_sale", "hold_created", "hold_released", "hold_expired"
+  quantity    Int      // Positive for incoming, negative for outgoing
+  
+  customerId  String?  // If related to a customer action
+  staffId     String?  // If processed by staff
+  notes       String?
+  
+  balanceAfter Int     // Inventory balance after this transaction
+  
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime? // For holds that auto-expire
+  
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  @@index([storeId, createdAt])
+  @@index([expiresAt]) // For finding expired holds
+  @@map("inventory_transactions")
+}
+
+// Product Holds (2-hour pickup reservations)
+model ProductHold {
+  id          String   @id @default(cuid())
+  storeId     String
+  customerId  String
+  productSku  String
+  
+  quantity    Int      @default(1)
+  status      String   @default("active") // active, picked_up, expired, cancelled
+  
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime // 2 hours from creation
+  notifiedAt  DateTime? // When store was notified
+  pickedUpAt  DateTime?
+  
+  store    Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  @@index([storeId, status])
+  @@index([expiresAt])
+  @@index([customerId])
+  @@map("product_holds")
 }
 
 // Store Credit Transactions
@@ -321,6 +408,7 @@ model Customer {
   purchaseIntents  PurchaseIntent[]
   conversions      Conversion[]
   webhookLogs      ShopifyWebhookLog[]
+  productHolds     ProductHold[]
   
   @@index([shopifyCustomerId])
   @@map("customers")
@@ -429,6 +517,7 @@ model Product {
   updatedAt   DateTime @updatedAt
   
   purchaseIntents PurchaseIntent[]
+  storeInventory  StoreInventory[]
   
   @@map("products")
 }

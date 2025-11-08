@@ -30,7 +30,15 @@ export default async function BrandDetailPage({
             Organization ID: {org.orgId}
           </p>
         </div>
-        <div className="mt-4 flex md:ml-4 md:mt-0">
+        <div className="mt-4 flex md:ml-4 md:mt-0 gap-3">
+          {org.shopifyStoreName && (
+            <a
+              href={`/admin/brands/${org.orgId}/import-products`}
+              className="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
+            >
+              Import Products
+            </a>
+          )}
           <a
             href={`/admin/brands/${org.orgId}/edit`}
             className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"

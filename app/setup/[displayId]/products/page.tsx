@@ -26,19 +26,24 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
       const initialSamples = progress?.availableSamples ?? [];
       setAvailableSamples(initialSamples);
       try {
-        const orgId = 'ORG-VITADREAMZ';
-        const productsRes = await fetch(`/api/products?orgId=${orgId}`);
+        // First, get the display to find its orgId
+        const displayRes = await fetch(`/api/displays/${p.displayId}`);
+        if (!displayRes.ok) {
+          console.error('[ProductsStep] Failed to fetch display', displayRes.status);
+          return;
+        }
+        const displayData = await displayRes.json();
+        const orgId = displayData.display?.orgId || 'ORG-VITADREAMZ';
+        
+        // Fetch retail products for this organization
+        const productsRes = await fetch(`/api/products?orgId=${orgId}&productType=retail`);
         if (productsRes.ok) {
           const data = await productsRes.json();
           const all = Array.isArray(data.products) ? data.products : [];
-          // Filter to only full-size retail SKUs
-          const retailWhitelist = new Set([
-            'VD-SB-30','VD-SB-60','VD-BB-30','VD-BB-60','VD-CC-20','VD-CC-60'
-          ]);
+          // Filter to only active retail products
           const filtered = all.filter((p: any) => {
             if (p && p.active === false) return false;
             if (typeof p?.productType === 'string' && p.productType !== 'retail') return false;
-            if (!retailWhitelist.has(p?.sku)) return false;
             return true;
           });
           setProducts(filtered);

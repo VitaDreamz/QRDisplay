@@ -2872,25 +2872,8 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                   {products
                     .filter((p: any) => p.productType === 'wholesale-box')
                     .sort((a: any, b: any) => {
-                      // Hardcoded sort order
-                      const order = [
-                        'VD-SB-4-BX',   // Slumber Berry - 4ct Box
-                        'VD-SB-30-BX',  // Slumber Berry - 30ct Box
-                        'VD-SB-60-BX',  // Slumber Berry - 60ct Box
-                        'VD-BB-4-BX',   // Bliss Berry - 4ct Box
-                        'VD-BB-30-BX',  // Bliss Berry - 30ct Box
-                        'VD-BB-60-BX',  // Bliss Berry - 60ct Box
-                        'VD-CC-4-BX',   // Berry Chill - 4ct Box
-                        'VD-CC-20-BX',  // Berry Chill - 20ct Box
-                        'VD-CC-60-BX',  // Berry Chill - 60ct Box
-                      ];
-                      const indexA = order.indexOf(a.sku);
-                      const indexB = order.indexOf(b.sku);
-                      // If not in list, push to end
-                      if (indexA === -1 && indexB === -1) return 0;
-                      if (indexA === -1) return 1;
-                      if (indexB === -1) return -1;
-                      return indexA - indexB;
+                      // Sort by name (which includes product line and count)
+                      return a.name.localeCompare(b.name);
                     })
                     .map((product: any) => {
                       const qty = boxQuantities[product.sku] || 0;

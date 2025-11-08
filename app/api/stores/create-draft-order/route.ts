@@ -5,7 +5,17 @@ import { getShopifyClient } from '@/lib/shopify';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { storeId, storeName, boxQuantities, notes, storeCredit, contactName, contactEmail, contactPhone } = body;
+    const { 
+      storeId, 
+      storeName, 
+      boxQuantities, 
+      notes, 
+      storeCredit, 
+      contactName, 
+      contactEmail, 
+      contactPhone,
+      shippingAddress // Optional: if provided, ship to different address
+    } = body;
 
     console.log('🛍️ [Draft Order] Creating draft order for store:', storeId);
 
@@ -60,23 +70,31 @@ export async function POST(request: NextRequest) {
 
     console.log('🛍️ [Draft Order] Products found:', products.length);
 
+    // Check if all products have Shopify variant IDs
+    const missingVariants = products.filter(p => !p.shopifyVariantId);
+    if (missingVariants.length > 0) {
+      console.error('🛍️ [Draft Order] Products missing Shopify variant IDs:', missingVariants.map(p => p.sku));
+      return NextResponse.json(
+        { error: `Products missing Shopify variant IDs: ${missingVariants.map(p => p.sku).join(', ')}` },
+        { status: 400 }
+      );
+    }
+
     // Get Shopify client
     const { shopify, session } = getShopifyClient(org);
     const client = new shopify.clients.Rest({ session });
 
-    // Build line items for draft order
+    // Build line items for draft order using Shopify variant IDs
     const lineItems = products.map(p => {
       const qty = boxQuantities[p.sku] || 0;
+      // Extract numeric ID from GID (e.g., "gid://shopify/ProductVariant/123" -> "123")
+      const variantId = p.shopifyVariantId!.includes('/')
+        ? p.shopifyVariantId!.split('/').pop()
+        : p.shopifyVariantId!;
+      
       return {
-        title: p.name,
-        price: Number(p.price).toFixed(2),
-        quantity: qty,
-        // Add custom attributes for tracking
-        properties: [
-          { name: 'SKU', value: p.sku },
-          { name: 'Units per Box', value: String(p.unitsPerBox || 1) },
-          { name: 'Type', value: 'Wholesale Box' }
-        ]
+        variant_id: variantId,
+        quantity: qty
       };
     });
 
@@ -93,18 +111,6 @@ export async function POST(request: NextRequest) {
     const creditToApply = Math.min(Number(storeCredit || 0), subtotal);
     
     console.log('🛍️ [Draft Order] Credit to apply:', creditToApply);
-
-    // Add discount line item if there's credit to apply
-    if (creditToApply > 0) {
-      lineItems.push({
-        title: 'Store Credit Applied',
-        price: (-creditToApply).toFixed(2), // Negative amount for discount
-        quantity: 1,
-        properties: [
-          { name: 'Type', value: 'Store Credit Discount' }
-        ]
-      });
-    }
 
     // Build customer info
     const customer = {
@@ -124,31 +130,54 @@ export async function POST(request: NextRequest) {
 
     console.log('🛍️ [Draft Order] Creating draft order in Shopify...');
 
+    // Determine shipping address: use provided address, or fall back to store address
+    let shippingAddr;
+    if (shippingAddress) {
+      // Custom shipping address provided
+      shippingAddr = {
+        address1: shippingAddress.address1,
+        address2: shippingAddress.address2 || undefined,
+        city: shippingAddress.city,
+        province: shippingAddress.state,
+        zip: shippingAddress.zip,
+        country: shippingAddress.country || 'US',
+        phone: shippingAddress.phone || contactPhone || undefined
+      };
+    } else if (store.streetAddress) {
+      // Use store's registered address
+      shippingAddr = {
+        address1: store.streetAddress,
+        city: store.city,
+        province: store.state,
+        zip: store.zipCode,
+        country: 'US',
+        phone: contactPhone || undefined
+      };
+    }
+
     // Create draft order
+    const draftOrderData: any = {
+      line_items: lineItems,
+      customer,
+      note: draftOrderNote,
+      email: customer.email,
+      shipping_address: shippingAddr,
+    };
+
+    // Add discount if store credit is being applied
+    if (creditToApply > 0) {
+      draftOrderData.applied_discount = {
+        description: 'Store Credit Applied',
+        value_type: 'fixed_amount',
+        value: creditToApply.toFixed(2),
+        amount: creditToApply.toFixed(2)
+      };
+    }
+
     const response = await client.post({
       path: 'draft_orders',
       data: {
-        draft_order: {
-          line_items: lineItems,
-          customer,
-          note: draftOrderNote,
-          email: customer.email,
-          shipping_address: store.streetAddress ? {
-            address1: store.streetAddress,
-            city: store.city,
-            province: store.state,
-            zip: store.zipCode,
-            country: 'US'
-          } : undefined,
-          billing_address: store.streetAddress ? {
-            address1: store.streetAddress,
-            city: store.city,
-            province: store.state,
-            zip: store.zipCode,
-            country: 'US'
-          } : undefined,
-          use_customer_default_address: false,
-        }
+        draft_order: draftOrderData
       }
     });
 

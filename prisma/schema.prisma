@@ -406,6 +406,10 @@ model Product {
   wholesalePrice  Decimal? @db.Decimal(10, 2) // Price per unit (wholesale)
   retailPrice     Decimal? @db.Decimal(10, 2) // Price per unit (retail)
   
+  // Shopify integration
+  shopifyProductId String? // Shopify product ID (e.g., "gid://shopify/Product/1234567890")
+  shopifyVariantId String? // Shopify variant ID (e.g., "gid://shopify/ProductVariant/1234567890")
+  
   imageUrl    String?
   
   // Status flags

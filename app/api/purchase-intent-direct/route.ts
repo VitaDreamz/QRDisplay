@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
         firstName: String(firstName).trim(),
         lastName: String(lastName).trim(),
         phone: normalizedPhone,
-        sampleChoice: 'Direct Purchase', // Not a sample request
+        sampleChoice: `DIRECT_PURCHASE:${productSku}`, // Store product SKU for later retrieval
         activated: false,
         redeemed: false,
         requestedAt: new Date(),

@@ -17,9 +17,11 @@ export async function GET(
       return NextResponse.json({ ok: false, error: 'Invalid promo link' }, { status: 404 });
     }
 
-    if (shortlink.action !== 'promo-redeem') {
+    if (shortlink.action !== 'promo-redeem' && shortlink.action !== 'promo-redeem-direct') {
       return NextResponse.json({ ok: false, error: 'Not a promo link' }, { status: 400 });
     }
+
+    const isDirect = shortlink.action === 'promo-redeem-direct';
 
     // Check if expired (72 hours)
     const now = new Date();
@@ -59,6 +61,12 @@ export async function GET(
       return NextResponse.json({ ok: false, error: 'Store not found' }, { status: 404 });
     }
 
+    // For direct purchases, extract product SKU from customer record
+    let selectedProductSku: string | null = null;
+    if (isDirect && customer.sampleChoice?.startsWith('DIRECT_PURCHASE:')) {
+      selectedProductSku = customer.sampleChoice.replace('DIRECT_PURCHASE:', '');
+    }
+
     // Get store's available products
     const storeWithProducts = await prisma.store.findUnique({
       where: { storeId: shortlink.storeId },
@@ -91,6 +99,8 @@ export async function GET(
 
     return NextResponse.json({
       ok: true,
+      isDirect, // Flag to indicate if this is a direct purchase
+      selectedProductSku, // Pre-selected product for direct purchases
       storeName: store.storeName,
       promoOffer: store.promoOffer,
       customerName: `${customer.firstName} ${customer.lastName}`,

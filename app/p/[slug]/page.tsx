@@ -24,6 +24,9 @@ export default function PromoRedemptionPage({ params }: { params: Promise<{ slug
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<{ storeName: string; promoOffer: string; customerName: string; productName: string } | null>(null);
   const [discountPercent, setDiscountPercent] = useState(20);
+  const [isDirect, setIsDirect] = useState(false); // Direct purchase flow
+  const [staffPin, setStaffPin] = useState(''); // For direct purchases
+  const [showPinEntry, setShowPinEntry] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -50,6 +53,7 @@ export default function PromoRedemptionPage({ params }: { params: Promise<{ slug
           
           setCustomerName(json.customerName || 'Customer');
           setStoreInfo(json.store || null);
+          setIsDirect(json.isDirect || false);
           
           // Calculate discounted prices for each product
           const productsWithPricing = (json.products || []).map((p: any) => {
@@ -64,6 +68,15 @@ export default function PromoRedemptionPage({ params }: { params: Promise<{ slug
             };
           });
           setProducts(productsWithPricing);
+          
+          // For direct purchases, pre-select the product
+          if (json.isDirect && json.selectedProductSku) {
+            const preselected = productsWithPricing.find((p: any) => p.sku === json.selectedProductSku);
+            if (preselected) {
+              setSelectedProduct(preselected);
+              setShowPinEntry(true); // Go straight to PIN entry
+            }
+          }
         }
       } catch (e) {
         setError('Network error');

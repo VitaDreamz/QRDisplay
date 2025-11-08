@@ -132,6 +132,7 @@ export default async function StoreDashboardPage() {
 
   const data = {
     store: {
+      id: store.id,
       storeId: store.storeId,
       storeName: store.storeName,
       promoOffer: store.promoOffer,

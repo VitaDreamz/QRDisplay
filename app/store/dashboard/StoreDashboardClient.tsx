@@ -2771,12 +2771,12 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/10 backdrop-blur-md border-t border-white/20 safe-area-inset-bottom">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-gradient-to-t from-purple-900/95 to-purple-800/90 backdrop-blur-lg border-t border-purple-400/30 shadow-2xl safe-area-inset-bottom">
         <div className={`grid ${role === 'owner' ? 'grid-cols-5' : 'grid-cols-3'}`}>
           <button
             onClick={() => setActiveTab('overview')}
-            className={`flex flex-col items-center justify-center h-14 space-y-1 ${
-              activeTab === 'overview' ? 'bg-purple-600 text-white' : 'text-white'
+            className={`flex flex-col items-center justify-center h-14 space-y-1 transition-colors ${
+              activeTab === 'overview' ? 'bg-purple-600 text-white' : 'text-purple-100 hover:text-white'
             }`}
           >
             <span className="text-xl">📊</span>
@@ -2784,8 +2784,8 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
           </button>
           <button
             onClick={() => setActiveTab('customers')}
-            className={`flex flex-col items-center justify-center h-14 space-y-1 ${
-              activeTab === 'customers' ? 'bg-purple-600 text-white' : 'text-white'
+            className={`flex flex-col items-center justify-center h-14 space-y-1 transition-colors ${
+              activeTab === 'customers' ? 'bg-purple-600 text-white' : 'text-purple-100 hover:text-white'
             }`}
           >
             <span className="text-xl">👥</span>
@@ -2793,8 +2793,8 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
           </button>
           <button
             onClick={() => setActiveTab('products')}
-            className={`flex flex-col items-center justify-center h-14 space-y-1 ${
-              activeTab === 'products' ? 'bg-purple-600 text-white' : 'text-white'
+            className={`flex flex-col items-center justify-center h-14 space-y-1 transition-colors ${
+              activeTab === 'products' ? 'bg-purple-600 text-white' : 'text-purple-100 hover:text-white'
             }`}
           >
             <span className="text-xl">🛍️</span>
@@ -2804,8 +2804,8 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
             <>
               <button
                 onClick={() => setActiveTab('staff')}
-                className={`flex flex-col items-center justify-center h-14 space-y-1 ${
-                  activeTab === 'staff' ? 'bg-purple-600 text-white' : 'text-white'
+                className={`flex flex-col items-center justify-center h-14 space-y-1 transition-colors ${
+                  activeTab === 'staff' ? 'bg-purple-600 text-white' : 'text-purple-100 hover:text-white'
                 }`}
               >
                 <span className="text-xl">🏆</span>
@@ -2813,8 +2813,8 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
               </button>
               <button
                 onClick={() => setActiveTab('settings')}
-                className={`flex flex-col items-center justify-center h-14 space-y-1 ${
-                  activeTab === 'settings' ? 'bg-purple-600 text-white' : 'text-white'
+                className={`flex flex-col items-center justify-center h-14 space-y-1 transition-colors ${
+                  activeTab === 'settings' ? 'bg-purple-600 text-white' : 'text-purple-100 hover:text-white'
                 }`}
               >
                 <span className="text-xl">⚙️</span>

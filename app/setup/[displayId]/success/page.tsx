@@ -170,6 +170,18 @@ export default function SuccessPage({ params }: { params: Promise<{ displayId: s
               {progress?.staffAdded ? 'Staff added' : 'Staff setup - skipped'}
             </span>
           </div>
+          <div className="flex items-center gap-3">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+              hasPhoto 
+                ? 'bg-green-600 text-white' 
+                : 'bg-gray-300 text-gray-600'
+            }`}>
+              {hasPhoto ? '✓' : '○'}
+            </div>
+            <span className={hasPhoto ? 'text-green-900 font-medium' : 'text-gray-600 font-medium'}>
+              {hasPhoto ? 'Uploaded image for $10 Store Credit' : 'Setup photo - not uploaded'}
+            </span>
+          </div>
         </div>
       </div>
 

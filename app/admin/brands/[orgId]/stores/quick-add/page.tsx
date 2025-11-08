@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { SUBSCRIPTION_TIERS, type SubscriptionTier } from '@/lib/subscription-tiers';
+import type { SubscriptionTier } from '@/lib/subscription-tiers';
 
 interface ShopifyCustomer {
   id: string;
@@ -14,6 +14,23 @@ interface ShopifyCustomer {
   province?: string;
   address?: string;
   zip?: string;
+}
+
+interface Product {
+  id: string;
+  sku: string;
+  name: string;
+  productType: string;
+  category: string;
+  unitsPerBox: number;
+  wholesalePrice: string;
+  retailPrice: string;
+  imageUrl: string;
+}
+
+interface InventoryItem {
+  productSku: string;
+  quantity: number;
 }
 
 export default function QuickAddStorePage() {
@@ -46,7 +63,12 @@ export default function QuickAddStorePage() {
   const [purchasingEmail, setPurchasingEmail] = useState('');
   const [purchasingSameAsOwner, setPurchasingSameAsOwner] = useState(false);
   
-  const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>('free');
+  const [subscriptionTier] = useState<SubscriptionTier>('free'); // Default to free tier
+  
+  // Products and Inventory
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [inventoryEntries, setInventoryEntries] = useState<InventoryItem[]>([]);
   
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -127,6 +149,40 @@ export default function QuickAddStorePage() {
     }
   }, [purchasingSameAsOwner, ownerName, ownerPhone, ownerEmail]);
 
+  // Load products on mount
+  useEffect(() => {
+    async function loadProducts() {
+      setLoadingProducts(true);
+      try {
+        const response = await fetch('/api/admin/products?orgId=ORG-VITADREAMZ');
+        if (!response.ok) throw new Error('Failed to load products');
+        const data = await response.json();
+        setProducts(data.products || []);
+      } catch (error) {
+        console.error('Failed to load products:', error);
+      } finally {
+        setLoadingProducts(false);
+      }
+    }
+    loadProducts();
+  }, []);
+
+  // Helper function for inventory
+  function updateInventoryQuantity(sku: string, quantity: number) {
+    if (quantity <= 0) {
+      setInventoryEntries(prev => prev.filter(item => item.productSku !== sku));
+    } else {
+      const existing = inventoryEntries.find(item => item.productSku === sku);
+      if (existing) {
+        setInventoryEntries(prev => 
+          prev.map(item => item.productSku === sku ? { ...item, quantity } : item)
+        );
+      } else {
+        setInventoryEntries(prev => [...prev, { productSku: sku, quantity }]);
+      }
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     
@@ -169,6 +225,7 @@ export default function QuickAddStorePage() {
           purchasingPhone,
           purchasingEmail,
           subscriptionTier,
+          inventoryEntries,
           orgId: 'ORG-VITADREAMZ'
         })
       });
@@ -498,36 +555,72 @@ export default function QuickAddStorePage() {
                 </div>
               </div>
 
+              {/* Current Inventory */}
               <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-6 shadow-lg">
-                <h2 className="text-xl font-semibold text-white mb-4">💎 Subscription Tier</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {Object.entries(SUBSCRIPTION_TIERS).map(([tier, config]) => (
-                    <button
-                      key={tier}
-                      type="button"
-                      onClick={() => setSubscriptionTier(tier as SubscriptionTier)}
-                      className={`p-4 border-2 rounded-lg text-left transition-all ${
-                        subscriptionTier === tier 
-                          ? 'border-purple-400 bg-purple-500/20 shadow-lg shadow-purple-500/50' 
-                          : 'border-white/30 bg-white/5 hover:border-purple-300'
-                      }`}
-                    >
-                      <div className="font-semibold text-white mb-1">{config.name}</div>
-                      <div className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-200 to-blue-200 mb-2">
-                        {config.price === 0 ? 'Free' : `$${config.price}`}
-                        <span className="text-sm text-purple-200">{config.price === 0 ? '' : '/qtr'}</span>
-                      </div>
-                      <div className="text-sm text-purple-200">
-                        • +{config.features.newCustomersPerBilling} customers/quarter<br/>
-                        • {config.features.samplesPerQuarter} samples/quarter<br/>
-                        • {config.features.commissionRate}% commission<br/>
-                        • {config.features.promoReimbursementRate}% promo reimbursement
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                <h2 className="text-xl font-semibold text-white mb-4">� Current Inventory</h2>
+                <p className="text-sm text-purple-200 mb-4">Enter how many retail units they currently have on hand</p>
+                
+                {loadingProducts ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin h-8 w-8 border-4 border-purple-400 border-t-transparent rounded-full mx-auto mb-2"></div>
+                    <p className="text-purple-200">Loading products...</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                    {products
+                      .filter(p => p.productType === 'retail' || p.productType === 'sample')
+                      .map((product) => {
+                        const entry = inventoryEntries.find(e => e.productSku === product.sku);
+                        const quantity = entry?.quantity || 0;
+                        
+                        return (
+                          <div key={product.sku} className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10">
+                            {product.imageUrl && (
+                              <img src={product.imageUrl} alt={product.name} className="w-12 h-12 object-cover rounded" />
+                            )}
+                            <div className="flex-1">
+                              <div className="font-medium text-white">{product.name}</div>
+                              <div className="text-xs text-purple-300">{product.sku} • {product.category}</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => updateInventoryQuantity(product.sku, Math.max(0, quantity - 1))}
+                                className="w-8 h-8 bg-white/10 hover:bg-white/20 rounded border border-white/30 text-white font-bold"
+                              >
+                                −
+                              </button>
+                              <input
+                                type="number"
+                                min="0"
+                                value={quantity}
+                                onChange={(e) => updateInventoryQuantity(product.sku, parseInt(e.target.value) || 0)}
+                                className="w-16 text-center bg-white/5 border-2 border-white/30 rounded px-2 py-1 text-white"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => updateInventoryQuantity(product.sku, quantity + 1)}
+                                className="w-8 h-8 bg-white/10 hover:bg-white/20 rounded border border-white/30 text-white font-bold"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+                
+                {inventoryEntries.length > 0 && (
+                  <div className="mt-4 p-3 bg-green-500/10 border border-green-400/30 rounded-lg">
+                    <div className="text-sm text-green-200">
+                      Total items: {inventoryEntries.reduce((sum, item) => sum + item.quantity, 0)} units across {inventoryEntries.length} products
+                    </div>
+                  </div>
+                )}
               </div>
 
+              {/* Submit */}
               <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-6 shadow-lg">
                 {submitError && (
                   <div className="mb-4 p-4 bg-red-500/20 border-2 border-red-400/50 backdrop-blur-sm rounded-lg text-red-100">

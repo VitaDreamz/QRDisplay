@@ -8,10 +8,44 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get('query');
     const displayId = searchParams.get('displayId');
     const shopifyCustomerId = searchParams.get('shopifyCustomerId');
+    const storeId = searchParams.get('storeId');
 
-    // Two modes:
+    // Three modes:
     // 1. Search mode: requires query + displayId
     // 2. Lookup by Shopify customer: requires shopifyCustomerId only
+    // 3. Get single store: requires storeId only
+    
+    if (storeId) {
+      // Mode 3: Fetch complete store details by storeId
+      const store = await prisma.store.findUnique({
+        where: { storeId },
+        select: {
+          storeId: true,
+          storeName: true,
+          streetAddress: true,
+          address2: true,
+          city: true,
+          state: true,
+          zipCode: true,
+          timezone: true,
+          adminName: true,
+          adminEmail: true,
+          adminPhone: true,
+          ownerName: true,
+          ownerPhone: true,
+          ownerEmail: true,
+          purchasingManager: true,
+          purchasingPhone: true,
+          purchasingEmail: true,
+          staffPin: true,
+          shopifyCustomerId: true,
+          availableSamples: true,
+          availableProducts: true,
+        },
+      });
+
+      return NextResponse.json({ store });
+    }
     
     if (shopifyCustomerId) {
       // Mode 2: Find existing stores for this Shopify customer

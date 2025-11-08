@@ -127,51 +127,89 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
 
   const handleSelectResult = async (result: SearchResult) => {
     if (result.type === 'existing' && result.existingStore) {
-      // User selected an existing store - load its data
+      // User selected an existing store - load its full data
       console.log('🏪 Selecting existing store:', result.existingStore.storeId);
       
-      // Fetch organization data to pre-fill contact details in Step 7
-      let orgContactData = {};
       try {
-        const displayRes = await fetch(`/api/displays/${displayId}`);
-        if (displayRes.ok) {
-          const displayData = await displayRes.json();
-          const orgId = displayData.display?.orgId;
-          
-          if (orgId) {
-            const orgRes = await fetch(`/api/organizations/${orgId}`);
-            if (orgRes.ok) {
-              const orgData = await orgRes.json();
-              console.log('📋 Fetched organization data for pre-fill:', orgData);
-              
-              orgContactData = {
-                orgOwnerName: orgData.organization?.ownerName,
-                orgOwnerPhone: orgData.organization?.ownerPhone,
-                orgOwnerEmail: orgData.organization?.ownerEmail,
-                orgPurchasingManager: orgData.organization?.purchasingManager,
-                orgPurchasingPhone: orgData.organization?.purchasingPhone,
-                orgPurchasingEmail: orgData.organization?.purchasingEmail,
-                orgCustomerServiceEmail: orgData.organization?.customerServiceEmail,
-                orgCustomerServicePhone: orgData.organization?.customerServicePhone,
-              };
+        // Fetch complete store details
+        const storeRes = await fetch(`/api/stores/lookup?storeId=${result.existingStore.storeId}`);
+        if (!storeRes.ok) {
+          alert('Failed to load store details. Please try again.');
+          return;
+        }
+        
+        const storeData = await storeRes.json();
+        const store = storeData.store;
+        
+        if (!store) {
+          alert('Store not found. Please try again.');
+          return;
+        }
+        
+        console.log('📦 Fetched full store data:', store);
+        
+        // Fetch organization data to pre-fill contact details in Step 7
+        let orgContactData = {};
+        try {
+          const displayRes = await fetch(`/api/displays/${displayId}`);
+          if (displayRes.ok) {
+            const displayData = await displayRes.json();
+            const orgId = displayData.display?.orgId;
+            
+            if (orgId) {
+              const orgRes = await fetch(`/api/organizations/${orgId}`);
+              if (orgRes.ok) {
+                const orgData = await orgRes.json();
+                console.log('📋 Fetched organization data for pre-fill:', orgData);
+                
+                orgContactData = {
+                  orgOwnerName: orgData.organization?.ownerName,
+                  orgOwnerPhone: orgData.organization?.ownerPhone,
+                  orgOwnerEmail: orgData.organization?.ownerEmail,
+                  orgPurchasingManager: orgData.organization?.purchasingManager,
+                  orgPurchasingPhone: orgData.organization?.purchasingPhone,
+                  orgPurchasingEmail: orgData.organization?.purchasingEmail,
+                  orgCustomerServiceEmail: orgData.organization?.customerServiceEmail,
+                  orgCustomerServicePhone: orgData.organization?.customerServicePhone,
+                };
+              }
             }
           }
+        } catch (err) {
+          console.error('Failed to fetch organization data:', err);
         }
+        
+        saveProgress({
+          currentStep: 7,
+          storeName: store.storeName,
+          address: store.streetAddress,
+          city: store.city,
+          state: store.state, // Already in 2-letter format from database
+          zip: store.zipCode,
+          timezone: store.timezone || 'America/New_York',
+          // Pre-fill contact info from existing store
+          ownerName: store.ownerName,
+          ownerPhone: store.ownerPhone,
+          ownerEmail: store.ownerEmail,
+          adminName: store.adminName,
+          adminPhone: store.adminPhone,
+          adminEmail: store.adminEmail,
+          purchasingManager: store.purchasingManager,
+          purchasingPhone: store.purchasingPhone,
+          purchasingEmail: store.purchasingEmail,
+          pin: store.staffPin,
+          // Flags
+          isNewLocation: false, // This is an existing store
+          existingStoreId: store.storeId,
+          shopifyCustomerId: store.shopifyCustomerId,
+          ...orgContactData, // Organization data as fallback
+        });
+        console.log('✅ Saved existing store info to wizard progress');
+        router.push(`/setup/${displayId}/activate`);
       } catch (err) {
-        console.error('Failed to fetch organization data:', err);
+        console.error('Failed to fetch store details:', err);
+        alert('Failed to load store details. Please try again.');
       }
-      
-      saveProgress({
-        currentStep: 7,
-        wholesaleBusinessName: result.existingStore.storeName,
-        city: result.existingStore.city,
-        state: result.existingStore.state,
-        isNewLocation: false, // This is an existing store
-        existingStoreId: result.existingStore.storeId,
-        ...orgContactData,
-      });
-      console.log('✅ Saved existing store info to wizard progress');
-      router.push(`/setup/${displayId}/activate`);
     }
   };
 

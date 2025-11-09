@@ -48,8 +48,8 @@ export async function GET(
           sku: item.product.sku,
           name: item.product.name,
           description: item.product.description,
-          price: item.product.price,
-          msrp: item.product.msrp,
+          price: Number(item.product.price),
+          msrp: Number(item.product.msrp),
           imageUrl: item.product.imageUrl,
           quantityOnHand: item.quantityOnHand
         }));
@@ -73,8 +73,8 @@ export async function GET(
           sku: item.product.sku,
           name: item.product.name,
           description: item.product.description,
-          price: item.product.price,
-          msrp: item.product.msrp,
+          price: Number(item.product.price),
+          msrp: Number(item.product.msrp),
           imageUrl: item.product.imageUrl,
           quantityOnHand: item.quantityOnHand
         }));

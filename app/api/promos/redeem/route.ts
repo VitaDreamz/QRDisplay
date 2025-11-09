@@ -192,10 +192,8 @@ export async function POST(request: NextRequest) {
                 console.warn('⚠️ No PurchaseIntent found for customer - points will still be awarded');
               } else {
                 console.log(`📦 Found PurchaseIntent ${purchaseIntent.id} (status: ${purchaseIntent.status})`);
-              }
-              
-              // For direct purchases, mark the PurchaseIntent as fulfilled
-              if (purchaseIntent && isDirect) {
+                
+                // Mark the PurchaseIntent as fulfilled (for both direct and regular flow)
                 await prisma.purchaseIntent.update({
                   where: { id: purchaseIntent.id },
                   data: {
@@ -204,7 +202,7 @@ export async function POST(request: NextRequest) {
                     fulfilledByStaffId: staffMember.id,
                   }
                 });
-                console.log(`✅ Direct purchase PurchaseIntent ${purchaseIntent.id} marked as fulfilled`);
+                console.log(`✅ PurchaseIntent ${purchaseIntent.id} marked as fulfilled`);
               }
               
               console.log(`🎯 Awarding points to staff ${staffMember.id} in store ${store.id} (org: ${store.orgId})`);

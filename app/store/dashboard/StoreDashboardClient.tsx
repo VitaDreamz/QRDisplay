@@ -82,7 +82,7 @@ type DashboardData = {
 
 export default function StoreDashboardClient({ initialData, role }: { initialData: DashboardData; role: 'owner' | 'staff' }) {
   const [data, setData] = useState(initialData);
-  const [activeTab, setActiveTab] = useState<'overview' | 'customers' | 'products' | 'staff' | 'credit' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'customers' | 'products' | 'orders' | 'staff' | 'credit' | 'settings'>('overview');
   const [customerFilter, setCustomerFilter] = useState<'all' | 'pending' | 'redeemed' | 'promo-used'>('all');
   const [mounted, setMounted] = useState(false);
   
@@ -158,6 +158,11 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
   const [expandedStaffId, setExpandedStaffId] = useState<string | null>(null);
   const [editingStoreContact, setEditingStoreContact] = useState(false);
   const [storeContactForm, setStoreContactForm] = useState<any>({});
+  
+  // Orders Management
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [orderFilter, setOrderFilter] = useState<'all' | 'samples' | 'purchases'>('all');
   
   // Forms
   const [promoForm, setPromoForm] = useState(() => {
@@ -712,6 +717,25 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
     }
   };
 
+  // Orders Management Functions
+  const fetchOrders = async () => {
+    setLoadingOrders(true);
+    try {
+      const res = await fetch('/api/store/orders');
+      const result = await res.json();
+      setOrders(result.orders || []);
+    } catch (err) {
+      console.error('Failed to fetch orders:', err);
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
+
+  const getFilteredOrders = () => {
+    if (orderFilter === 'all') return orders;
+    return orders.filter(order => order.type === (orderFilter === 'samples' ? 'sample' : 'purchase'));
+  };
+
   const handleStaffSort = (column: 'samples' | 'sales' | 'type' | 'totalSales' | 'points' | 'quarterlyPoints') => {
     if (staffSortBy === column) {
       setStaffSortOrder(staffSortOrder === 'asc' ? 'desc' : 'asc');
@@ -832,6 +856,9 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
     }
     if (activeTab === 'products') {
       fetchProducts();
+    }
+    if (activeTab === 'orders') {
+      fetchOrders();
     }
     if (activeTab === 'credit') {
       fetchCreditTransactions();
@@ -1107,6 +1134,16 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
             }`}
           >
             🛍️ Products
+          </button>
+          <button
+            onClick={() => setActiveTab('orders')}
+            className={`px-6 py-3 text-base font-semibold transition-all rounded-t-lg ${
+              activeTab === 'orders'
+                ? 'bg-purple-600 text-white shadow-lg'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+            }`}
+          >
+            📦 Orders
           </button>
           <button
             onClick={() => setActiveTab('customers')}
@@ -2468,6 +2505,149 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
           </div>
         )}
 
+        {/* Orders Tab */}
+        {activeTab === 'orders' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6">
+                <div>
+                  <h2 className="text-xl font-bold">Order History</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    All samples and purchases processed through your store
+                  </p>
+                </div>
+                
+                {/* Filter Buttons */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setOrderFilter('all')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+                      orderFilter === 'all'
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    All ({orders.length})
+                  </button>
+                  <button
+                    onClick={() => setOrderFilter('samples')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+                      orderFilter === 'samples'
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Samples ({orders.filter(o => o.type === 'sample').length})
+                  </button>
+                  <button
+                    onClick={() => setOrderFilter('purchases')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+                      orderFilter === 'purchases'
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Purchases ({orders.filter(o => o.type === 'purchase').length})
+                  </button>
+                </div>
+              </div>
+
+              {loadingOrders ? (
+                <div className="text-center py-8 text-gray-500">Loading orders...</div>
+              ) : getFilteredOrders().length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No orders found
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b-2 border-gray-200">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Type</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Customer</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Product</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Staff</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {getFilteredOrders().map((order) => (
+                        <tr key={order.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {order.date ? new Date(order.date).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            }) : '-'}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <span className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${
+                              order.type === 'sample'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-green-100 text-green-800'
+                            }`}>
+                              {order.type === 'sample' ? '🎁 Sample' : '🛍️ Purchase'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <div className="font-medium text-gray-900">{order.customerName}</div>
+                            <div className="text-gray-500 text-xs">{order.customerId}</div>
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <div className="flex items-center gap-2">
+                              {order.productImage && (
+                                <img src={order.productImage} alt="" className="w-8 h-8 object-contain rounded" />
+                              )}
+                              <div>
+                                <div className="font-medium text-gray-900">{order.product}</div>
+                                {order.productSku && (
+                                  <div className="text-gray-500 text-xs">{order.productSku}</div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {order.staffName || '-'}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            <span className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${
+                              order.status === 'fulfilled'
+                                ? 'bg-green-100 text-green-800'
+                                : order.status === 'pending'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {order.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-right font-semibold">
+                            {order.type === 'sample' ? (
+                              <span className="text-blue-600">FREE</span>
+                            ) : (
+                              <div>
+                                <div className="text-green-600">${order.amount.toFixed(2)}</div>
+                                {order.originalAmount && order.originalAmount > order.amount && (
+                                  <div className="text-xs text-gray-500 line-through">
+                                    ${order.originalAmount.toFixed(2)}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Staff Tab (Owner Only) */}
         {activeTab === 'staff' && role === 'owner' && (
           <>
@@ -3056,7 +3236,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
 
       {/* Mobile Bottom Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-gradient-to-t from-purple-900/95 to-purple-800/90 backdrop-blur-lg border-t border-purple-400/30 shadow-2xl safe-area-inset-bottom">
-        <div className={`grid ${role === 'owner' ? 'grid-cols-6' : 'grid-cols-3'}`}>
+        <div className={`grid ${role === 'owner' ? 'grid-cols-7' : 'grid-cols-4'}`}>
           <button
             onClick={() => setActiveTab('overview')}
             className={`flex flex-col items-center justify-center h-14 space-y-1 transition-colors ${
@@ -3083,6 +3263,15 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
           >
             <span className="text-xl">🛍️</span>
             <span className="text-xs font-medium">Products</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('orders')}
+            className={`flex flex-col items-center justify-center h-14 space-y-1 transition-colors ${
+              activeTab === 'orders' ? 'bg-purple-600 text-white' : 'text-purple-100 hover:text-white'
+            }`}
+          >
+            <span className="text-xl">📦</span>
+            <span className="text-xs font-medium">Orders</span>
           </button>
           {role === 'owner' && (
             <>

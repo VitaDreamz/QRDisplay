@@ -142,6 +142,8 @@ export default function PromoRedemptionPage({ params }: { params: Promise<{ slug
           productSku: selectedProduct.sku,
           finalPrice: selectedProduct.finalPrice,
           discountPercent,
+          purchaseAmount: selectedProduct.finalPrice,
+          discountAmount: selectedProduct.savings,
         }),
       });
       const json = await res.json();
@@ -152,7 +154,7 @@ export default function PromoRedemptionPage({ params }: { params: Promise<{ slug
       }
       
       // Redirect to purchase success page
-      window.location.href = `/p/${slug}/success`;
+      window.location.href = `/p/${slug}/success?product=${encodeURIComponent(selectedProduct.name)}&store=${encodeURIComponent(storeName)}&amount=${selectedProduct.finalPrice}`;
     } catch (e) {
       setError('Network error');
       setSubmitting(false);

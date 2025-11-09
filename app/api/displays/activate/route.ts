@@ -235,6 +235,9 @@ export async function POST(req: NextRequest) {
         followupDays: followupDays || existingStore.followupDays,
         postPurchaseFollowupDays: postPurchaseFollowupDays || existingStore.postPurchaseFollowupDays,
         staffPin: pin,
+        // Update available samples and products from wizard
+        availableSamples: availableSamples || existingStore.availableSamples,
+        availableProducts: availableProducts || existingStore.availableProducts,
         // Keep existing values for fields not in wizard
         ownerName: ownerName || existingStore.ownerName,
         ownerPhone: ownerPhone || existingStore.ownerPhone,

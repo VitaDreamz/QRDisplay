@@ -66,7 +66,9 @@ export async function GET(request: NextRequest) {
 
         return {
           ...member,
-          totalSales: Number(sales._sum.finalPrice || 0)
+          totalSales: Number(sales._sum.finalPrice || 0),
+          totalPoints: member.totalPoints || 0,
+          quarterlyPoints: member.quarterlyPoints || 0
         };
       })
     );

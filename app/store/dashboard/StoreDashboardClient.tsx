@@ -712,7 +712,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
     }
   };
 
-  const handleStaffSort = (column: 'samples' | 'sales' | 'type' | 'totalSales') => {
+  const handleStaffSort = (column: 'samples' | 'sales' | 'type' | 'totalSales' | 'points' | 'quarterlyPoints') => {
     if (staffSortBy === column) {
       setStaffSortOrder(staffSortOrder === 'asc' ? 'desc' : 'asc');
     } else {
@@ -736,6 +736,14 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
         case 'totalSales':
           aVal = a.totalSales || 0;
           bVal = b.totalSales || 0;
+          break;
+        case 'points':
+          aVal = (a as any).totalPoints || 0;
+          bVal = (b as any).totalPoints || 0;
+          break;
+        case 'quarterlyPoints':
+          aVal = (a as any).quarterlyPoints || 0;
+          bVal = (b as any).quarterlyPoints || 0;
           break;
         case 'type':
           aVal = a.type;
@@ -1385,18 +1393,24 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                       <div className="text-2xl">{getMedal(i)}</div>
                       <div className="font-semibold">{m.firstName} {m.lastName}</div>
                       <div className="text-sm text-gray-600">{m.type}</div>
-                      <div className="mt-2 grid grid-cols-3 gap-2 text-sm">
-                        <div>
-                          <div className="text-gray-600">Samples</div>
-                          <div className="font-semibold">{m.samplesRedeemed}</div>
+                      <div className="mt-2 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-600">🏆 Q Points:</span>
+                          <span className="font-bold text-purple-600">{(m as any).quarterlyPoints || 0}</span>
                         </div>
-                        <div>
-                          <div className="text-gray-600">Sales</div>
-                          <div className="font-semibold text-green-600">{m.salesGenerated}</div>
-                        </div>
-                        <div>
-                          <div className="text-gray-600">Total $</div>
-                          <div className="font-semibold text-green-600">${(m.totalSales || 0).toFixed(2)}</div>
+                        <div className="grid grid-cols-3 gap-2 text-sm pt-2 border-t">
+                          <div>
+                            <div className="text-gray-600 text-xs">Samples</div>
+                            <div className="font-semibold">{m.samplesRedeemed}</div>
+                          </div>
+                          <div>
+                            <div className="text-gray-600 text-xs">Sales</div>
+                            <div className="font-semibold text-green-600">{m.salesGenerated}</div>
+                          </div>
+                          <div>
+                            <div className="text-gray-600 text-xs">Total $</div>
+                            <div className="font-semibold text-green-600">${(m.totalSales || 0).toFixed(2)}</div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -2516,6 +2530,20 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                           </th>
                           <th 
                             className="px-4 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-100"
+                            onClick={() => handleStaffSort('quarterlyPoints')}
+                            title="Points this quarter"
+                          >
+                            🏆 Q Points {staffSortBy === 'quarterlyPoints' && (staffSortOrder === 'asc' ? '↑' : '↓')}
+                          </th>
+                          <th 
+                            className="px-4 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-100"
+                            onClick={() => handleStaffSort('points')}
+                            title="Lifetime points"
+                          >
+                            ⭐ Total Pts {staffSortBy === 'points' && (staffSortOrder === 'asc' ? '↑' : '↓')}
+                          </th>
+                          <th 
+                            className="px-4 py-3 text-left text-sm font-semibold cursor-pointer hover:bg-gray-100"
                             onClick={() => handleStaffSort('samples')}
                           >
                             Samples {staffSortBy === 'samples' && (staffSortOrder === 'asc' ? '↑' : '↓')}
@@ -2561,6 +2589,12 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                   <div className="text-xs text-gray-500">{member.phone}</div>
                                 </td>
                                 <td className="px-4 py-3 text-sm">{member.type}</td>
+                                <td className="px-4 py-3 text-sm">
+                                  <span className="font-bold text-purple-600">{(member as any).quarterlyPoints || 0}</span>
+                                </td>
+                                <td className="px-4 py-3 text-sm">
+                                  <span className="font-semibold text-gray-700">{(member as any).totalPoints || 0}</span>
+                                </td>
                                 <td className="px-4 py-3 text-sm font-semibold">{member.samplesRedeemed}</td>
                                 <td className="px-4 py-3 text-sm font-semibold text-green-600">{member.salesGenerated}</td>
                                 <td className="px-4 py-3 text-sm font-semibold text-green-600">${(member.totalSales || 0).toFixed(2)}</td>
@@ -2579,7 +2613,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                               </tr>
                               {isExpanded && (
                                 <tr className={index < 3 ? 'bg-yellow-50/30' : ''}>
-                                  <td colSpan={8} className="px-4 py-4 bg-gray-50">
+                                  <td colSpan={10} className="px-4 py-4 bg-gray-50">
                                     <div className="space-y-4">
                                       <div className="grid grid-cols-2 gap-4">
                                         <div>

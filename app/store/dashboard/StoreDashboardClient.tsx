@@ -82,9 +82,13 @@ type DashboardData = {
 
 export default function StoreDashboardClient({ initialData, role }: { initialData: DashboardData; role: 'owner' | 'staff' }) {
   const [data, setData] = useState(initialData);
-  const [activeTab, setActiveTab] = useState<'overview' | 'customers' | 'products' | 'staff' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'customers' | 'products' | 'staff' | 'credit' | 'settings'>('overview');
   const [customerFilter, setCustomerFilter] = useState<'all' | 'pending' | 'redeemed' | 'promo-used'>('all');
   const [mounted, setMounted] = useState(false);
+  
+  // Credit transactions state
+  const [creditTransactions, setCreditTransactions] = useState<any[]>([]);
+  const [loadingCreditTransactions, setLoadingCreditTransactions] = useState(false);
   
   // Products state
   const [products, setProducts] = useState<any[]>([]);
@@ -821,7 +825,25 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
     if (activeTab === 'products') {
       fetchProducts();
     }
+    if (activeTab === 'credit') {
+      fetchCreditTransactions();
+    }
   }, [activeTab]);
+
+  const fetchCreditTransactions = async () => {
+    setLoadingCreditTransactions(true);
+    try {
+      const res = await fetch(`/api/stores/${data.store.storeId}/credit-transactions`);
+      if (res.ok) {
+        const txData = await res.json();
+        setCreditTransactions(txData.transactions || []);
+      }
+    } catch (err) {
+      console.error('Error fetching credit transactions:', err);
+    } finally {
+      setLoadingCreditTransactions(false);
+    }
+  };
 
   const openAddStaff = () => {
     setEditingStaff(null);
@@ -1056,34 +1078,34 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
       )}
 
       {/* Desktop Tabs */}
-      <div className="hidden md:block px-4 md:px-6">
-        <div className="flex space-x-2 border-b border-gray-200">
+      <div className="hidden md:block px-4 md:px-6 bg-white border-b border-gray-200">
+        <div className="flex space-x-1">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`px-6 py-3 text-base font-medium transition-colors ${
+            className={`px-6 py-3 text-base font-semibold transition-all rounded-t-lg ${
               activeTab === 'overview'
-                ? 'text-purple-600 border-b-2 border-purple-600'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-purple-600 text-white shadow-lg'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
             }`}
           >
             📊 {role === 'staff' ? 'My Stats' : 'Overview'}
           </button>
           <button
             onClick={() => setActiveTab('products')}
-            className={`px-6 py-3 text-base font-medium transition-colors ${
+            className={`px-6 py-3 text-base font-semibold transition-all rounded-t-lg ${
               activeTab === 'products'
-                ? 'text-purple-600 border-b-2 border-purple-600'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-purple-600 text-white shadow-lg'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
             }`}
           >
             🛍️ Products
           </button>
           <button
             onClick={() => setActiveTab('customers')}
-            className={`px-6 py-3 text-base font-medium transition-colors ${
+            className={`px-6 py-3 text-base font-semibold transition-all rounded-t-lg ${
               activeTab === 'customers'
-                ? 'text-purple-600 border-b-2 border-purple-600'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-purple-600 text-white shadow-lg'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
             }`}
           >
             👥 Customers
@@ -1092,20 +1114,30 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
             <>
               <button
                 onClick={() => setActiveTab('staff')}
-                className={`px-6 py-3 text-base font-medium transition-colors ${
+                className={`px-6 py-3 text-base font-semibold transition-all rounded-t-lg ${
                   activeTab === 'staff'
-                    ? 'text-purple-600 border-b-2 border-purple-600'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-purple-600 text-white shadow-lg'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                 }`}
               >
                 🏆 Staff
               </button>
               <button
+                onClick={() => setActiveTab('credit')}
+                className={`px-6 py-3 text-base font-semibold transition-all rounded-t-lg ${
+                  activeTab === 'credit'
+                    ? 'bg-purple-600 text-white shadow-lg'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                }`}
+              >
+                💰 Store Credit
+              </button>
+              <button
                 onClick={() => setActiveTab('settings')}
-                className={`px-6 py-3 text-base font-medium transition-colors ${
+                className={`px-6 py-3 text-base font-semibold transition-all rounded-t-lg ${
                   activeTab === 'settings'
-                    ? 'text-purple-600 border-b-2 border-purple-600'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-purple-600 text-white shadow-lg'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                 }`}
               >
                 ⚙️ Settings
@@ -1317,12 +1349,18 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                   <p className="text-purple-100 mb-3">
                     Order wholesale products for your store inventory
                   </p>
-                  <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-lg px-4 py-3 inline-flex">
+                  <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-lg px-4 py-3">
                     <span className="text-3xl">💰</span>
-                    <div>
+                    <div className="flex-1">
                       <p className="text-xs text-purple-100 uppercase tracking-wide">Available Store Credit</p>
                       <p className="text-2xl font-bold">${((data.store as any).storeCredit || 0).toFixed(2)}</p>
                     </div>
+                    <button
+                      onClick={() => setActiveTab('credit')}
+                      className="text-xs text-purple-100 hover:text-white underline whitespace-nowrap"
+                    >
+                      See Details →
+                    </button>
                   </div>
                 </div>
                 <button
@@ -2743,6 +2781,101 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
           </>
         )}
 
+        {/* Store Credit Tab (Owner Only) */}
+        {activeTab === 'credit' && role === 'owner' && (
+          <>
+            {/* Current Balance Card */}
+            <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg shadow-lg p-6 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-100 text-sm uppercase tracking-wide mb-2">Available Store Credit</p>
+                  <p className="text-5xl font-bold">${((data.store as any).storeCredit || 0).toFixed(2)}</p>
+                  <p className="text-purple-100 mt-2">Use credit towards wholesale product orders</p>
+                </div>
+                <span className="text-6xl">💰</span>
+              </div>
+            </div>
+
+            {/* Transaction History */}
+            <div className="bg-white rounded-lg shadow">
+              <div className="p-4 border-b">
+                <h2 className="text-xl font-bold">Transaction History</h2>
+                <p className="text-sm text-gray-600 mt-1">All store credit transactions and usage</p>
+              </div>
+              
+              <div className="overflow-x-auto">
+                {loadingCreditTransactions ? (
+                  <div className="p-8 text-center">
+                    <div className="animate-spin inline-block w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full"></div>
+                    <p className="text-gray-600 mt-2">Loading transactions...</p>
+                  </div>
+                ) : creditTransactions.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500">
+                    <span className="text-4xl block mb-2">📋</span>
+                    <p>No transactions yet</p>
+                    <p className="text-sm mt-1">Credit transactions will appear here</p>
+                  </div>
+                ) : (
+                  <table className="min-w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {creditTransactions.map((txn: any) => (
+                        <tr key={txn.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                            {new Date(txn.createdAt).toLocaleDateString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric', 
+                              year: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit'
+                            })}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              txn.type === 'credit' 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {txn.type === 'credit' ? '+ Credit' : '- Debit'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            <div>
+                              <p className="font-medium">{txn.reason}</p>
+                              {txn.displayId && (
+                                <p className="text-xs text-gray-500">Display: {txn.displayId}</p>
+                              )}
+                              {txn.orderId && (
+                                <p className="text-xs text-gray-500">Order: {txn.orderId}</p>
+                              )}
+                            </div>
+                          </td>
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold text-right ${
+                            txn.type === 'credit' ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                            {txn.type === 'credit' ? '+' : '-'}${Math.abs(txn.amount).toFixed(2)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-right text-gray-900">
+                            ${txn.balance.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
         {/* Settings Tab (Owner Only) */}
         {activeTab === 'settings' && role === 'owner' && (
           <>
@@ -2899,7 +3032,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
 
       {/* Mobile Bottom Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-gradient-to-t from-purple-900/95 to-purple-800/90 backdrop-blur-lg border-t border-purple-400/30 shadow-2xl safe-area-inset-bottom">
-        <div className={`grid ${role === 'owner' ? 'grid-cols-5' : 'grid-cols-3'}`}>
+        <div className={`grid ${role === 'owner' ? 'grid-cols-6' : 'grid-cols-3'}`}>
           <button
             onClick={() => setActiveTab('overview')}
             className={`flex flex-col items-center justify-center h-14 space-y-1 transition-colors ${
@@ -2937,6 +3070,15 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
               >
                 <span className="text-xl">🏆</span>
                 <span className="text-xs font-medium">Staff</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('credit')}
+                className={`flex flex-col items-center justify-center h-14 space-y-1 transition-colors ${
+                  activeTab === 'credit' ? 'bg-purple-600 text-white' : 'text-purple-100 hover:text-white'
+                }`}
+              >
+                <span className="text-xl">💰</span>
+                <span className="text-xs font-medium">Credit</span>
               </button>
               <button
                 onClick={() => setActiveTab('settings')}

@@ -425,7 +425,11 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                 return (
                   <div 
                     key={product.sku} 
-                    className="relative bg-gradient-to-br from-purple-50 via-blue-50 to-purple-50 rounded-2xl p-6 border border-gray-200 transition-all hover:shadow-md"
+                    className={`relative rounded-2xl p-6 transition-all hover:shadow-md ${
+                      isSelected
+                        ? 'bg-gradient-to-br from-purple-100 via-blue-100 to-purple-100 border-2 border-purple-400 shadow-lg'
+                        : 'bg-gradient-to-br from-purple-50 via-blue-50 to-purple-50 border border-gray-200'
+                    }`}
                   >
                     {product.featured && (
                       <div className="absolute top-3 right-3">
@@ -607,7 +611,11 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                   return (
                     <div 
                       key={product.sku} 
-                      className="relative bg-gradient-to-br from-purple-50 via-blue-50 to-purple-50 rounded-2xl p-6 border border-gray-200 transition-all hover:shadow-md"
+                      className={`relative rounded-2xl p-6 transition-all hover:shadow-md ${
+                        isSelected
+                          ? 'bg-gradient-to-br from-purple-100 via-blue-100 to-purple-100 border-2 border-purple-400 shadow-lg'
+                          : 'bg-gradient-to-br from-purple-50 via-blue-50 to-purple-50 border border-gray-200'
+                      }`}
                     >
                       {product.featured && (
                         <div className="absolute top-3 right-3">
@@ -703,26 +711,53 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
         </div>
 
         {/* Footer Actions */}
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => router.push(`/setup/${displayId}/activate`)}
-            className="w-full py-3 rounded-lg font-semibold text-white bg-white/10 backdrop-blur-sm border-2 border-white/30 hover:bg-white/20 transition-all"
-          >
-            ← Back
-          </button>
-          <button
-            type="button"
-            disabled={loading || !isValid}
-            onClick={handleActivate}
-            className={`w-full py-3 rounded-lg font-bold text-white transition-all ${
-              loading || !isValid
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 shadow-lg shadow-purple-500/50'
-            }`}
-          >
-            {loading ? 'Activating...' : 'Next: Add Staff →'}
-          </button>
+        <div className="mt-6">
+          {/* Validation hint */}
+          {!isValid && (
+            <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <div className="text-xl">⚠️</div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-yellow-900 mb-1">
+                    Please verify your inventory before continuing
+                  </p>
+                  <p className="text-xs text-yellow-800">
+                    {!samplesVerified && !productsVerified ? (
+                      <>Click "Verify as Accurate" on both sections above to confirm your product selections and inventory counts.</>
+                    ) : !samplesVerified ? (
+                      <>Click "Verify as Accurate" on the Available Samples section above.</>
+                    ) : !productsVerified ? (
+                      <>Click "Verify as Accurate" on the Full-Size Products section above.</>
+                    ) : (
+                      <>Please select at least one sample and one product to offer.</>
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => router.push(`/setup/${displayId}/activate`)}
+              className="w-full py-3 rounded-lg font-semibold text-white bg-white/10 backdrop-blur-sm border-2 border-white/30 hover:bg-white/20 transition-all"
+            >
+              ← Back
+            </button>
+            <button
+              type="button"
+              disabled={loading || !isValid}
+              onClick={handleActivate}
+              className={`w-full py-3 rounded-lg font-bold text-white transition-all ${
+                loading || !isValid
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 shadow-lg shadow-purple-500/50'
+              }`}
+            >
+              {loading ? 'Activating...' : 'Next: Add Staff →'}
+            </button>
+          </div>
         </div>
       </div>
     </WizardLayout>

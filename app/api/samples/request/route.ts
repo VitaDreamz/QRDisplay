@@ -3,7 +3,6 @@ import prisma from '@/lib/prisma';
 import { normalizePhone } from '@/lib/phone';
 import { generateSlug } from '@/lib/slugs';
 import { sendBrandSampleRequestEmail } from '@/lib/email';
-import { SAMPLE_OPTIONS } from '@/lib/constants';
 import { syncCustomerToShopify, addCustomerTimelineEvent } from '@/lib/shopify';
 
 async function generateMemberId(): Promise<string> {
@@ -19,12 +18,6 @@ export async function POST(req: NextRequest) {
 
     if (!displayId || !firstName || !lastName || !phone || !sampleChoice) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-    }
-
-    // Validate that submitted choice is one of our known sample values
-    const validSampleValues = new Set(SAMPLE_OPTIONS.map(s => s.value));
-    if (!validSampleValues.has(sampleChoice)) {
-      return NextResponse.json({ error: 'Invalid sample choice' }, { status: 400 });
     }
 
     // Lookup display with relations
@@ -46,17 +39,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Store is not active' }, { status: 400 });
     }
 
-    // Enforce store's available samples selection (legacy stores show all)
-    const storeAllowedValues = (display.store.availableSamples && display.store.availableSamples.length > 0)
-      ? new Set(display.store.availableSamples)
-      : validSampleValues; // legacy: all samples allowed
-    if (!storeAllowedValues.has(sampleChoice)) {
+    // Validate that the sample SKU is available at this store
+    if (!display.store.availableSamples || !display.store.availableSamples.includes(sampleChoice)) {
       return NextResponse.json({ error: 'This sample is not offered at this store' }, { status: 400 });
     }
 
-    // Map submitted value -> human-friendly label for storage/notifications
-    const chosen = SAMPLE_OPTIONS.find(s => s.value === sampleChoice);
-    const sampleLabel = chosen?.label || String(sampleChoice);
+    // Get the product name from database
+    const product = await prisma.product.findUnique({
+      where: { sku: sampleChoice }
+    });
+
+    if (!product) {
+      return NextResponse.json({ error: 'Invalid sample choice' }, { status: 400 });
+    }
+
+    const sampleLabel = product.name;
 
     // Normalize phone
     let normalizedPhone: string;

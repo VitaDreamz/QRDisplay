@@ -115,10 +115,17 @@ async function handleOrderPaid(orgId: string, order: ShopifyOrder, topic: string
     if (!customerTags) {
       console.log(`📡 Fetching customer tags from Shopify API...`);
       try {
-        const { getShopifyCustomer } = await import('@/lib/shopify');
-        const shopifyCustomer = await getShopifyCustomer(org, shopifyCustomerId);
-        customerTags = shopifyCustomer.tags || '';
-        console.log(`✅ Fetched tags: ${customerTags}`);
+        // Fetch org first to use Shopify API
+        const orgForTags = await prisma.organization.findUnique({
+          where: { id: orgId },
+        });
+        
+        if (orgForTags) {
+          const { getShopifyCustomer } = await import('@/lib/shopify');
+          const shopifyCustomer = await getShopifyCustomer(orgForTags, shopifyCustomerId);
+          customerTags = shopifyCustomer.tags || '';
+          console.log(`✅ Fetched tags: ${customerTags}`);
+        }
       } catch (err) {
         console.error(`❌ Failed to fetch customer tags:`, err);
         // Continue without tags

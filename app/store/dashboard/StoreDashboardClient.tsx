@@ -1622,7 +1622,8 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
 
                   // Purchase intents - show only fulfilled for direct purchases, all stages for regular flow
                   purchaseIntents.forEach(pi => {
-                    const isDirect = (pi.customer as any).currentStage === 'purchase_requested';
+                    // Direct purchases have empty sampleChoice
+                    const isDirect = !(pi.customer as any).sampleChoice || (pi.customer as any).sampleChoice.trim() === '';
                     
                     // Only show "Purchase Fulfilled" for direct purchases
                     if (isDirect) {

@@ -2387,8 +2387,8 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {(() => {
-                    // Get 4ct sample products
-                    const sampleProducts = products.filter(p => p.sku.endsWith('-4'));
+                    // Get 4ct sample products (active only)
+                    const sampleProducts = products.filter(p => p.sku.endsWith('-4') && p.active !== false);
                     
                     return sampleProducts.map((product) => {
                       const isAvailable = (data.store.availableSamples || []).includes(product.sku);

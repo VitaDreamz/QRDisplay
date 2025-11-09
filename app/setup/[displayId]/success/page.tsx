@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { WizardLayout } from '@/components/wizard/WizardLayout';
 import { useWizardProgress } from '@/hooks/useWizardProgress';
@@ -12,6 +12,9 @@ export default function SuccessPage({ params }: { params: Promise<{ displayId: s
   const [storeId, setStoreId] = useState<string>('');
   const [setupPhotoUrl, setSetupPhotoUrl] = useState<string>('');
   const [hasPhoto, setHasPhoto] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { progress } = useWizardProgress(displayId);
 
   useEffect(() => {
@@ -34,6 +37,54 @@ export default function SuccessPage({ params }: { params: Promise<{ displayId: s
       }
     });
   }, [params, searchParams]);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError('Image must be less than 10MB');
+      return;
+    }
+
+    setUploading(true);
+    setUploadError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('displayId', displayId);
+
+      const res = await fetch('/api/upload/setup-photo', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+
+      const data = await res.json();
+      setSetupPhotoUrl(data.url);
+      setHasPhoto(true);
+      
+      // Refresh to show the credit message
+      window.location.reload();
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      setUploadError(error.message || 'Failed to upload photo');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   if (!displayId) {
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -123,11 +174,27 @@ export default function SuccessPage({ params }: { params: Promise<{ displayId: s
               Upload a photo of your completed display setup
             </p>
             
+            {uploadError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
+                {uploadError}
+              </div>
+            )}
+            
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            
             <button
-              onClick={() => router.push(`/setup/${displayId}/photo`)}
-              className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg font-bold text-lg hover:from-amber-600 hover:to-orange-600 transition-all shadow-lg"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg font-bold text-lg hover:from-amber-600 hover:to-orange-600 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              📷 Upload Photo & Earn $10
+              {uploading ? '📤 Uploading...' : '📷 Upload Photo & Earn $10'}
             </button>
             
             <div className="mt-3 text-xs text-amber-700">

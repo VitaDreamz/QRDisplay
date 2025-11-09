@@ -108,12 +108,27 @@ async function handleOrderPaid(orgId: string, order: ShopifyOrder, topic: string
     console.log(`💰 Order paid: $${orderTotal} by customer ${shopifyCustomerId}`);
     console.log(`📞 Phone in order: ${order.customer.phone}`);
     console.log(`📧 Email in order: ${order.customer.email}`);
-    console.log(`🏷️  Customer tags: ${order.customer.tags}`);
+    console.log(`🏷️  Customer tags in webhook: ${order.customer.tags || 'Not included in webhook'}`);
+
+    // If tags not in webhook, fetch them from Shopify API
+    let customerTags = order.customer.tags || '';
+    if (!customerTags) {
+      console.log(`📡 Fetching customer tags from Shopify API...`);
+      try {
+        const { getShopifyCustomer } = await import('@/lib/shopify');
+        const shopifyCustomer = await getShopifyCustomer(org, shopifyCustomerId);
+        customerTags = shopifyCustomer.tags || '';
+        console.log(`✅ Fetched tags: ${customerTags}`);
+      } catch (err) {
+        console.error(`❌ Failed to fetch customer tags:`, err);
+        // Continue without tags
+      }
+    }
 
     // Extract memberId from customer tags (e.g., "member:MEM-027")
     let memberId: string | null = null;
-    if (order.customer.tags) {
-      const memberTag = order.customer.tags.split(',').find(tag => tag.trim().startsWith('member:'));
+    if (customerTags) {
+      const memberTag = customerTags.split(',').find(tag => tag.trim().startsWith('member:'));
       if (memberTag) {
         memberId = memberTag.trim().replace('member:', '');
         console.log(`🎯 Found member tag: ${memberId}`);

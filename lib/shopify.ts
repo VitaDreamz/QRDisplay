@@ -386,6 +386,7 @@ export async function getShopifyCustomer(org: Organization, shopifyCustomerId: s
       firstName: customer.first_name,
       lastName: customer.last_name,
       companyName: defaultAddress?.company,
+      tags: customer.tags, // Include customer tags
       // Address fields for pre-filling store location
       address: defaultAddress?.address1,
       address2: defaultAddress?.address2,

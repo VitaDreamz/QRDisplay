@@ -1524,61 +1524,82 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                     badge: { color: string; text: string; emoji: string };
                   }> = [];
 
-                  // Sample requests
-                  data.customers.forEach(c => {
-                    activities.push({
-                      id: `sample-req-${c.id}`,
-                      type: 'sample-request',
-                      timestamp: new Date(c.requestedAt),
-                      customer: { firstName: c.firstName, lastName: c.lastName },
-                      details: c.sampleChoice,
-                      badge: { color: 'bg-purple-100 text-purple-800', text: 'Sample Requested', emoji: '📋' }
-                    });
-                  });
-
-                  // Sample redemptions
-                  data.customers.filter(c => c.redeemed && c.redeemedAt).forEach(c => {
-                    activities.push({
-                      id: `sample-red-${c.id}`,
-                      type: 'sample-redeemed',
-                      timestamp: new Date(c.redeemedAt!),
-                      customer: { firstName: c.firstName, lastName: c.lastName },
-                      details: c.sampleChoice,
-                      badge: { color: 'bg-blue-100 text-blue-800', text: 'Sample Redeemed', emoji: '✅' }
-                    });
-                  });
-
-                  // Purchase intents
-                  purchaseIntents.forEach(pi => {
-                    activities.push({
-                      id: `purchase-req-${pi.id}`,
-                      type: 'purchase-requested',
-                      timestamp: new Date(pi.createdAt),
-                      customer: { firstName: pi.customer.firstName, lastName: pi.customer.lastName },
-                      details: `${pi.product.name} - $${pi.finalPrice.toFixed(2)}`,
-                      badge: { color: 'bg-yellow-100 text-yellow-800', text: 'Purchase Requested', emoji: '🛒' }
-                    });
-
-                    if (pi.status === 'ready' || pi.status === 'fulfilled') {
+                  // Sample requests (exclude direct purchases)
+                  data.customers
+                    .filter(c => c.currentStage !== 'purchase_requested' && c.currentStage !== 'cancelled')
+                    .forEach(c => {
                       activities.push({
-                        id: `purchase-ready-${pi.id}`,
-                        type: 'purchase-ready',
-                        timestamp: new Date(pi.createdAt), // Use created date as proxy for ready time
-                        customer: { firstName: pi.customer.firstName, lastName: pi.customer.lastName },
-                        details: `${pi.product.name} ready for pickup`,
-                        badge: { color: 'bg-orange-100 text-orange-800', text: 'Purchase Ready', emoji: '📦' }
+                        id: `sample-req-${c.id}`,
+                        type: 'sample-request',
+                        timestamp: new Date(c.requestedAt),
+                        customer: { firstName: c.firstName, lastName: c.lastName },
+                        details: c.sampleChoice,
+                        badge: { color: 'bg-purple-100 text-purple-800', text: 'Sample Requested', emoji: '📋' }
                       });
-                    }
+                    });
 
-                    if (pi.status === 'fulfilled' && pi.fulfilledAt) {
+                  // Sample redemptions (exclude direct purchases)
+                  data.customers
+                    .filter(c => c.redeemed && c.redeemedAt && c.currentStage !== 'purchase_requested' && c.currentStage !== 'cancelled')
+                    .forEach(c => {
                       activities.push({
-                        id: `purchase-ful-${pi.id}`,
-                        type: 'purchase-fulfilled',
-                        timestamp: new Date(pi.fulfilledAt),
+                        id: `sample-red-${c.id}`,
+                        type: 'sample-redeemed',
+                        timestamp: new Date(c.redeemedAt!),
+                        customer: { firstName: c.firstName, lastName: c.lastName },
+                        details: c.sampleChoice,
+                        badge: { color: 'bg-blue-100 text-blue-800', text: 'Sample Redeemed', emoji: '✅' }
+                      });
+                    });
+
+                  // Purchase intents - show only fulfilled for direct purchases, all stages for regular flow
+                  purchaseIntents.forEach(pi => {
+                    const isDirect = pi.customer.currentStage === 'purchase_requested';
+                    
+                    // Only show "Purchase Fulfilled" for direct purchases
+                    if (isDirect) {
+                      if (pi.status === 'fulfilled' && pi.fulfilledAt) {
+                        activities.push({
+                          id: `purchase-ful-${pi.id}`,
+                          type: 'purchase-fulfilled',
+                          timestamp: new Date(pi.fulfilledAt),
+                          customer: { firstName: pi.customer.firstName, lastName: pi.customer.lastName },
+                          details: `${pi.product.name} - $${pi.finalPrice.toFixed(2)}`,
+                          badge: { color: 'bg-green-100 text-green-800', text: 'Purchase Fulfilled', emoji: '💰' }
+                        });
+                      }
+                    } else {
+                      // Regular flow - show all stages
+                      activities.push({
+                        id: `purchase-req-${pi.id}`,
+                        type: 'purchase-requested',
+                        timestamp: new Date(pi.createdAt),
                         customer: { firstName: pi.customer.firstName, lastName: pi.customer.lastName },
                         details: `${pi.product.name} - $${pi.finalPrice.toFixed(2)}`,
-                        badge: { color: 'bg-green-100 text-green-800', text: 'Purchase Fulfilled', emoji: '💰' }
+                        badge: { color: 'bg-yellow-100 text-yellow-800', text: 'Purchase Requested', emoji: '🛒' }
                       });
+
+                      if (pi.status === 'ready' || pi.status === 'fulfilled') {
+                        activities.push({
+                          id: `purchase-ready-${pi.id}`,
+                          type: 'purchase-ready',
+                          timestamp: new Date(pi.createdAt), // Use created date as proxy for ready time
+                          customer: { firstName: pi.customer.firstName, lastName: pi.customer.lastName },
+                          details: `${pi.product.name} ready for pickup`,
+                          badge: { color: 'bg-orange-100 text-orange-800', text: 'Purchase Ready', emoji: '📦' }
+                        });
+                      }
+
+                      if (pi.status === 'fulfilled' && pi.fulfilledAt) {
+                        activities.push({
+                          id: `purchase-ful-${pi.id}`,
+                          type: 'purchase-fulfilled',
+                          timestamp: new Date(pi.fulfilledAt),
+                          customer: { firstName: pi.customer.firstName, lastName: pi.customer.lastName },
+                          details: `${pi.product.name} - $${pi.finalPrice.toFixed(2)}`,
+                          badge: { color: 'bg-green-100 text-green-800', text: 'Purchase Fulfilled', emoji: '💰' }
+                        });
+                      }
                     }
                   });
 

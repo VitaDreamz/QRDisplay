@@ -218,7 +218,7 @@ export async function POST(request: NextRequest) {
                 customerName: `${customer.firstName} ${customer.lastName}`,
                 purchaseIntentId: purchaseIntent?.id || '',
               });
-              console.log(`✅ In-store points awarded: ${Math.floor(finalPurchaseAmount * 2)} points (2x)`);
+              console.log(`✅ In-store points awarded: ${Math.floor(finalPurchaseAmount * 10)} points (10x)`);
             } catch (pointsErr) {
               console.error('❌ Failed to award staff points:', pointsErr);
               console.error('Error details:', {

@@ -3,8 +3,8 @@
  * 
  * Point values:
  * - Sample redeemed: 5 points
- * - Online purchase: 1 point per dollar
- * - In-store purchase: 2 points per dollar
+ * - Online purchase: 3 points per dollar
+ * - In-store purchase: 10 points per dollar
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -136,7 +136,7 @@ export async function awardSamplePoints(params: {
 }
 
 /**
- * Award points for online sale (1 point per dollar)
+ * Award points for online sale (3 points per dollar)
  */
 export async function awardOnlineSalePoints(params: {
   staffId: string;
@@ -147,7 +147,7 @@ export async function awardOnlineSalePoints(params: {
   customerName: string;
   conversionId: string;
 }): Promise<void> {
-  const points = Math.floor(params.saleAmount); // 1 point per dollar
+  const points = Math.floor(params.saleAmount * 3); // 3 points per dollar
   
   await awardStaffPoints({
     staffId: params.staffId,
@@ -162,7 +162,7 @@ export async function awardOnlineSalePoints(params: {
 }
 
 /**
- * Award points for in-store sale (2 points per dollar)
+ * Award points for in-store sale (10 points per dollar)
  */
 export async function awardInStoreSalePoints(params: {
   staffId: string;
@@ -173,7 +173,7 @@ export async function awardInStoreSalePoints(params: {
   customerName: string;
   purchaseIntentId: string;
 }): Promise<void> {
-  const points = Math.floor(params.saleAmount * 2); // 2 points per dollar
+  const points = Math.floor(params.saleAmount * 10); // 10 points per dollar
   
   await awardStaffPoints({
     staffId: params.staffId,

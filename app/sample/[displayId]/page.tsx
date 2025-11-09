@@ -11,8 +11,9 @@ type BrandInfo = {
   supportEmail?: string | null;
   supportPhone?: string | null;
   storeName?: string | null;
-  availableSamples?: string[];
+  availableSamples?: any[]; // Now includes inventory info
   availableProducts?: any[];
+  hasSamplesInStock?: boolean;
   hasProductsInStock?: boolean;
   promoOffer?: string;
 };
@@ -45,12 +46,23 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
         const data = await res.json();
         setBrand(data);
         
-        // Determine initial flow mode
-        if (data.hasProductsInStock && data.availableSamples && data.availableSamples.length > 0) {
+        console.log('📊 Brand data received:', data);
+        console.log('🎁 Has samples in stock:', data.hasSamplesInStock);
+        console.log('🛍️ Has products in stock:', data.hasProductsInStock);
+        
+        // Determine initial flow mode based on inventory
+        // Option 1: Samples in stock but NO products → Sample flow only
+        // Option 2: Samples AND products in stock → Show choice
+        // Option 3: NO samples but products in stock → Purchase flow only
+        
+        if (data.hasSamplesInStock && data.hasProductsInStock) {
+          console.log('✅ Flow: CHOICE (both available)');
           setFlowMode('choice'); // Show choice between sample and purchase
-        } else if (data.hasProductsInStock) {
+        } else if (data.hasProductsInStock && !data.hasSamplesInStock) {
+          console.log('✅ Flow: PURCHASE ONLY (no samples in stock)');
           setFlowMode('purchase'); // Only products available
         } else {
+          console.log('✅ Flow: SAMPLE ONLY (default/no products in stock)');
           setFlowMode('sample'); // Only samples available (or legacy)
         }
       } catch (e) {
@@ -68,12 +80,14 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
     return `${left} × ${right}`;
   }, [brand]);
 
-  // Filter samples based on what the store has available
+  // Filter samples based on what the store has available and in stock
   const availableOptions = useMemo(() => {
     if (!brand?.availableSamples || brand.availableSamples.length === 0) {
+      // Fallback to constants if API doesn't return samples
       return SAMPLE_OPTIONS;
     }
-    return SAMPLE_OPTIONS.filter(opt => brand.availableSamples!.includes(opt.value));
+    // API now returns samples with inventory info
+    return brand.availableSamples;
   }, [brand]);
 
   // Calculate discount percentage from promo offer
@@ -316,23 +330,74 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
                 {errors.phone && <p className="text-pink-300 text-sm mt-1">{errors.phone}</p>}
               </div>
 
-              {/* Sample Choice */}
+              {/* Sample Choice - Card Grid */}
               <div>
-                <label className="block text-sm font-medium mb-1">
-                  Sample Choice <span className="text-pink-300">*</span>
+                <label className="block text-sm font-medium mb-3">
+                  Choose Your FREE Sample <span className="text-pink-300">*</span>
                 </label>
-                <select
-                  className="w-full h-12 px-4 text-base bg-white/20 border-2 border-white/30 rounded-lg text-white focus:border-pink-300 focus:ring-2 focus:ring-pink-200/50 focus:outline-none"
-                  value={sampleChoice}
-                  onChange={(e) => setSampleChoice(e.target.value)}
-                  required
-                >
-                  <option value="" disabled>Select a sample</option>
-                  {availableOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value} className="text-gray-900">{opt.label}</option>
-                  ))}
-                </select>
-                {errors.sampleChoice && <p className="text-pink-300 text-sm mt-1">{errors.sampleChoice}</p>}
+                <div className="grid grid-cols-1 gap-3">
+                  {availableOptions.map((opt) => {
+                    const isSelected = sampleChoice === (opt.sku || opt.value);
+                    const sampleName = opt.name || opt.label;
+                    const sampleSku = opt.sku || opt.value;
+                    const sampleImage = opt.imageUrl;
+                    const samplePrice = opt.msrp || opt.price || 0;
+                    
+                    return (
+                      <button
+                        key={sampleSku}
+                        type="button"
+                        onClick={() => setSampleChoice(sampleSku)}
+                        className={`relative border-2 rounded-xl p-4 text-left transition-all ${
+                          isSelected
+                            ? 'border-pink-400 bg-pink-500/20 shadow-lg shadow-pink-500/30'
+                            : 'border-white/30 bg-white/10 hover:border-white/50'
+                        }`}
+                      >
+                        <div className="flex items-start gap-4">
+                          {/* Product Image */}
+                          {sampleImage && (
+                            <div className="flex-shrink-0 w-20 h-20 bg-white rounded-lg overflow-hidden">
+                              <img
+                                src={sampleImage}
+                                alt={sampleName}
+                                className="w-full h-full object-contain p-1"
+                              />
+                            </div>
+                          )}
+                          
+                          {/* Product Info */}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-base text-white mb-1">
+                              {sampleName}
+                            </h3>
+                            {opt.description && (
+                              <p className="text-xs text-white/70 mb-2 line-clamp-2">
+                                {opt.description}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2">
+                              <span className="text-white/50 line-through text-sm">
+                                ${samplePrice.toFixed(2)}
+                              </span>
+                              <span className="text-2xl font-bold text-pink-300">
+                                FREE
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {/* Selected Indicator */}
+                          {isSelected && (
+                            <div className="absolute top-3 right-3 w-6 h-6 bg-pink-400 rounded-full flex items-center justify-center">
+                              <span className="text-white text-sm">✓</span>
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {errors.sampleChoice && <p className="text-pink-300 text-sm mt-2">{errors.sampleChoice}</p>}
               </div>
 
               {errors.form && (

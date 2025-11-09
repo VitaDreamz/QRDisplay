@@ -26,30 +26,59 @@ export async function GET(
     // Check if store has products in stock
     let hasProductsInStock = false;
     let availableProductsWithInventory: any[] = [];
+    let hasSamplesInStock = false;
+    let availableSamplesWithInventory: any[] = [];
     
-    if (display.store && display.store.availableProducts && display.store.availableProducts.length > 0) {
-      // Fetch inventory for available products
-      const inventory = await prisma.storeInventory.findMany({
-        where: {
-          storeId: display.store.id,
-          productSku: { in: display.store.availableProducts },
-          quantityOnHand: { gt: 0 }
-        },
-        include: {
-          product: true
-        }
-      });
+    if (display.store) {
+      // Check samples inventory (4ct products)
+      if (display.store.availableSamples && display.store.availableSamples.length > 0) {
+        const sampleInventory = await prisma.storeInventory.findMany({
+          where: {
+            storeId: display.store.id,
+            productSku: { in: display.store.availableSamples },
+            quantityOnHand: { gt: 0 }
+          },
+          include: {
+            product: true
+          }
+        });
+        
+        hasSamplesInStock = sampleInventory.length > 0;
+        availableSamplesWithInventory = sampleInventory.map((item: any) => ({
+          sku: item.product.sku,
+          name: item.product.name,
+          description: item.product.description,
+          price: item.product.price,
+          msrp: item.product.msrp,
+          imageUrl: item.product.imageUrl,
+          quantityOnHand: item.quantityOnHand
+        }));
+      }
       
-      hasProductsInStock = inventory.length > 0;
-      availableProductsWithInventory = inventory.map((item: any) => ({
-        sku: item.product.sku,
-        name: item.product.name,
-        description: item.product.description,
-        price: item.product.price,
-        msrp: item.product.msrp,
-        imageUrl: item.product.imageUrl,
-        quantityOnHand: item.quantityOnHand
-      }));
+      // Check full-size products inventory
+      if (display.store.availableProducts && display.store.availableProducts.length > 0) {
+        const productInventory = await prisma.storeInventory.findMany({
+          where: {
+            storeId: display.store.id,
+            productSku: { in: display.store.availableProducts },
+            quantityOnHand: { gt: 0 }
+          },
+          include: {
+            product: true
+          }
+        });
+        
+        hasProductsInStock = productInventory.length > 0;
+        availableProductsWithInventory = productInventory.map((item: any) => ({
+          sku: item.product.sku,
+          name: item.product.name,
+          description: item.product.description,
+          price: item.product.price,
+          msrp: item.product.msrp,
+          imageUrl: item.product.imageUrl,
+          quantityOnHand: item.quantityOnHand
+        }));
+      }
     }
 
     return NextResponse.json({
@@ -59,8 +88,9 @@ export async function GET(
       supportEmail: display.organization.supportEmail || 'support@qrdisplay.com',
       supportPhone: display.organization.supportPhone,
       storeName: display.store?.storeName || null,
-      availableSamples: display.store?.availableSamples || [],
+      availableSamples: availableSamplesWithInventory,
       availableProducts: availableProductsWithInventory,
+      hasSamplesInStock,
       hasProductsInStock,
       promoOffer: display.store?.promoOffer || '$5 deal',
     });

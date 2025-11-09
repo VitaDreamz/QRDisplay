@@ -153,7 +153,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
   const [showStaffModal, setShowStaffModal] = useState(false);
   const [showDeleteStaffConfirm, setShowDeleteStaffConfirm] = useState(false);
   const [staffForm, setStaffForm] = useState<any>({});
-  const [staffSortBy, setStaffSortBy] = useState<'samples' | 'sales' | 'type' | 'totalSales'>('totalSales');
+  const [staffSortBy, setStaffSortBy] = useState<'samples' | 'sales' | 'type' | 'totalSales' | 'points' | 'quarterlyPoints'>('quarterlyPoints');
   const [staffSortOrder, setStaffSortOrder] = useState<'asc' | 'desc'>('desc');
   const [expandedStaffId, setExpandedStaffId] = useState<string | null>(null);
   const [editingStoreContact, setEditingStoreContact] = useState(false);

@@ -344,7 +344,7 @@ async function applyStoreCredit(
       storeId,
       amount,
       type: 'commission',
-      reason: `Commission earned from retail customer purchase (Conversion #${conversionId})`,
+      reason: `Commission earned from Online Purchase (Conversion #${conversionId})`,
       balance: newBalance,
     },
   });

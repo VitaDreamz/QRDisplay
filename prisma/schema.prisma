@@ -410,6 +410,7 @@ model Customer {
   conversions      Conversion[]
   webhookLogs      ShopifyWebhookLog[]
   productHolds     ProductHold[]
+  staffPointTransactions StaffPointTransaction[]
   
   @@index([shopifyCustomerId])
   @@map("customers")
@@ -443,6 +444,11 @@ model Staff {
   samplesRedeemed   Int      @default(0)
   salesGenerated    Int      @default(0)
   lastActive        DateTime?
+  
+  // Gamification Points
+  totalPoints       Int      @default(0) // Lifetime points earned
+  quarterlyPoints   Int      @default(0) // Points this quarter (resets every 3 months)
+  lastQuarterReset  DateTime? // When quarterly points were last reset
 
   // Verification
   verified            Boolean   @default(false)
@@ -459,7 +465,8 @@ model Staff {
   store                Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
   customerRedemptions  Customer[] @relation("RedeemedByStaff")
   promoRedemptions     Customer[] @relation("PromoRedeemedByStaff")
-    purchaseIntents      PurchaseIntent[]
+  purchaseIntents      PurchaseIntent[]
+  pointTransactions    StaffPointTransaction[]
   
   @@map("staff")
 }
@@ -695,6 +702,39 @@ model ShopifyWebhookLog {
   @@map("shopify_webhook_logs")
 }
 
+// Staff Point Transactions for Gamification
+model StaffPointTransaction {
+  id          String   @id @default(cuid())
+  staffId     String
+  storeId     String
+  orgId       String
+  
+  points      Decimal  @db.Decimal(10, 2) // Allow half points (0.5, 1.0, 2.0, etc)
+  type        String   // 'sample', 'online_sale', 'instore_sale', 'manual_adjustment'
+  reason      String   // Detailed description
+  
+  // References to what triggered the points
+  customerId  String?  // If related to a customer
+  conversionId String? // If from online sale
+  purchaseIntentId String? // If from in-store sale
+  
+  // Quarter tracking for competitions
+  quarter     String   // "2025-Q1", "2025-Q2", etc
+  
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  staff        Staff        @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  customer     Customer?    @relation(fields: [customerId], references: [id])
+  
+  @@index([staffId])
+  @@index([storeId])
+  @@index([orgId])
+  @@index([quarter])
+  @@index([type])
+  @@map("staff_point_transactions")
+}
+
 // Magic Links for Store Auth
 model MagicLink {
   id        String   @id @default(cuid())
@@ -707,4 +747,5 @@ model MagicLink {
   
   @@map("magic_links")
 }
+
 

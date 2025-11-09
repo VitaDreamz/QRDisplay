@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { verifyShopifyWebhook, addCustomerTimelineEvent, updateCustomerStage } from '@/lib/shopify';
 import { shouldAttributeConversion, calculateCommission } from '@/lib/commission';
+import { awardOnlineSalePoints } from '@/lib/staff-points';
 
 const prisma = new PrismaClient();
 
@@ -280,6 +281,25 @@ async function handleOrderPaid(orgId: string, order: ShopifyOrder, topic: string
         });
         
         console.log(`💳 Store credit applied: $${commissionAmount.toFixed(2)} to ${customer.store?.storeName}`);
+        
+        // Award points to staff member (1 point per dollar)
+        if ((customer as any).redeemedByStaffId) {
+          try {
+            await awardOnlineSalePoints({
+              staffId: (customer as any).redeemedByStaffId,
+              storeId,
+              orgId,
+              saleAmount: orderTotal,
+              customerId: customer.id,
+              customerName: `${customer.firstName} ${customer.lastName}`,
+              conversionId: conversion.id,
+            });
+            console.log(`🎯 Points awarded for online sale: ${Math.floor(orderTotal)} points`);
+          } catch (pointsErr) {
+            console.error('❌ Failed to award staff points:', pointsErr);
+            // Don't fail the whole process if points fail
+          }
+        }
       } catch (creditErr) {
         console.error('❌ Failed to apply store credit:', creditErr);
         // Don't fail the whole process if credit application fails

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { sendBrandPromoRedemptionEmail } from '@/lib/email';
 import { addCustomerTimelineEvent, updateCustomerStage } from '@/lib/shopify';
+import { awardInStoreSalePoints } from '@/lib/staff-points';
 
 export async function POST(request: NextRequest) {
   try {
@@ -151,6 +152,36 @@ export async function POST(request: NextRequest) {
               salesGenerated: { increment: 1 }
             }
           });
+          
+          // Award points for in-store sale (2 points per dollar)
+          if (finalPurchaseAmount && finalPurchaseAmount > 0) {
+            try {
+              // First, get the purchase intent to link in transaction
+              const purchaseIntent = await prisma.purchaseIntent.findFirst({
+                where: {
+                  customerId: customer.id,
+                  storeId: store.id,
+                },
+                orderBy: {
+                  createdAt: 'desc'
+                }
+              });
+              
+              await awardInStoreSalePoints({
+                staffId: staffMember.id,
+                storeId: store.id,
+                orgId: store.orgId,
+                saleAmount: finalPurchaseAmount,
+                customerId: customer.id,
+                customerName: `${customer.firstName} ${customer.lastName}`,
+                purchaseIntentId: purchaseIntent?.id || '',
+              });
+              console.log(`🎯 In-store points awarded: ${Math.floor(finalPurchaseAmount * 2)} points (2x)`);
+            } catch (pointsErr) {
+              console.error('❌ Failed to award staff points:', pointsErr);
+              // Continue anyway
+            }
+          }
         }
       } catch (invErr) {
         console.error('❌ Inventory/staff tracking failed:', invErr);

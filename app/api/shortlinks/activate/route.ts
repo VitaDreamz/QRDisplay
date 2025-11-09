@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { sendBrandSampleRedemptionEmail } from '@/lib/email';
 import { addCustomerTimelineEvent, updateCustomerStage } from '@/lib/shopify';
+import { awardSamplePoints } from '@/lib/staff-points';
 
 const TTL_MS = 72 * 60 * 60 * 1000; // 72 hours
 
@@ -106,6 +107,15 @@ export async function POST(req: NextRequest) {
         await prisma.staff.update({
           where: { id: redeemedByStaffId },
           data: { samplesRedeemed: { increment: 1 } }
+        });
+        
+        // Award 5 points for sample redemption
+        await awardSamplePoints({
+          staffId: redeemedByStaffId,
+          storeId: store.id,
+          orgId: customer.orgId,
+          customerId: customer.id,
+          customerName: `${customer.firstName} ${customer.lastName}`,
         });
       } catch (e) {
         console.warn('Failed to increment staff samplesRedeemed:', e);

@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
     await prisma.promoRedemption.create({
       data: {
         customerId: customer.id,
-        storeId: customer.storeId,
+        storeId: display.store.id, // Use numeric store ID, not the storeId string
         orgId: customer.orgId,
         promoOffer: promoOffer,
         promoSlug: slugPromo,

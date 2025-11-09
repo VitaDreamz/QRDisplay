@@ -59,10 +59,10 @@ export default function SuccessPage({ params }: { params: Promise<{ displayId: s
 
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('photo', file);
       formData.append('displayId', displayId);
 
-      const res = await fetch('/api/upload/setup-photo', {
+      const res = await fetch('/api/setup/photo', {
         method: 'POST',
         body: formData,
       });
@@ -73,7 +73,7 @@ export default function SuccessPage({ params }: { params: Promise<{ displayId: s
       }
 
       const data = await res.json();
-      setSetupPhotoUrl(data.url);
+      setSetupPhotoUrl(data.photoUrl);
       setHasPhoto(true);
       
       // Refresh to show the credit message

@@ -401,7 +401,7 @@ model Customer {
   
   requestedAt  DateTime  @default(now())
   
-  organization Organization @relation(fields: [orgId], references: [orgId])
+  organization Organization @relation(fields: [orgId], references: [id])
   store        Store        @relation(fields: [storeId], references: [storeId])
   redeemedByStaff      Staff?  @relation("RedeemedByStaff", fields: [redeemedByStaffId], references: [id], onDelete: SetNull)
   promoRedeemedByStaff Staff?  @relation("PromoRedeemedByStaff", fields: [promoRedeemedByStaffId], references: [id], onDelete: SetNull)
@@ -665,7 +665,7 @@ model Conversion {
   
   createdAt         DateTime @default(now())
   
-  organization Organization @relation(fields: [orgId], references: [orgId])
+  organization Organization @relation(fields: [orgId], references: [id])
   customer     Customer     @relation(fields: [customerId], references: [memberId])
   store        Store        @relation(fields: [storeId], references: [storeId])
   
@@ -692,7 +692,7 @@ model ShopifyWebhookLog {
   processedAt   DateTime?
   createdAt     DateTime @default(now())
   
-  organization Organization @relation(fields: [orgId], references: [orgId])
+  organization Organization @relation(fields: [orgId], references: [id])
   customer     Customer?    @relation(fields: [customerId], references: [id])
   
   @@index([orgId])

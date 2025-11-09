@@ -2327,13 +2327,14 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {(() => {
-                  // Filter out wholesale boxes and 4ct samples (they're in the samples section)
+                  // Filter out wholesale boxes, 4ct samples, and inactive products
                   const filtered = products.filter((product: any) => 
                     product.productType !== 'wholesale-box' && 
-                    !product.sku.endsWith('-4') // Exclude 4ct products (samples)
+                    !product.sku.endsWith('-4') && // Exclude 4ct products (samples)
+                    product.active !== false // Exclude inactive products like Luna Berry
                   );
                   console.log('🔍 [Products Tab] Total products:', products.length);
-                  console.log('🔍 [Products Tab] Filtered products (non-wholesale, non-4ct):', filtered.length);
+                  console.log('🔍 [Products Tab] Filtered products (non-wholesale, non-4ct, active):', filtered.length);
                   console.log('🔍 [Products Tab] Filtered SKUs:', filtered.map((p: any) => p.sku).join(', '));
                   console.log('🔍 [Products Tab] data.store.availableProducts:', (data.store as any).availableProducts);
                   console.log('🔍 [Products Tab] availableProducts type:', typeof (data.store as any).availableProducts);

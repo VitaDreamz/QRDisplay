@@ -208,6 +208,7 @@ export default async function StoreDashboardPage() {
         imageUrl: i.product.imageUrl
       },
       customer: {
+        memberId: i.customer.memberId,
         firstName: i.customer.firstName,
         lastName: i.customer.lastName,
         phone: i.customer.phone

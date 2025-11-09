@@ -71,7 +71,7 @@ type DashboardData = {
     finalPrice: number;
     fulfilledAt?: Date | null;
     product: { sku: string; name: string; imageUrl?: string | null };
-    customer: { firstName: string; lastName: string; phone: string };
+    customer: { memberId: string; firstName: string; lastName: string; phone: string };
   }>;
   staffMember?: {
     staffId: string;
@@ -1669,7 +1669,32 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                         </div>
                         <div className="mt-1">
                           {i.status === 'pending' && role === 'owner' && (
-                            <button onClick={() => notifyReady(i.verifySlug)} className="w-full px-2 py-1 bg-purple-600 text-white rounded text-xs font-medium hover:bg-purple-700 active:bg-purple-800 whitespace-nowrap">Notify Ready</button>
+                            <div className="flex gap-1">
+                              <button onClick={() => notifyReady(i.verifySlug)} className="flex-1 px-2 py-1 bg-purple-600 text-white rounded text-xs font-medium hover:bg-purple-700 active:bg-purple-800 whitespace-nowrap">Notify Ready</button>
+                              <button 
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (!confirm('Cancel this purchase request?')) return;
+                                  try {
+                                    const res = await fetch(`/api/store/customers/${i.customer.memberId}`, {
+                                      method: 'PATCH',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ action: 'cancelPurchase' })
+                                    });
+                                    if (res.ok) {
+                                      window.location.reload();
+                                    } else {
+                                      alert('Failed to cancel');
+                                    }
+                                  } catch (err) {
+                                    alert('Error canceling request');
+                                  }
+                                }}
+                                className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium hover:bg-red-200"
+                              >
+                                Cancel
+                              </button>
+                            </div>
                           )}
                           {i.status === 'ready' && (
                             <span className="inline-block text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded font-medium">Customer Notified</span>
@@ -1873,9 +1898,36 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                             <span className="text-gray-600">Sample:</span>
                             <span>{customer.sampleChoice}</span>
                           </div>
-                          <div className="flex justify-between">
+                          <div className="flex justify-between items-center">
                             <span className="text-gray-600">Product Requested:</span>
-                            <span>{customer.purchaseIntents && customer.purchaseIntents.length > 0 ? customer.purchaseIntents[0].product?.name || 'N/A' : '—'}</span>
+                            <div className="flex items-center gap-2">
+                              <span>{customer.purchaseIntents && customer.purchaseIntents.length > 0 ? customer.purchaseIntents[0].product?.name || 'N/A' : '—'}</span>
+                              {customer.purchaseIntents && customer.purchaseIntents.length > 0 && customer.purchaseIntents[0].status === 'pending' && role === 'owner' && (
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (!confirm('Cancel this purchase request?')) return;
+                                    try {
+                                      const res = await fetch(`/api/store/customers/${customer.memberId}`, {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ action: 'cancelPurchase' })
+                                      });
+                                      if (res.ok) {
+                                        window.location.reload();
+                                      } else {
+                                        alert('Failed to cancel');
+                                      }
+                                    } catch (err) {
+                                      alert('Error canceling request');
+                                    }
+                                  }}
+                                  className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded hover:bg-red-200 font-medium"
+                                >
+                                  Cancel
+                                </button>
+                              )}
+                            </div>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-600">Current Status:</span>
@@ -2137,9 +2189,36 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                   <span className="text-gray-600">Member ID:</span>
                                   <span className="font-mono text-gray-900">{customer.memberId}</span>
                                 </div>
-                                <div className="flex justify-between">
+                                <div className="flex justify-between items-center">
                                   <span className="text-gray-600">Sample Choice:</span>
-                                  <span className="text-gray-900">{customer.sampleChoice}</span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-gray-900">{customer.sampleChoice}</span>
+                                    {!customer.redeemed && customer.currentStage === 'pending' && role === 'owner' && (
+                                      <button
+                                        onClick={async (e) => {
+                                          e.stopPropagation();
+                                          if (!confirm('Cancel this sample request?')) return;
+                                          try {
+                                            const res = await fetch(`/api/store/customers/${customer.memberId}`, {
+                                              method: 'PATCH',
+                                              headers: { 'Content-Type': 'application/json' },
+                                              body: JSON.stringify({ action: 'cancelSample' })
+                                            });
+                                            if (res.ok) {
+                                              window.location.reload();
+                                            } else {
+                                              alert('Failed to cancel');
+                                            }
+                                          } catch (err) {
+                                            alert('Error canceling request');
+                                          }
+                                        }}
+                                        className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded hover:bg-red-200 font-medium"
+                                      >
+                                        Cancel
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
                                 <div className="flex justify-between">
                                   <span className="text-gray-600">Phone:</span>
@@ -2208,6 +2287,39 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                 <div className="flex justify-between">
                                   <span className="text-gray-600">Stage:</span>
                                   <span className="text-gray-900 capitalize">{customer.currentStage}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-gray-600">Product Requested:</span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-gray-900">
+                                      {customer.purchaseIntents && customer.purchaseIntents.length > 0 ? customer.purchaseIntents[0].product?.name || 'N/A' : '—'}
+                                    </span>
+                                    {customer.purchaseIntents && customer.purchaseIntents.length > 0 && customer.purchaseIntents[0].status === 'pending' && role === 'owner' && (
+                                      <button
+                                        onClick={async (e) => {
+                                          e.stopPropagation();
+                                          if (!confirm('Cancel this purchase request?')) return;
+                                          try {
+                                            const res = await fetch(`/api/store/customers/${customer.memberId}`, {
+                                              method: 'PATCH',
+                                              headers: { 'Content-Type': 'application/json' },
+                                              body: JSON.stringify({ action: 'cancelPurchase' })
+                                            });
+                                            if (res.ok) {
+                                              window.location.reload();
+                                            } else {
+                                              alert('Failed to cancel');
+                                            }
+                                          } catch (err) {
+                                            alert('Error canceling request');
+                                          }
+                                        }}
+                                        className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded hover:bg-red-200 font-medium"
+                                      >
+                                        Cancel
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
                                 <div className="flex justify-between">
                                   <span className="text-gray-600">Days in Stage:</span>

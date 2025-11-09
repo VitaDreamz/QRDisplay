@@ -22,6 +22,7 @@ interface ShopifyOrder {
     phone: string | null;
     first_name: string;
     last_name: string;
+    tags?: string; // Customer tags like "member:MEM-027"
   };
   created_at: string;
   line_items: Array<{
@@ -105,19 +106,74 @@ async function handleOrderPaid(orgId: string, order: ShopifyOrder, topic: string
     const purchaseDate = new Date(order.created_at);
 
     console.log(`💰 Order paid: $${orderTotal} by customer ${shopifyCustomerId}`);
+    console.log(`📞 Phone in order: ${order.customer.phone}`);
+    console.log(`📧 Email in order: ${order.customer.email}`);
+    console.log(`🏷️  Customer tags: ${order.customer.tags}`);
 
-    // Find customer by Shopify customer ID or phone number
-    let customer = await prisma.customer.findFirst({
-      where: {
-        OR: [
-          { shopifyCustomerId },
-          { phone: order.customer.phone || undefined },
-        ],
-      },
-      include: {
-        store: true,
-      },
-    });
+    // Extract memberId from customer tags (e.g., "member:MEM-027")
+    let memberId: string | null = null;
+    if (order.customer.tags) {
+      const memberTag = order.customer.tags.split(',').find(tag => tag.trim().startsWith('member:'));
+      if (memberTag) {
+        memberId = memberTag.trim().replace('member:', '');
+        console.log(`🎯 Found member tag: ${memberId}`);
+      }
+    }
+
+    // Strategy 1: Find by memberId from tag (most reliable)
+    let customer = null;
+    if (memberId) {
+      customer = await prisma.customer.findFirst({
+        where: { memberId },
+        include: { store: true },
+      });
+      if (customer) {
+        console.log(`✅ Matched by memberId: ${memberId}`);
+      }
+    }
+
+    // Strategy 2: Find by Shopify customer ID
+    if (!customer) {
+      customer = await prisma.customer.findFirst({
+        where: { shopifyCustomerId: shopifyCustomerId },
+        include: { store: true },
+      });
+      if (customer) {
+        console.log(`✅ Matched by Shopify customer ID: ${shopifyCustomerId}`);
+      }
+    }
+
+    // Strategy 3: Fallback to phone/email matching
+    if (!customer && (order.customer.phone || order.customer.email)) {
+      const phoneQuery = order.customer.phone ? { phone: order.customer.phone } : undefined;
+      const emailQuery = order.customer.email ? { email: order.customer.email.toLowerCase() } : undefined;
+      
+      customer = await prisma.customer.findFirst({
+        where: {
+          OR: [
+            phoneQuery,
+            emailQuery,
+          ].filter(Boolean) as any,
+        },
+        include: {
+          store: true,
+        },
+      });
+      
+      if (customer) {
+        console.log(`✅ Matched by phone/email`);
+      }
+    }
+    
+    // If we found customer by any method, update their Shopify customer ID if missing
+    if (customer && !customer.shopifyCustomerId) {
+      console.log(`🔗 Linking customer ${customer.memberId} to Shopify ID ${shopifyCustomerId}`);
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: { shopifyCustomerId },
+      });
+      customer.shopifyCustomerId = shopifyCustomerId;
+    }
 
     if (!customer) {
       console.log(`ℹ️  Customer not found in QRDisplay - no attribution`);

@@ -508,7 +508,7 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
                 <div className="grid grid-cols-1 gap-3">
                   {brand?.availableProducts?.map((product) => {
                     const isSelected = productChoice === product.sku;
-                    const price = parseFloat(product.msrp || product.price);
+                    const price = Number(product.msrp || product.price);
                     const discountedPrice = price * (1 - parseInt(promoPercentage) / 100);
                     
                     return (

@@ -2335,10 +2335,15 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                   console.log('🔍 [Products Tab] Total products:', products.length);
                   console.log('🔍 [Products Tab] Filtered products (non-wholesale, non-4ct):', filtered.length);
                   console.log('🔍 [Products Tab] Filtered SKUs:', filtered.map((p: any) => p.sku).join(', '));
+                  console.log('🔍 [Products Tab] data.store.availableProducts:', (data.store as any).availableProducts);
+                  console.log('🔍 [Products Tab] availableProducts type:', typeof (data.store as any).availableProducts);
+                  console.log('🔍 [Products Tab] availableProducts isArray:', Array.isArray((data.store as any).availableProducts));
                   return filtered;
                 })()
                   .map((product: any) => {
-                  const isOffered = (data.store as any).availableProducts?.includes(product.sku) || false;
+                  const availableProducts = (data.store as any).availableProducts;
+                  const isOffered = Array.isArray(availableProducts) && availableProducts.includes(product.sku);
+                  console.log(`🔍 [Product ${product.sku}] isOffered:`, isOffered, '| availableProducts:', availableProducts);
                   
                   return (
                     <div

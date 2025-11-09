@@ -75,13 +75,17 @@ export default function SuccessPage({ params }: { params: Promise<{ displayId: s
       const data = await res.json();
       setSetupPhotoUrl(data.photoUrl);
       setHasPhoto(true);
+      setUploading(false);
       
-      // Refresh to show the credit message
-      window.location.reload();
+      // Clear the file input to prevent re-uploads
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      
+      // Don't reload - just update state to show success message
     } catch (error: any) {
       console.error('Upload error:', error);
       setUploadError(error.message || 'Failed to upload photo');
-    } finally {
       setUploading(false);
     }
   };
@@ -191,7 +195,7 @@ export default function SuccessPage({ params }: { params: Promise<{ displayId: s
             
             <button
               onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
+              disabled={uploading || hasPhoto}
               className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg font-bold text-lg hover:from-amber-600 hover:to-orange-600 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {uploading ? '📤 Uploading...' : '📷 Upload Photo & Earn $10'}

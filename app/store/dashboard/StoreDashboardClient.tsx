@@ -2178,19 +2178,11 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
 
             {/* Available Samples Section */}
             <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-6">
-                <div>
-                  <h2 className="text-xl font-bold">Available Samples</h2>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Free 4ct sample options customers can choose from
-                  </p>
-                </div>
-                <button
-                  onClick={() => setEditingSamples(true)}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-semibold"
-                >
-                  Edit Samples
-                </button>
+              <div className="mb-6">
+                <h2 className="text-xl font-bold">Available Samples</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Free 4ct sample options customers can choose from. Click to enable/disable each sample.
+                </p>
               </div>
 
               {loadingProducts ? (
@@ -2198,23 +2190,15 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {(() => {
-                    // Map sample values to SKUs
-                    const sampleSkuMap: Record<string, string> = {
-                      'slumber-berry': 'VD-SB-4',
-                      'bliss-berry': 'VD-BB-4',
-                      'berry-chill': 'VD-CC-4'
-                    };
+                    // Get 4ct sample products
+                    const sampleProducts = products.filter(p => p.sku.endsWith('-4'));
                     
-                    return SAMPLE_OPTIONS.map((option) => {
-                      const isAvailable = (data.store.availableSamples || []).includes(option.value);
-                      const sku = sampleSkuMap[option.value];
-                      const product = products.find(p => p.sku === sku);
-                      
-                      if (!product) return null;
+                    return sampleProducts.map((product) => {
+                      const isAvailable = (data.store.availableSamples || []).includes(product.sku);
                       
                       return (
                         <div
-                          key={option.value}
+                          key={product.sku}
                           className={`relative border-2 rounded-lg overflow-hidden transition-all ${
                             isAvailable ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'
                           }`}
@@ -2283,8 +2267,8 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                               onClick={async () => {
                                 const currentSamples = data.store.availableSamples || [];
                                 const newSamples = isAvailable
-                                  ? currentSamples.filter((s: string) => s !== option.value)
-                                  : [...currentSamples, option.value];
+                                  ? currentSamples.filter((s: string) => s !== product.sku)
+                                  : [...currentSamples, product.sku];
                                 
                                 try {
                                   const res = await fetch('/api/store/settings', {
@@ -2312,12 +2296,12 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                   : 'bg-red-100 text-red-700 hover:bg-red-200'
                               }`}
                             >
-                              {isAvailable ? '✓ Offering' : '+ Offer This Product'}
+                              {isAvailable ? '✓ Offering' : '+ Offer This Sample'}
                             </button>
                           </div>
                         </div>
                       );
-                    }).filter(Boolean);
+                    });
                   })()}
                 </div>
               )}

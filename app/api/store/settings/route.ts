@@ -42,7 +42,8 @@ export async function PATCH(req: NextRequest) {
       ownerEmail,
       purchasingManager,
       purchasingPhone,
-      purchasingEmail
+      purchasingEmail,
+      availableSamples
     } = body;
 
     const updateData: any = {};
@@ -63,6 +64,9 @@ export async function PATCH(req: NextRequest) {
     if (purchasingManager !== undefined) updateData.purchasingManager = String(purchasingManager).trim();
     if (purchasingPhone !== undefined) updateData.purchasingPhone = String(purchasingPhone).trim();
     if (purchasingEmail !== undefined) updateData.purchasingEmail = String(purchasingEmail).trim();
+    if (availableSamples !== undefined && Array.isArray(availableSamples)) {
+      updateData.availableSamples = availableSamples;
+    }
     if (staffPin !== undefined) {
       // Validate PIN is 4 digits
       if (!/^\d{4}$/.test(staffPin)) {

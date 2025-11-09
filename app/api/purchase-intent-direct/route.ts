@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
         redeemed: false,
         requestedAt: new Date(),
         attributedStoreId: display.store.storeId,
+        sampleDate: new Date(), // Set sample date for commission attribution
         currentStage: 'purchase_requested', // Different stage for direct purchases
       }
     });

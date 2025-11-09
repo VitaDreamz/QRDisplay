@@ -78,12 +78,12 @@ export async function POST(req: NextRequest) {
         firstName: String(firstName).trim(),
         lastName: String(lastName).trim(),
         phone: normalizedPhone,
-        sampleChoice: `DIRECT_PURCHASE:${productSku}`, // Store product SKU for later retrieval
+        sampleChoice: '', // No sample for direct purchase
         activated: false,
         redeemed: false,
         requestedAt: new Date(),
         attributedStoreId: display.store.storeId,
-        currentStage: 'pending',
+        currentStage: 'purchase_requested', // Different stage for direct purchases
       }
     });
 

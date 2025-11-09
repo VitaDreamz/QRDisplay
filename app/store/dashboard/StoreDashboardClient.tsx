@@ -1065,7 +1065,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2 md:gap-4">
             <div className="bg-white rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition">
               <div className="text-xs text-gray-600 font-medium">Samples Requested</div>
-              <div className="text-2xl md:text-3xl font-bold text-blue-600 mt-1">{data.customers.length}</div>
+              <div className="text-2xl md:text-3xl font-bold text-blue-600 mt-1">{data.customers.filter(c => c.currentStage !== 'purchase_requested' && c.currentStage !== 'cancelled').length}</div>
               <div className="text-xs text-gray-500 mt-1">📋 Total requests</div>
             </div>
             <div className="bg-white rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition">
@@ -1073,7 +1073,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
               <div className="text-2xl md:text-3xl font-bold text-green-600 mt-1">{stats.samplesRedeemed}</div>
               <div className="text-xs text-gray-500 mt-1">✅ +{todayRedeemed} today</div>
               <div className="text-xs text-emerald-600 font-semibold mt-1 pt-1 border-t border-gray-100">
-                {data.customers.length > 0 ? ((stats.samplesRedeemed / data.customers.length) * 100).toFixed(1) : 0}% conversion
+                {data.customers.filter(c => c.currentStage !== 'purchase_requested' && c.currentStage !== 'cancelled').length > 0 ? ((stats.samplesRedeemed / data.customers.filter(c => c.currentStage !== 'purchase_requested' && c.currentStage !== 'cancelled').length) * 100).toFixed(1) : 0}% conversion
               </div>
             </div>
             <div className="bg-white rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition">
@@ -1287,7 +1287,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
             )}
 
             {/* Samples Requested Card */}
-            {data.customers.filter(c => !c.redeemed).length > 0 && (
+            {data.customers.filter(c => !c.redeemed && c.currentStage !== 'purchase_requested' && c.currentStage !== 'cancelled').length > 0 && (
               <div className="bg-white rounded-lg shadow">
                 <div 
                   onClick={() => setSamplesRequestedExpanded(!samplesRequestedExpanded)}
@@ -1298,7 +1298,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                       <span className="text-gray-500">{samplesRequestedExpanded ? '▼' : '▶'}</span>
                       <h2 className="text-lg sm:text-xl font-bold text-blue-900">✨ Samples Requested</h2>
                       <span className="text-xs sm:text-sm bg-blue-600 text-white px-2 sm:px-3 py-1 rounded-full font-semibold">
-                        {data.customers.filter(c => !c.redeemed).length} Pending
+                        {data.customers.filter(c => !c.redeemed && c.currentStage !== 'purchase_requested' && c.currentStage !== 'cancelled').length} Pending
                       </span>
                     </div>
                     <div className="text-xs sm:text-sm text-gray-600">
@@ -1309,7 +1309,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                 {samplesRequestedExpanded && (
                   <div className="divide-y max-h-96 overflow-y-auto">
                   {data.customers
-                    .filter(c => !c.redeemed)
+                    .filter(c => !c.redeemed && c.currentStage !== 'purchase_requested' && c.currentStage !== 'cancelled')
                     .slice(0, 8)
                     .map((customer) => (
                       <div key={customer.id} className="p-3 sm:p-4 hover:bg-gray-50 transition-colors">

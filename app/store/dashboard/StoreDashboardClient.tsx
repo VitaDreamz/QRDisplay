@@ -1249,7 +1249,31 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                         </div>
                         <div className="flex items-center gap-2 w-full sm:w-auto sm:flex-shrink-0">
                           {i.status === 'pending' && role === 'owner' && (
-                            <button onClick={() => notifyReady(i.verifySlug)} className="flex-1 sm:flex-none px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 active:bg-purple-800">Notify Ready</button>
+                            <>
+                              <button onClick={() => notifyReady(i.verifySlug)} className="flex-1 sm:flex-none px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 active:bg-purple-800">Notify Ready</button>
+                              <button 
+                                onClick={async () => {
+                                  if (!confirm('Cancel this purchase request?')) return;
+                                  try {
+                                    const res = await fetch(`/api/store/customers/${i.customer.memberId}`, {
+                                      method: 'PATCH',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ action: 'cancelPurchase' })
+                                    });
+                                    if (res.ok) {
+                                      window.location.reload();
+                                    } else {
+                                      alert('Failed to cancel');
+                                    }
+                                  } catch (err) {
+                                    alert('Error canceling request');
+                                  }
+                                }}
+                                className="px-3 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200"
+                              >
+                                Cancel
+                              </button>
+                            </>
                           )}
                           {i.status === 'ready' && (
                             <span className="flex-1 sm:flex-none text-center text-xs bg-emerald-100 text-emerald-700 px-3 py-2 rounded-lg font-medium">Customer Notified</span>
@@ -1289,7 +1313,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                     .slice(0, 8)
                     .map((customer) => (
                       <div key={customer.id} className="p-3 sm:p-4 hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-start justify-between gap-3">
                           <div className="flex-1 min-w-0">
                             <div className="font-semibold text-sm sm:text-base">
                               {customer.firstName} {customer.lastName}
@@ -1311,6 +1335,30 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                             >
                               {customer.phone}
                             </a>
+                            <div className="flex gap-1 mt-1">
+                              <button
+                                onClick={async () => {
+                                  if (!confirm('Cancel this sample request?')) return;
+                                  try {
+                                    const res = await fetch(`/api/store/customers/${customer.memberId}`, {
+                                      method: 'PATCH',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ action: 'cancelSample' })
+                                    });
+                                    if (res.ok) {
+                                      window.location.reload();
+                                    } else {
+                                      alert('Failed to cancel');
+                                    }
+                                  } catch (err) {
+                                    alert('Error canceling request');
+                                  }
+                                }}
+                                className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                              >
+                                Cancel
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>

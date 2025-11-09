@@ -301,8 +301,8 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
       const data = await res.json();
       console.log('[ProductsStep] ✅ Display activated:', data);
 
-      // Navigate to next step (add staff)
-      router.push(`/setup/${displayId}/add-staff`);
+      // Navigate to next step (staff)
+      router.push(`/setup/${displayId}/staff`);
     } catch (e: any) {
       console.error('[ProductsStep] Error activating display:', e);
       setError(e.message || 'Failed to activate display');
@@ -427,7 +427,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                     key={product.sku} 
                     className={`relative rounded-2xl p-6 transition-all hover:shadow-md ${
                       isSelected
-                        ? 'bg-gradient-to-br from-purple-100 via-blue-100 to-purple-100 border-2 border-purple-400 shadow-lg'
+                        ? 'bg-gradient-to-br from-purple-100 via-blue-100 to-purple-100 border-4 border-purple-500 shadow-xl ring-4 ring-purple-200'
                         : 'bg-gradient-to-br from-purple-50 via-blue-50 to-purple-50 border border-gray-200'
                     }`}
                   >
@@ -613,7 +613,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                       key={product.sku} 
                       className={`relative rounded-2xl p-6 transition-all hover:shadow-md ${
                         isSelected
-                          ? 'bg-gradient-to-br from-purple-100 via-blue-100 to-purple-100 border-2 border-purple-400 shadow-lg'
+                          ? 'bg-gradient-to-br from-purple-100 via-blue-100 to-purple-100 border-4 border-purple-500 shadow-xl ring-4 ring-purple-200'
                           : 'bg-gradient-to-br from-purple-50 via-blue-50 to-purple-50 border border-gray-200'
                       }`}
                     >

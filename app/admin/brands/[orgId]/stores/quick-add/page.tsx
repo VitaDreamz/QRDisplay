@@ -167,6 +167,18 @@ export default function QuickAddStorePage() {
     loadProducts();
   }, []);
 
+  // Helper function to extract size number from product name/SKU
+  const extractSize = (product: Product): number => {
+    const match = product.name?.match(/(\d+)ct/i) || product.sku?.match(/(\d+)ct/i);
+    return match ? parseInt(match[1]) : 0;
+  };
+
+  // Helper function to extract base product name (without size)
+  const extractBaseName = (product: Product): string => {
+    // Remove size like "30ct - " or just get the product name
+    return product.name?.replace(/^\d+ct\s*-\s*/i, '') || product.name || '';
+  };
+
   // Helper function for inventory
   function updateInventoryQuantity(sku: string, quantity: number) {
     if (quantity <= 0) {
@@ -574,6 +586,16 @@ export default function QuickAddStorePage() {
                   <div className="space-y-3 max-h-[400px] overflow-y-auto">
                     {products
                       .filter(p => p.productType === 'retail' || p.productType === 'sample')
+                      .sort((a, b) => {
+                        // First by name
+                        const nameA = extractBaseName(a);
+                        const nameB = extractBaseName(b);
+                        const nameCompare = nameA.localeCompare(nameB);
+                        if (nameCompare !== 0) return nameCompare;
+                        
+                        // Then by size
+                        return extractSize(a) - extractSize(b);
+                      })
                       .map((product) => {
                         const entry = inventoryEntries.find(e => e.productSku === product.sku);
                         const quantity = entry?.quantity || 0;

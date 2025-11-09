@@ -121,6 +121,20 @@ export async function POST(req: NextRequest) {
       }
     });
 
+    // Create PurchaseIntent record for direct purchase (status: pending until redeemed)
+    const purchaseIntent = await prisma.purchaseIntent.create({
+      data: {
+        customerId: customer.id,
+        storeId: display.store.id,
+        productSku: productSku,
+        originalPrice: originalPrice,
+        discountPercent: discountPercent,
+        finalPrice: finalPrice,
+        status: 'pending', // Will be set to 'fulfilled' when staff confirms
+        verifySlug: slugPromo, // Use the same slug as promo redemption
+      }
+    });
+
     // Determine base URL for links
     const baseUrl =
       process.env.NEXT_PUBLIC_BASE_URL ||

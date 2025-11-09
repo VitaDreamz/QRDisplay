@@ -167,6 +167,19 @@ export async function POST(request: NextRequest) {
                 }
               });
               
+              // For direct purchases, mark the PurchaseIntent as fulfilled
+              if (purchaseIntent && isDirect) {
+                await prisma.purchaseIntent.update({
+                  where: { id: purchaseIntent.id },
+                  data: {
+                    status: 'fulfilled',
+                    fulfilledAt: new Date(),
+                    fulfilledByStaffId: staffMember.id,
+                  }
+                });
+                console.log(`✅ Direct purchase PurchaseIntent ${purchaseIntent.id} marked as fulfilled`);
+              }
+              
               await awardInStoreSalePoints({
                 staffId: staffMember.id,
                 storeId: store.id,

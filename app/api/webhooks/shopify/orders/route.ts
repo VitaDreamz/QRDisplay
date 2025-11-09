@@ -143,10 +143,13 @@ async function handleOrderPaid(orgId: string, order: ShopifyOrder, topic: string
         console.log(`🎯 Found member tag: ${memberId}`);
       }
       
-      // Also check for store tags (e.g., "SID-021")
-      const sidTag = customerTags.split(',').find(tag => tag.trim().startsWith('SID-'));
+      // Also check for store tags (e.g., "SID-021" or "Store:SID-021")
+      const sidTag = customerTags.split(',').find(tag => {
+        const trimmed = tag.trim();
+        return trimmed.startsWith('SID-') || trimmed.startsWith('Store:SID-');
+      });
       if (sidTag) {
-        storeTag = sidTag.trim();
+        storeTag = sidTag.trim().replace('Store:', ''); // Remove "Store:" prefix if present
         console.log(`🏪 Found store tag: ${storeTag}`);
       }
     }

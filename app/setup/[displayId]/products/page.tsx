@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { WizardLayout } from '@/components/wizard/WizardLayout';
 import { useWizardProgress } from '@/hooks/useWizardProgress';
@@ -14,6 +14,10 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [products, setProducts] = useState<any[]>([]);
+  
+  // Refs for scrolling to sections
+  const samplesRef = useRef<HTMLDivElement>(null);
+  const productsRef = useRef<HTMLDivElement>(null);
   
   // Inventory state for each product (SKU -> quantity)
   const [inventory, setInventory] = useState<Record<string, number>>({});
@@ -182,14 +186,56 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
     setInventory(defaultInventory);
   };
 
-  // Separate samples (4ct) from full-size products
+  // Helper function to extract size number from product name/SKU
+  const extractSize = (product: any): number => {
+    const match = product.name?.match(/(\d+)ct/i) || product.sku?.match(/(\d+)ct/i);
+    return match ? parseInt(match[1]) : 0;
+  };
+
+  // Helper function to extract base product name (without size)
+  const extractBaseName = (product: any): string => {
+    // Remove size like "30ct - " or just get the product name
+    return product.name?.replace(/^\d+ct\s*-\s*/i, '') || product.name || '';
+  };
+
+  // Separate samples (4ct) from full-size products and sort by featured, then name, then size
   const sampleProducts = useMemo(() => 
-    products.filter(p => p.sku?.endsWith('-4')),
+    products
+      .filter(p => p.sku?.endsWith('-4'))
+      .sort((a, b) => {
+        // Featured products first
+        if (a.featured && !b.featured) return -1;
+        if (!a.featured && b.featured) return 1;
+        
+        // Then by name
+        const nameA = extractBaseName(a);
+        const nameB = extractBaseName(b);
+        const nameCompare = nameA.localeCompare(nameB);
+        if (nameCompare !== 0) return nameCompare;
+        
+        // Then by size
+        return extractSize(a) - extractSize(b);
+      }),
     [products]
   );
   
   const fullSizeProducts = useMemo(() => 
-    products.filter(p => !p.sku?.endsWith('-4')),
+    products
+      .filter(p => !p.sku?.endsWith('-4'))
+      .sort((a, b) => {
+        // Featured products first
+        if (a.featured && !b.featured) return -1;
+        if (!a.featured && b.featured) return 1;
+        
+        // Then by name
+        const nameA = extractBaseName(a);
+        const nameB = extractBaseName(b);
+        const nameCompare = nameA.localeCompare(nameB);
+        if (nameCompare !== 0) return nameCompare;
+        
+        // Then by size
+        return extractSize(a) - extractSize(b);
+      }),
     [products]
   );
 
@@ -221,11 +267,19 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
 
   async function handleActivate() {
     if (!isValid) {
-      if (!samplesVerified || !productsVerified) {
-        setError('Please verify inventory for both samples and full-size products by clicking "Verify as Accurate"');
+      // Scroll to the first unverified section
+      if (!samplesVerified) {
+        samplesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setError('Please verify your samples inventory by clicking "Verify as Accurate" above');
+      } else if (!productsVerified) {
+        productsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setError('Please verify your products inventory by clicking "Verify as Accurate" above');
       } else {
         setError('Please select at least one sample and one product');
       }
+      
+      // Clear error after 5 seconds
+      setTimeout(() => setError(''), 5000);
       return;
     }
 
@@ -339,7 +393,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
         )}
 
         {/* Sample Products (4ct) */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mb-6">
+        <div ref={samplesRef} className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mb-6">
           <div className="mb-4 flex items-start justify-between gap-4">
             <div className="flex-1">
               <h2 className="font-semibold text-lg mb-1">Available Samples (4ct)</h2>
@@ -521,7 +575,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
         </div>
 
         {/* Full-Size Products */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+        <div ref={productsRef} className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
           <div className="mb-4 flex items-start justify-between gap-4">
             <div className="flex-1">
               <h2 className="font-semibold text-lg mb-1">Full-Size Products</h2>

@@ -3294,11 +3294,11 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              txn.type === 'credit' 
+                              txn.type === 'earned' 
                                 ? 'bg-green-100 text-green-800' 
                                 : 'bg-red-100 text-red-800'
                             }`}>
-                              {txn.type === 'credit' ? '+ Credit' : '- Debit'}
+                              {txn.type === 'earned' ? '+ Credit' : '- Debit'}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-900">
@@ -3313,9 +3313,9 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                             </div>
                           </td>
                           <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold text-right ${
-                            txn.type === 'credit' ? 'text-green-600' : 'text-red-600'
+                            txn.type === 'earned' ? 'text-green-600' : 'text-red-600'
                           }`}>
-                            {txn.type === 'credit' ? '+' : '-'}${Math.abs(txn.amount).toFixed(2)}
+                            {txn.type === 'earned' ? '+' : '-'}${Math.abs(txn.amount).toFixed(2)}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-right text-gray-900">
                             ${txn.balance.toFixed(2)}

@@ -36,6 +36,13 @@ interface ShopifyOrder {
 }
 
 export async function POST(req: NextRequest) {
+  console.log('🚀 WEBHOOK RECEIVED - Starting processing');
+  console.log('Headers:', {
+    shopDomain: req.headers.get('x-shopify-shop-domain'),
+    topic: req.headers.get('x-shopify-topic'),
+    hasHmac: !!req.headers.get('x-shopify-hmac-sha256')
+  });
+  
   try {
     // Get webhook headers
     const shopDomain = req.headers.get('x-shopify-shop-domain');
@@ -49,6 +56,7 @@ export async function POST(req: NextRequest) {
 
     // Get request body as text for HMAC verification
     const rawBody = await req.text();
+    console.log('📦 Raw body length:', rawBody.length);
     
     // Find organization by shop domain
     const org = await prisma.organization.findFirst({
@@ -63,6 +71,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 });
     }
 
+    console.log(`✅ Found organization: ${org.orgName}`);
+
     // Verify webhook signature
     const isValid = verifyShopifyWebhook(rawBody, hmacHeader, org.shopifyWebhookSecret || '');
     if (!isValid) {
@@ -70,6 +80,8 @@ export async function POST(req: NextRequest) {
       await logWebhook(org.id, null, topic, JSON.parse(rawBody), 'failed', 'Invalid signature');
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
+
+    console.log('✅ Webhook signature verified');
 
     // Parse order data
     const order: ShopifyOrder = JSON.parse(rawBody);
@@ -85,6 +97,7 @@ export async function POST(req: NextRequest) {
       await logWebhook(org.id, null, topic, order, 'ignored', `Topic not handled: ${topic}`);
     }
 
+    console.log('✅ Webhook processing complete');
     return NextResponse.json({ success: true, processed: topic });
   } catch (error) {
     console.error('❌ Webhook processing error:', error);

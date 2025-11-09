@@ -51,8 +51,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (!customer) {
+      console.error(`❌ Customer not found for memberId: ${shortlink.memberId}`);
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
     }
+    
+    console.log(`👤 Found customer ${customer.memberId} (stage: ${customer.currentStage}, isDirect: ${isDirect})`);
 
     // 5. Get store and validate PIN (check admin PIN or staff PINs)
     const store = await prisma.store.findUnique({

@@ -61,10 +61,19 @@ export async function GET(
       return NextResponse.json({ ok: false, error: 'Store not found' }, { status: 404 });
     }
 
-    // For direct purchases, extract product SKU from customer record
+    // For direct purchases, get the product SKU from PurchaseIntent
     let selectedProductSku: string | null = null;
-    if (isDirect && customer.sampleChoice?.startsWith('DIRECT_PURCHASE:')) {
-      selectedProductSku = customer.sampleChoice.replace('DIRECT_PURCHASE:', '');
+    if (isDirect) {
+      const purchaseIntent = await prisma.purchaseIntent.findFirst({
+        where: {
+          customerId: customer.id,
+          verifySlug: slug,
+        },
+        select: {
+          productSku: true
+        }
+      });
+      selectedProductSku = purchaseIntent?.productSku || null;
     }
 
     // Get store's available products

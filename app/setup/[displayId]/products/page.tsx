@@ -28,7 +28,19 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
   const [samplesVerified, setSamplesVerified] = useState(false);
   const [productsVerified, setProductsVerified] = useState(false);
 
-  const selectedDays = [7, 14, 30]; // Default followup days
+  // Convert followupDays object from progress to array of numbers
+  const selectedDays = useMemo(() => {
+    if (!progress?.followupDays) return [4, 12]; // Default to day 4 and 12
+    
+    const days: number[] = [];
+    if (progress.followupDays.day4) days.push(4);
+    if (progress.followupDays.day8) days.push(8);
+    if (progress.followupDays.day12) days.push(12);
+    if (progress.followupDays.day16) days.push(16);
+    if (progress.followupDays.day20) days.push(20);
+    
+    return days.length >= 2 ? days : [4, 12]; // Ensure at least 2 days
+  }, [progress?.followupDays]);
   
   // Track if we've already loaded to prevent infinite loop
   const [productsLoaded, setProductsLoaded] = useState(false);

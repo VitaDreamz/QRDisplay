@@ -14,10 +14,20 @@ export async function GET(
       return NextResponse.json({ error: 'Store ID is required' }, { status: 400 });
     }
 
+    // First get the store to get its numeric ID
+    const store = await prisma.store.findUnique({
+      where: { storeId },
+      select: { id: true }
+    });
+
+    if (!store) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 });
+    }
+
     // Fetch all credit transactions for this store, ordered by most recent first
     const transactions = await prisma.storeCreditTransaction.findMany({
       where: {
-        storeId: storeId
+        storeId: store.id
       },
       orderBy: {
         createdAt: 'desc'

@@ -208,7 +208,7 @@ export async function POST(request: NextRequest) {
             storeId: store.id,
             amount: -creditToApply,
             type: 'redeemed',
-            reason: `Applied to Shopify Draft Order #${draftOrder.name || draftOrder.id}`,
+            reason: `Used Store Credit For Wholesale Order #${draftOrder.name || draftOrder.id}`,
             balance: newBalance,
           }
         })

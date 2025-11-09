@@ -500,29 +500,75 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
                 {errors.phone && <p className="text-pink-300 text-sm mt-1">{errors.phone}</p>}
               </div>
 
-              {/* Product Choice */}
+              {/* Product Choice - Card Grid */}
               <div>
-                <label className="block text-sm font-medium mb-1">
-                  Select Product <span className="text-pink-300">*</span>
+                <label className="block text-sm font-medium mb-3">
+                  Select Your Product <span className="text-pink-300">*</span>
                 </label>
-                <select
-                  className="w-full h-12 px-4 text-base bg-white/20 border-2 border-white/30 rounded-lg text-white focus:border-pink-300 focus:ring-2 focus:ring-pink-200/50 focus:outline-none"
-                  value={productChoice}
-                  onChange={(e) => setProductChoice(e.target.value)}
-                  required
-                >
-                  <option value="" disabled>Select a product</option>
+                <div className="grid grid-cols-1 gap-3">
                   {brand?.availableProducts?.map((product) => {
-                    const price = product.msrp || product.price;
+                    const isSelected = productChoice === product.sku;
+                    const price = parseFloat(product.msrp || product.price);
                     const discountedPrice = price * (1 - parseInt(promoPercentage) / 100);
+                    
                     return (
-                      <option key={product.sku} value={product.sku} className="text-gray-900">
-                        {product.name} - ${discountedPrice.toFixed(2)} ({promoPercentage}% off)
-                      </option>
+                      <button
+                        key={product.sku}
+                        type="button"
+                        onClick={() => setProductChoice(product.sku)}
+                        className={`relative border-2 rounded-xl p-4 text-left transition-all ${
+                          isSelected
+                            ? 'border-pink-400 bg-pink-500/20 shadow-lg shadow-pink-500/30'
+                            : 'border-white/30 bg-white/10 hover:border-white/50'
+                        }`}
+                      >
+                        <div className="flex items-start gap-4">
+                          {/* Product Image */}
+                          {product.imageUrl && (
+                            <div className="flex-shrink-0 w-20 h-20 bg-white rounded-lg overflow-hidden">
+                              <img
+                                src={product.imageUrl}
+                                alt={product.name}
+                                className="w-full h-full object-contain p-1"
+                              />
+                            </div>
+                          )}
+                          
+                          {/* Product Info */}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-base text-white mb-1">
+                              {product.name}
+                            </h3>
+                            {product.description && (
+                              <p className="text-xs text-white/70 mb-2 line-clamp-2">
+                                {product.description}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2">
+                              <span className="text-white/50 line-through text-sm">
+                                ${price.toFixed(2)}
+                              </span>
+                              <span className="text-2xl font-bold text-pink-300">
+                                ${discountedPrice.toFixed(2)}
+                              </span>
+                              <span className="text-sm text-pink-200">
+                                ({promoPercentage}% OFF)
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {/* Selected Indicator */}
+                          {isSelected && (
+                            <div className="absolute top-3 right-3 w-6 h-6 bg-pink-400 rounded-full flex items-center justify-center">
+                              <span className="text-white text-sm">✓</span>
+                            </div>
+                          )}
+                        </div>
+                      </button>
                     );
                   })}
-                </select>
-                {errors.productChoice && <p className="text-pink-300 text-sm mt-1">{errors.productChoice}</p>}
+                </div>
+                {errors.productChoice && <p className="text-pink-300 text-sm mt-2">{errors.productChoice}</p>}
               </div>
 
               {errors.form && (

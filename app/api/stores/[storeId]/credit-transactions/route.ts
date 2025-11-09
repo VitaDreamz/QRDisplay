@@ -34,7 +34,14 @@ export async function GET(
       }
     });
 
-    return NextResponse.json({ transactions });
+    // Convert Decimal types to numbers for JSON serialization
+    const serializedTransactions = transactions.map(txn => ({
+      ...txn,
+      amount: Number(txn.amount),
+      balance: Number(txn.balance)
+    }));
+
+    return NextResponse.json({ transactions: serializedTransactions });
   } catch (error) {
     console.error('Error fetching credit transactions:', error);
     return NextResponse.json(

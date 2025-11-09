@@ -238,16 +238,18 @@ export async function POST(request: NextRequest) {
     }
 
     // 8. Update customer
-    await prisma.customer.update({
+    const updatedCustomer = await prisma.customer.update({
       where: { id: customer.id },
       data: {
         promoRedeemed: true,
         promoRedeemedAt: new Date(),
-        currentStage: isDirect ? 'purchased' : 'purchased',
+        currentStage: 'purchased',
         stageChangedAt: new Date(),
         promoRedeemedByStaffId: staffMember?.id
       }
     });
+    
+    console.log(`✅ Customer ${updatedCustomer.memberId} updated to 'purchased' stage (was: ${customer.currentStage})`);
 
     // 9. Mark shortlink used
     await prisma.shortlink.update({

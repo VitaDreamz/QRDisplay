@@ -64,6 +64,11 @@ export async function POST(req: NextRequest) {
         shopifyStoreName: shopDomain,
         shopifyActive: true,
       },
+      select: {
+        id: true,
+        name: true,
+        shopifyWebhookSecret: true,
+      }
     });
 
     if (!org) {
@@ -71,7 +76,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 });
     }
 
-    console.log(`✅ Found organization: ${org.orgName}`);
+    console.log(`✅ Found organization: ${org.name}`);
 
     // Verify webhook signature
     const isValid = verifyShopifyWebhook(rawBody, hmacHeader, org.shopifyWebhookSecret || '');

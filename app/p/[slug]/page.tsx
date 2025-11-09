@@ -57,7 +57,7 @@ export default function PromoRedemptionPage({ params }: { params: Promise<{ slug
           
           // Calculate discounted prices for each product
           const productsWithPricing = (json.products || []).map((p: any) => {
-            const originalPrice = p.msrp || p.price;
+            const originalPrice = Number(p.msrp || p.price);
             const finalPrice = originalPrice * (1 - discount / 100);
             const savings = originalPrice - finalPrice;
             return {

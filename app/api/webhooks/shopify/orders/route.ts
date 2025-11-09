@@ -135,11 +135,19 @@ async function handleOrderPaid(orgId: string, order: ShopifyOrder, topic: string
 
     // Extract memberId from customer tags (e.g., "member:MEM-027")
     let memberId: string | null = null;
+    let storeTag: string | null = null;
     if (customerTags) {
       const memberTag = customerTags.split(',').find(tag => tag.trim().startsWith('member:'));
       if (memberTag) {
         memberId = memberTag.trim().replace('member:', '');
         console.log(`🎯 Found member tag: ${memberId}`);
+      }
+      
+      // Also check for store tags (e.g., "SID-021")
+      const sidTag = customerTags.split(',').find(tag => tag.trim().startsWith('SID-'));
+      if (sidTag) {
+        storeTag = sidTag.trim();
+        console.log(`🏪 Found store tag: ${storeTag}`);
       }
     }
 
@@ -155,7 +163,25 @@ async function handleOrderPaid(orgId: string, order: ShopifyOrder, topic: string
       }
     }
 
-    // Strategy 2: Find by Shopify customer ID
+    // Strategy 2: Find by store tag (if customer doesn't have member tag yet)
+    if (!customer && storeTag) {
+      customer = await prisma.customer.findFirst({
+        where: { 
+          storeId: storeTag,
+          OR: [
+            order.customer.phone ? { phone: order.customer.phone } : {},
+            order.customer.email ? { email: order.customer.email.toLowerCase() } : {},
+          ].filter(obj => Object.keys(obj).length > 0) as any
+        },
+        include: { store: true },
+      });
+      if (customer) {
+        console.log(`✅ Matched by store tag and phone/email: ${storeTag}`);
+      }
+    }
+
+    // Strategy 3: Find by Shopify customer ID
+    // Strategy 3: Find by Shopify customer ID
     if (!customer) {
       customer = await prisma.customer.findFirst({
         where: { shopifyCustomerId: shopifyCustomerId },
@@ -166,7 +192,7 @@ async function handleOrderPaid(orgId: string, order: ShopifyOrder, topic: string
       }
     }
 
-    // Strategy 3: Fallback to phone/email matching
+    // Strategy 4: Fallback to phone/email matching
     if (!customer && (order.customer.phone || order.customer.email)) {
       const phoneQuery = order.customer.phone ? { phone: order.customer.phone } : undefined;
       const emailQuery = order.customer.email ? { email: order.customer.email.toLowerCase() } : undefined;

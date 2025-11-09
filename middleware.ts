@@ -6,6 +6,7 @@ const publicPaths = [
   "/sign-in",
   "/sign-up",
   "/api/webhooks/clerk",
+  "/api/webhooks/shopify(.*)", // Exclude Shopify webhooks from Clerk middleware
 ];
 
 const isPublic = createRouteMatcher(publicPaths);

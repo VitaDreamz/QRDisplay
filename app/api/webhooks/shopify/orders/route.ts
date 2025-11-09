@@ -64,11 +64,6 @@ export async function POST(req: NextRequest) {
         shopifyStoreName: shopDomain,
         shopifyActive: true,
       },
-      select: {
-        id: true,
-        name: true,
-        shopifyWebhookSecret: true,
-      }
     });
 
     if (!org) {
@@ -388,45 +383,48 @@ async function handleOrderPaid(orgId: string, order: ShopifyOrder, topic: string
  * Apply store credit for commission earned
  */
 async function applyStoreCredit(
-  storeId: string,
+  storeIdString: string,
   amount: number,
   conversionId: string,
   storeName: string
 ) {
-  // Get current store credit balance
+  console.log(`💳 Applying store credit: $${amount.toFixed(2)} to ${storeIdString}`);
+  
+  // Get store by storeId (string like "SID-021") to get the numeric id
   const store = await prisma.store.findUnique({
-    where: { id: storeId },
-    select: { storeCredit: true },
+    where: { storeId: storeIdString },
+    select: { id: true, storeCredit: true },
   });
 
   if (!store) {
-    throw new Error(`Store not found: ${storeId}`);
+    throw new Error(`Store not found: ${storeIdString}`);
   }
 
-  const previousBalance = parseFloat(store.storeCredit.toString());
+  const previousBalance = Number(store.storeCredit);
   const newBalance = previousBalance + amount;
+
+  console.log(`   Previous balance: $${previousBalance.toFixed(2)}`);
+  console.log(`   Commission earned: $${amount.toFixed(2)}`);
+  console.log(`   New balance: $${newBalance.toFixed(2)}`);
 
   // Update store credit balance
   await prisma.store.update({
-    where: { id: storeId },
+    where: { id: store.id },
     data: { storeCredit: newBalance },
   });
 
-  // Create credit transaction record
+  // Create credit transaction record with numeric store.id
   await prisma.storeCreditTransaction.create({
     data: {
-      storeId,
+      storeId: store.id, // Use numeric id for foreign key
       amount,
-      type: 'commission',
-      reason: `Commission earned from Online Purchase (Conversion #${conversionId})`,
+      type: 'earned', // Use 'earned' not 'commission'
+      reason: `Commission from Online Order #${conversionId}`,
       balance: newBalance,
     },
   });
 
-  console.log(`💰 Store credit applied to ${storeName}:`);
-  console.log(`   Previous balance: $${previousBalance.toFixed(2)}`);
-  console.log(`   Commission earned: $${amount.toFixed(2)}`);
-  console.log(`   New balance: $${newBalance.toFixed(2)}`);
+  console.log(`✅ Store credit transaction created for ${storeName}`);
 }
 
 /**

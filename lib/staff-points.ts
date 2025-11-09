@@ -74,13 +74,17 @@ export async function awardStaffPoints(params: {
 }): Promise<void> {
   const { staffId, storeId, orgId, points, type, reason, customerId, conversionId, purchaseIntentId } = params;
 
+  console.log(`🎮 awardStaffPoints called:`, { staffId, storeId, orgId, points, type });
+
   // Check and reset quarterly points if needed
   await checkAndResetQuarterly(staffId);
 
   const quarter = getCurrentQuarter();
+  
+  console.log(`📅 Current quarter: ${quarter}`);
 
   // Create point transaction
-  await prisma.staffPointTransaction.create({
+  const transaction = await prisma.staffPointTransaction.create({
     data: {
       staffId,
       storeId,
@@ -90,13 +94,15 @@ export async function awardStaffPoints(params: {
       reason,
       customerId,
       conversionId,
-      purchaseIntentId,
+      purchaseIntentId: purchaseIntentId || undefined, // Convert empty string to undefined
       quarter,
     },
   });
+  
+  console.log(`✅ Point transaction created: ${transaction.id}`);
 
   // Update staff total and quarterly points
-  await prisma.staff.update({
+  const updatedStaff = await prisma.staff.update({
     where: { id: staffId },
     data: {
       totalPoints: { increment: points },
@@ -104,7 +110,8 @@ export async function awardStaffPoints(params: {
     },
   });
 
-  console.log(`🎯 Awarded ${points} points to staff ${staffId} for ${type}`);
+  console.log(`🎯 Staff updated: totalPoints=${updatedStaff.totalPoints}, quarterlyPoints=${updatedStaff.quarterlyPoints}`);
+  console.log(`✅ Awarded ${points} points to staff ${staffId} for ${type}`);
 }
 
 /**

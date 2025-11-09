@@ -156,6 +156,8 @@ export async function POST(request: NextRequest) {
           // Award points for in-store sale (2 points per dollar)
           if (finalPurchaseAmount && finalPurchaseAmount > 0) {
             try {
+              console.log(`💰 Processing points for $${finalPurchaseAmount} sale by staff ${staffMember.staffId}`);
+              
               // First, get the purchase intent to link in transaction
               const purchaseIntent = await prisma.purchaseIntent.findFirst({
                 where: {
@@ -166,6 +168,12 @@ export async function POST(request: NextRequest) {
                   createdAt: 'desc'
                 }
               });
+              
+              if (!purchaseIntent) {
+                console.warn('⚠️ No PurchaseIntent found for customer - points will still be awarded');
+              } else {
+                console.log(`📦 Found PurchaseIntent ${purchaseIntent.id} (status: ${purchaseIntent.status})`);
+              }
               
               // For direct purchases, mark the PurchaseIntent as fulfilled
               if (purchaseIntent && isDirect) {
@@ -180,6 +188,8 @@ export async function POST(request: NextRequest) {
                 console.log(`✅ Direct purchase PurchaseIntent ${purchaseIntent.id} marked as fulfilled`);
               }
               
+              console.log(`🎯 Awarding points to staff ${staffMember.id} in store ${store.id} (org: ${store.orgId})`);
+              
               await awardInStoreSalePoints({
                 staffId: staffMember.id,
                 storeId: store.id,
@@ -189,11 +199,20 @@ export async function POST(request: NextRequest) {
                 customerName: `${customer.firstName} ${customer.lastName}`,
                 purchaseIntentId: purchaseIntent?.id || '',
               });
-              console.log(`🎯 In-store points awarded: ${Math.floor(finalPurchaseAmount * 2)} points (2x)`);
+              console.log(`✅ In-store points awarded: ${Math.floor(finalPurchaseAmount * 2)} points (2x)`);
             } catch (pointsErr) {
               console.error('❌ Failed to award staff points:', pointsErr);
+              console.error('Error details:', {
+                staffId: staffMember.id,
+                storeId: store.id,
+                orgId: store.orgId,
+                saleAmount: finalPurchaseAmount,
+                error: pointsErr instanceof Error ? pointsErr.message : String(pointsErr)
+              });
               // Continue anyway
             }
+          } else {
+            console.warn(`⚠️ No purchase amount to award points for (amount: ${finalPurchaseAmount})`);
           }
         }
       } catch (invErr) {

@@ -36,12 +36,15 @@ interface ShopifyOrder {
 }
 
 export async function POST(req: NextRequest) {
-  console.log('🚀 WEBHOOK RECEIVED - Starting processing');
-  console.log('Headers:', {
-    shopDomain: req.headers.get('x-shopify-shop-domain'),
-    topic: req.headers.get('x-shopify-topic'),
-    hasHmac: !!req.headers.get('x-shopify-hmac-sha256')
-  });
+  // Log to both console and return in response for debugging
+  const logs: string[] = [];
+  const log = (msg: string) => {
+    console.log(msg);
+    logs.push(msg);
+  };
+  
+  log('🚀 WEBHOOK RECEIVED - Starting processing');
+  log(`Headers: shopDomain=${req.headers.get('x-shopify-shop-domain')}, topic=${req.headers.get('x-shopify-topic')}, hasHmac=${!!req.headers.get('x-shopify-hmac-sha256')}`);
   
   try {
     // Get webhook headers
@@ -50,13 +53,14 @@ export async function POST(req: NextRequest) {
     const hmacHeader = req.headers.get('x-shopify-hmac-sha256');
 
     if (!shopDomain || !topic || !hmacHeader) {
+      log('❌ Missing Shopify webhook headers');
       console.error('❌ Missing Shopify webhook headers');
-      return NextResponse.json({ error: 'Missing webhook headers' }, { status: 400 });
+      return NextResponse.json({ error: 'Missing webhook headers', logs }, { status: 400 });
     }
 
     // Get request body as text for HMAC verification
     const rawBody = await req.text();
-    console.log('📦 Raw body length:', rawBody.length);
+    log(`📦 Raw body length: ${rawBody.length}`);
     
     // Find organization by shop domain
     const org = await prisma.organization.findFirst({
@@ -67,25 +71,27 @@ export async function POST(req: NextRequest) {
     });
 
     if (!org) {
+      log(`❌ Organization not found for shop: ${shopDomain}`);
       console.error(`❌ Organization not found for shop: ${shopDomain}`);
-      return NextResponse.json({ error: 'Organization not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Organization not found', logs }, { status: 404 });
     }
 
-    console.log(`✅ Found organization: ${org.name}`);
+    log(`✅ Found organization: ${org.name}`);
 
     // Verify webhook signature
     const isValid = verifyShopifyWebhook(rawBody, hmacHeader, org.shopifyWebhookSecret || '');
     if (!isValid) {
+      log('❌ Invalid webhook signature');
       console.error('❌ Invalid webhook signature');
       await logWebhook(org.id, null, topic, JSON.parse(rawBody), 'failed', 'Invalid signature');
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid signature', logs }, { status: 401 });
     }
 
-    console.log('✅ Webhook signature verified');
+    log('✅ Webhook signature verified');
 
     // Parse order data
     const order: ShopifyOrder = JSON.parse(rawBody);
-    console.log(`📦 Processing ${topic} webhook for order #${order.id}`);
+    log(`📦 Processing ${topic} webhook for order #${order.id}`);
 
     // Handle different webhook topics
     if (topic === 'orders/paid' || topic === 'orders/create') {
@@ -93,16 +99,18 @@ export async function POST(req: NextRequest) {
     } else if (topic === 'orders/fulfilled') {
       await handleOrderFulfilled(org.id, order, topic);
     } else {
+      log(`ℹ️  Ignoring webhook topic: ${topic}`);
       console.log(`ℹ️  Ignoring webhook topic: ${topic}`);
       await logWebhook(org.id, null, topic, order, 'ignored', `Topic not handled: ${topic}`);
     }
 
-    console.log('✅ Webhook processing complete');
-    return NextResponse.json({ success: true, processed: topic });
+    log('✅ Webhook processing complete');
+    return NextResponse.json({ success: true, processed: topic, logs });
   } catch (error) {
+    log(`❌ Webhook processing error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     console.error('❌ Webhook processing error:', error);
     return NextResponse.json(
-      { error: 'Webhook processing failed', message: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Webhook processing failed', message: error instanceof Error ? error.message : 'Unknown error', logs },
       { status: 500 }
     );
   }

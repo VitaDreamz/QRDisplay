@@ -422,7 +422,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                         </span>
                       </div>
                     )}
-                    <div className="flex items-start gap-4">
+                    <div className="flex flex-col sm:flex-row items-start gap-4">
                       {/* Product Image */}
                       {product.imageUrl && (
                         <div className="w-24 h-24 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
@@ -435,8 +435,8 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                       )}
                       
                       {/* Product Info & Controls */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="flex-1 min-w-0 w-full">
+                        <div className="flex flex-col sm:flex-row items-start justify-between gap-3 mb-3">
                           <div className="flex-1 min-w-0">
                             <h3 className="font-bold text-base mb-1 text-gray-900">{product.name}</h3>
                             {product.description && (
@@ -459,7 +459,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                                 setSelectedSamples(prev => [...prev, product.sku]);
                               }
                             }}
-                            className={`px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition-all ${
+                            className={`w-full sm:w-auto px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition-all ${
                               isSelected
                                 ? 'bg-purple-600 text-white hover:bg-purple-700'
                                 : 'bg-red-100 text-red-600 border-2 border-red-200 hover:bg-red-200'
@@ -470,9 +470,9 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                         </div>
                         
                         {/* Inventory Control */}
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
                           <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">Inventory:</label>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <button
                               onClick={() => updateInventory(product.sku, Math.max(0, (inventory[product.sku] || 0) - 1))}
                               className="w-10 h-10 rounded-lg border-2 border-gray-300 hover:bg-gray-50 font-bold text-gray-700 text-lg"
@@ -492,7 +492,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                             >
                               +
                             </button>
-                            <span className="text-sm text-gray-600 ml-2">units on hand</span>
+                            <span className="text-sm text-gray-600">units on hand</span>
                           </div>
                         </div>
                       </div>
@@ -604,7 +604,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                           </span>
                         </div>
                       )}
-                      <div className="flex items-start gap-4">
+                      <div className="flex flex-col sm:flex-row items-start gap-4">
                         {/* Product Image */}
                         {product.imageUrl && (
                           <div className="w-24 h-24 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
@@ -617,8 +617,8 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                         )}
                         
                         {/* Product Info & Controls */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex-1 min-w-0 w-full">
+                          <div className="flex flex-col sm:flex-row items-start justify-between gap-3 mb-3">
                             <div className="flex-1 min-w-0">
                               <h3 className="font-bold text-base mb-1 text-gray-900">{product.name}</h3>
                               {product.description && (
@@ -641,7 +641,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                                   setSelectedProducts(prev => [...prev, product.sku]);
                                 }
                               }}
-                              className={`px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition-all ${
+                              className={`w-full sm:w-auto px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition-all ${
                                 isSelected
                                   ? 'bg-purple-600 text-white hover:bg-purple-700'
                                   : 'bg-red-100 text-red-600 border-2 border-red-200 hover:bg-red-200'
@@ -652,9 +652,9 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                           </div>
                           
                           {/* Inventory Control */}
-                          <div className="flex items-center gap-3">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
                             <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">Inventory:</label>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <button
                                 onClick={() => updateInventory(product.sku, Math.max(0, (inventory[product.sku] || 0) - 1))}
                                 className="w-10 h-10 rounded-lg border-2 border-gray-300 hover:bg-gray-50 font-bold text-gray-700 text-lg"
@@ -674,7 +674,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                               >
                                 +
                               </button>
-                              <span className="text-sm text-gray-600 ml-2">units on hand</span>
+                              <span className="text-sm text-gray-600">units on hand</span>
                             </div>
                           </div>
                         </div>

@@ -83,27 +83,43 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid PIN' }, { status: 400 });
     }
 
-    // 6. Create PromoRedemption record
+    // 6. Create or Update PromoRedemption record
     const finalPurchaseAmount = isDirect ? parseFloat(finalPrice.toString()) : (purchaseAmount ? parseFloat(purchaseAmount) : null);
     const finalDiscountAmount = isDirect 
       ? (parseFloat(finalPrice.toString()) / (1 - discountPercent / 100)) * (discountPercent / 100)
       : (discountAmount ? parseFloat(discountAmount) : null);
     
-    await prisma.promoRedemption.create({
-      data: {
-        customerId: customer.id,
-        storeId: store.id,
-        orgId: store.orgId,
-        promoOffer: store.promoOffer,
-        promoSlug: slug,
-        redeemedAt: new Date(),
-        redeemedBy: staffMember ? `staff-${staffMember.staffId}` : 'admin',
-        purchaseAmount: finalPurchaseAmount,
-        discountAmount: finalDiscountAmount,
-        // Track which staff member redeemed (if applicable)
-        ...(staffMember ? { redeemedByStaffId: staffMember.id } as any : {})
-      }
-    });
+    // For direct purchases, the PromoRedemption already exists - just update it
+    if (isDirect) {
+      await prisma.promoRedemption.update({
+        where: { promoSlug: slug },
+        data: {
+          redeemedAt: new Date(),
+          redeemedBy: staffMember ? `staff-${staffMember.staffId}` : 'admin',
+          purchaseAmount: finalPurchaseAmount,
+          discountAmount: finalDiscountAmount,
+          // Track which staff member redeemed (if applicable)
+          ...(staffMember ? { redeemedByStaffId: staffMember.id } as any : {})
+        }
+      });
+    } else {
+      // For regular promos, create a new record
+      await prisma.promoRedemption.create({
+        data: {
+          customerId: customer.id,
+          storeId: store.id,
+          orgId: store.orgId,
+          promoOffer: store.promoOffer,
+          promoSlug: slug,
+          redeemedAt: new Date(),
+          redeemedBy: staffMember ? `staff-${staffMember.staffId}` : 'admin',
+          purchaseAmount: finalPurchaseAmount,
+          discountAmount: finalDiscountAmount,
+          // Track which staff member redeemed (if applicable)
+          ...(staffMember ? { redeemedByStaffId: staffMember.id } as any : {})
+        }
+      });
+    }
 
     // 7. For direct purchases: Decrement inventory and track staff sales
     if (isDirect && productSku) {

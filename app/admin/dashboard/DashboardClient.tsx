@@ -1165,7 +1165,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                 >
                   <option value="">Unassigned</option>
                   {data.organizations.map(org => (
-                    <option key={org.orgId} value={org.orgId}>{org.name}</option>
+                    <option key={org.id} value={org.id}>{org.name}</option>
                   ))}
                 </select>
               </div>

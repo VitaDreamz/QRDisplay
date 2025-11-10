@@ -63,28 +63,22 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
     // Prevent infinite loop - only load once
     if (productsLoaded) return;
     
-    // Only fetch products once we have displayId
+    // Wait for progress to load before fetching products
+    if (!progress) return;
+    
+    // Only fetch products once we have displayId and progress
     (async () => {
-
       try {
-        // Get orgId directly from the display (it's assigned when display ships)
-        const displayRes = await fetch(`/api/displays/${displayId}/info`);
-        if (!displayRes.ok) {
-          console.error('[ProductsStep] Failed to fetch display', displayRes.status);
-          setError('Failed to load display information');
-          return;
-        }
-        
-        const displayData = await displayRes.json();
-        const orgId = displayData.orgId;
+        // Get orgId directly from progress (saved during store-lookup step)
+        let orgId: string | null = progress.orgId || null;
         
         if (!orgId) {
-          console.error('[ProductsStep] Display has no orgId assigned');
-          setError('Display is not assigned to an organization');
+          console.error('[ProductsStep] No orgId found in progress');
+          setError('Could not determine brand organization');
           return;
         }
         
-        console.log('[ProductsStep] Using orgId from display:', orgId);
+        console.log('[ProductsStep] Using orgId from progress:', orgId);
         
         // Fetch retail products for this organization
         const productsRes = await fetch(`/api/products?orgId=${orgId}&productType=retail`);
@@ -110,7 +104,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displayId]); // Only re-run when displayId changes
+  }, [displayId, progress]); // Re-run when displayId or progress changes
   
   // Load inventory once products and progress are both available
   useEffect(() => {

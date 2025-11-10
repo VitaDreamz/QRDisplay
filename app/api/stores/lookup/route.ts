@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
         where: { storeId },
         select: {
           storeId: true,
+          orgId: true,
           storeName: true,
           streetAddress: true,
           address2: true,

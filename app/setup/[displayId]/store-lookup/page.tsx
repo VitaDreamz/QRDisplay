@@ -209,6 +209,7 @@ export default function StoreLookupPage({ params }: { params: Promise<{ displayI
           // Flags
           isNewLocation: false, // This is an existing store
           existingStoreId: store.storeId,
+          orgId: store.orgId, // Save orgId so products step can use it
           shopifyCustomerId: store.shopifyCustomerId,
           ...orgContactData, // Organization data as fallback
         });

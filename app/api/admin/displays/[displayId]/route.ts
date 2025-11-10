@@ -21,14 +21,25 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
     }
 
-    // If assignedOrgId provided, verify it exists and get the CUID
+    // If assignedOrgId provided, check if it's a CUID or human-readable orgId
     let orgCuid: string | null = null;
     if (assignedOrgId) {
-      const org = await prisma.organization.findUnique({ where: { orgId: assignedOrgId } });
-      if (!org) {
-        return NextResponse.json({ error: 'Organization not found' }, { status: 400 });
+      // Check if it looks like a CUID (starts with 'cl' and is long)
+      if (assignedOrgId.startsWith('cl') && assignedOrgId.length > 20) {
+        // It's already a CUID, verify it exists
+        const org = await prisma.organization.findUnique({ where: { id: assignedOrgId } });
+        if (!org) {
+          return NextResponse.json({ error: 'Organization not found' }, { status: 400 });
+        }
+        orgCuid = assignedOrgId;
+      } else {
+        // It's a human-readable orgId, convert to CUID
+        const org = await prisma.organization.findUnique({ where: { orgId: assignedOrgId } });
+        if (!org) {
+          return NextResponse.json({ error: 'Organization not found' }, { status: 400 });
+        }
+        orgCuid = org.id;
       }
-      orgCuid = org.id; // Use CUID, not orgId string
     }
 
     // Ensure display exists

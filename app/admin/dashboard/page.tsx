@@ -42,6 +42,7 @@ export default async function AdminDashboardPage() {
       }),
       prisma.organization.findMany({
         select: { 
+          id: true,  // CUID for foreign key references
           orgId: true, 
           name: true,
           type: true

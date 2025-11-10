@@ -105,9 +105,21 @@ export async function POST(request: NextRequest) {
 
     const { customer } = await shopifyResponse.json();
 
-    // Generate store ID
-    const storeCount = await prisma.store.count();
-    const storeId = `SID-${String(storeCount + 1).padStart(3, '0')}`;
+    // Generate unique store ID
+    let storeId: string;
+    let storeCount = await prisma.store.count();
+    let attempts = 0;
+    const maxAttempts = 100;
+    
+    do {
+      storeId = `SID-${String(storeCount + 1 + attempts).padStart(3, '0')}`;
+      const existing = await prisma.store.findUnique({ where: { storeId } });
+      if (!existing) break;
+      attempts++;
+      if (attempts >= maxAttempts) {
+        throw new Error('Failed to generate unique store ID');
+      }
+    } while (true);
 
     // Get tier configuration
     const tierConfig = getTierConfig(subscriptionTier as SubscriptionTier);

@@ -138,7 +138,9 @@ export async function POST(req: NextRequest) {
           process.env.TWILIO_ACCOUNT_SID,
           process.env.TWILIO_AUTH_TOKEN
         );
-        const immediateMsg = `You're all set! If you love your ${customer.sampleChoice}, ${store.storeName} is offering ${store.promoOffer} when you come back! ${promoLink}`;
+        // Extract percentage from promo offer (e.g., "20%" from "20% Off In-Store Purchase")
+        const promoPercentage = store.promoOffer?.match(/(\d+%)/)?.[1] || store.promoOffer;
+        const immediateMsg = `You're all set! If you love your ${customer.sampleChoice}, ${store.storeName} is offering you ${promoPercentage} off your 1st purchase! Click link when you're ready to buy -> ${promoLink}`;
         await client.messages.create({
           to: customer.phone,
           from: process.env.TWILIO_PHONE_NUMBER,

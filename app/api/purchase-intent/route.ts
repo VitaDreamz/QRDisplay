@@ -124,6 +124,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Update customer status to "purchase_requested"
+    let org = null;
     try {
       await prisma.customer.update({
         where: { id: customer.id },
@@ -134,7 +135,7 @@ export async function POST(request: NextRequest) {
       });
       
       // Update Shopify stage and add timeline event
-      const org = await prisma.organization.findUnique({
+      org = await prisma.organization.findUnique({
         where: { id: customer.orgId } // customer.orgId is CUID, matches Organization.id
       });
       
@@ -172,7 +173,7 @@ export async function POST(request: NextRequest) {
             process.env.TWILIO_ACCOUNT_SID,
             process.env.TWILIO_AUTH_TOKEN
           );
-          const sms = `New purchase request at ${store.storeName}: ${productSku}\nMSRP $${parseFloat(originalPrice).toFixed(2)} → $${parseFloat(finalPrice).toFixed(2)} (${discountPercent}% off)\n\nDashboard: qrdisplay.com/store/login/${store.storeId}`;
+          const sms = `Purchase Request at ${store.storeName}: ${org?.name || 'VitaDreamz'} - ${product.name}\nPrice: $${parseFloat(finalPrice).toFixed(2)} (${discountPercent}% off $${parseFloat(originalPrice).toFixed(2)} MSRP)\n\nCheck to see if stock available & mark as ready: qrdisplay.com/store/login/${store.storeId}`;
           await client.messages.create({
             to: store.adminPhone,
             from: process.env.TWILIO_PHONE_NUMBER,
@@ -197,7 +198,7 @@ export async function POST(request: NextRequest) {
               process.env.TWILIO_ACCOUNT_SID,
               process.env.TWILIO_AUTH_TOKEN
             );
-            const sms = `Thanks for your request! We'll notify you when your item is ready. Reply STOP to opt out.`;
+            const sms = `Thanks for your request! ${store.storeName} will text you when your ${product.name} is ready for pickup. Typically 1-3 Days Max.`;
             await client.messages.create({
               to: customer.phone,
               from: process.env.TWILIO_PHONE_NUMBER,

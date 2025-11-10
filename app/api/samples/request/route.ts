@@ -141,15 +141,11 @@ export async function POST(req: NextRequest) {
 
       const storeName = display.store.storeName;
       const first = String(firstName).trim();
-      const lastInitial = String(lastName).trim().slice(0, 1).toUpperCase() || '';
+      const last = String(lastName).trim();
       const last4 = customer.phone.replace(/\D/g, '').slice(-4);
 
   // Customer SMS with activation link
-  const customerMsg = `Hi ${first}! Show this text to staff at ${storeName} to claim your ${sampleLabel}.
-
-Tap to activate: ${baseUrl}/a/${slugActivate}
-
-Reply STOP to opt out.`;
+  const customerMsg = `Hi ${first}, Your ${sampleLabel} is ready for pickup! Ask a ${storeName} Staff Member to enter their PIN on this link to unlock your freebie. ${baseUrl}/a/${slugActivate}`;
       await client.messages.create({
         to: customer.phone,
         from: process.env.TWILIO_PHONE_NUMBER,
@@ -158,10 +154,7 @@ Reply STOP to opt out.`;
 
       // Store alert SMS (if store has admin phone)
       if (display.store.adminPhone) {
-  const storeMsg = `VitaDreamz Sample: ${sampleLabel} for ${first} ${lastInitial}. 
-
-Member: ${last4}
-Dashboard: qrdisplay.com/store/login/${display.store.storeId}`;
+  const storeMsg = `${display.organization?.name || 'VitaDreamz'} Sample Request: ${sampleLabel} for ${first} ${last}. ${customer.memberId}. Have them enter a STAFF PIN via the link on their phone to verify and give them the sample.`;
         await client.messages.create({
           to: display.store.adminPhone,
           from: process.env.TWILIO_PHONE_NUMBER,

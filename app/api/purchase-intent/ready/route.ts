@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
             process.env.TWILIO_ACCOUNT_SID,
             process.env.TWILIO_AUTH_TOKEN
           );
-          const sms = `Good news! Your ${product?.name || 'item'} is ready for pickup at ${store?.storeName || 'the store'}. Head on over and have them enter their PIN at checkout to redeem your ${intent.discountPercent}% off offer. Click Link for details: ${redeemUrl}`;
+          const sms = `Good news! Your ${product?.name || 'item'} is ready for pickup at ${store?.storeName || 'the store'}. Head on over and have a staff member enter their PIN at checkout to redeem your ${intent.discountPercent}% off offer. Click Link for details: ${redeemUrl}`;
           await client.messages.create({
             to: customer.phone,
             from: process.env.TWILIO_PHONE_NUMBER,

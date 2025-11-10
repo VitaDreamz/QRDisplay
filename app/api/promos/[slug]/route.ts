@@ -76,6 +76,38 @@ export async function GET(
       selectedProductSku = purchaseIntent?.productSku || null;
     }
 
+    // Get redemption details if already redeemed (for success page)
+    const redemption = await prisma.promoRedemption.findUnique({
+      where: { promoSlug: slug },
+      select: {
+        redeemedAt: true,
+        purchaseAmount: true,
+        discountAmount: true,
+      }
+    });
+
+    // Get product details for the purchased item
+    let purchasedProduct = null;
+    if (selectedProductSku) {
+      const product = await prisma.product.findUnique({
+        where: { sku: selectedProductSku },
+        select: {
+          sku: true,
+          name: true,
+          imageUrl: true,
+          price: true,
+          msrp: true,
+        }
+      });
+      if (product) {
+        purchasedProduct = {
+          ...product,
+          price: parseFloat(product.price.toString()),
+          msrp: product.msrp ? parseFloat(product.msrp.toString()) : null
+        };
+      }
+    }
+
     // Get store's available products
     const storeWithProducts = await prisma.store.findUnique({
       where: { storeId: shortlink.storeId },
@@ -121,6 +153,12 @@ export async function GET(
         zipCode: store.zipCode,
         adminPhone: store.adminPhone,
       },
+      redemption: redemption ? {
+        redeemedAt: redemption.redeemedAt,
+        purchaseAmount: redemption.purchaseAmount ? parseFloat(redemption.purchaseAmount.toString()) : null,
+        discountAmount: redemption.discountAmount ? parseFloat(redemption.discountAmount.toString()) : null,
+      } : null,
+      purchasedProduct,
       products: products.map(p => ({
         ...p,
         price: parseFloat(p.price.toString()),

@@ -1,15 +1,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 export default function PurchaseSuccessPage({ params }: { params: Promise<{ slug: string }> }) {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [slug, setSlug] = useState('');
   const [loading, setLoading] = useState(true);
   const [customerName, setCustomerName] = useState('');
   const [storeName, setStoreName] = useState('');
   const [promoOffer, setPromoOffer] = useState('');
+  const [purchaseAmount, setPurchaseAmount] = useState<number | null>(null);
+  const [discountAmount, setDiscountAmount] = useState<number | null>(null);
+  const [productImage, setProductImage] = useState<string | null>(null);
+  const [productName, setProductName] = useState<string | null>(null);
   const [optOut, setOptOut] = useState(false);
   const [submittingOptOut, setSubmittingOptOut] = useState(false);
 
@@ -25,6 +31,18 @@ export default function PurchaseSuccessPage({ params }: { params: Promise<{ slug
           setCustomerName(json.customerName || '');
           setStoreName(json.storeName || '');
           setPromoOffer(json.promoOffer || '');
+          
+          // Get redemption details (purchase amount, discount)
+          if (json.redemption) {
+            setPurchaseAmount(json.redemption.purchaseAmount);
+            setDiscountAmount(json.redemption.discountAmount);
+          }
+          
+          // Get purchased product details (image, name)
+          if (json.purchasedProduct) {
+            setProductImage(json.purchasedProduct.imageUrl);
+            setProductName(json.purchasedProduct.name);
+          }
         }
       } catch (e) {
         console.error('Failed to fetch promo details:', e);
@@ -92,6 +110,27 @@ export default function PurchaseSuccessPage({ params }: { params: Promise<{ slug
         <div className="bg-white/95 backdrop-blur rounded-3xl p-8 md:p-12 shadow-2xl mb-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Receipt</h2>
           
+          {/* Product Image */}
+          {productImage && (
+            <div className="mb-6 flex justify-center">
+              <div className="relative w-32 h-32 rounded-2xl overflow-hidden shadow-lg">
+                <Image
+                  src={productImage}
+                  alt={productName || 'Product'}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+            </div>
+          )}
+          
+          {/* Product Name */}
+          {productName && (
+            <div className="mb-6 text-center">
+              <h3 className="text-xl font-bold text-gray-900">{productName}</h3>
+            </div>
+          )}
+          
           <div className="space-y-6">
             <div className="flex items-start justify-between py-4 border-b-2 border-gray-200">
               <span className="text-gray-600 font-medium text-lg md:text-xl">Store</span>
@@ -101,10 +140,32 @@ export default function PurchaseSuccessPage({ params }: { params: Promise<{ slug
               <span className="text-gray-600 font-medium text-lg md:text-xl">Customer</span>
               <span className="text-gray-900 font-bold text-right text-lg md:text-xl">{customerName}</span>
             </div>
+            
+            {/* Show purchase amount if available */}
+            {purchaseAmount !== null && (
+              <div className="flex items-start justify-between py-4 border-b-2 border-gray-200">
+                <span className="text-gray-600 font-medium text-lg md:text-xl">Amount Paid</span>
+                <span className="text-gray-900 font-bold text-right text-lg md:text-xl">
+                  ${purchaseAmount.toFixed(2)}
+                </span>
+              </div>
+            )}
+            
             <div className="flex items-start justify-between py-4 border-b-2 border-gray-200">
               <span className="text-gray-600 font-medium text-lg md:text-xl">Discount Applied</span>
               <span className="text-emerald-600 font-bold text-right text-lg md:text-xl">{promoOffer}</span>
             </div>
+            
+            {/* Show discount amount if available */}
+            {discountAmount !== null && (
+              <div className="flex items-start justify-between py-4 border-b-2 border-gray-200">
+                <span className="text-gray-600 font-medium text-lg md:text-xl">You Saved</span>
+                <span className="text-emerald-600 font-bold text-right text-lg md:text-xl">
+                  ${discountAmount.toFixed(2)}
+                </span>
+              </div>
+            )}
+            
             <div className="flex items-start justify-between py-4">
               <span className="text-gray-600 font-medium text-lg md:text-xl">Status</span>
               <span className="text-emerald-600 font-bold text-right text-lg md:text-xl">✓ Completed</span>
@@ -135,6 +196,14 @@ export default function PurchaseSuccessPage({ params }: { params: Promise<{ slug
               </button>
             )}
           </div>
+          
+          {/* Done Button */}
+          <button
+            onClick={() => window.close()}
+            className="mt-6 w-full h-14 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-lg"
+          >
+            Done
+          </button>
         </div>
 
         {/* Footer Message */}

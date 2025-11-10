@@ -130,6 +130,31 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
 
   async function notifyReady(verifySlug: string) {
     try {
+      // Find the purchase intent to get the product SKU
+      const intent = purchaseIntents.find(i => i.verifySlug === verifySlug);
+      if (!intent) {
+        alert('Purchase request not found');
+        return;
+      }
+
+      // Check inventory for this product
+      const product = products.find(p => p.sku === intent.product.sku);
+      if (product && product.inventoryQuantity <= 0) {
+        // Product is out of stock - show custom dialog
+        const userChoice = confirm(
+          `⚠️ ${intent.product.name} is currently out of stock (0 units available).\n\n` +
+          `Click OK to order more inventory, or Cancel to wait.`
+        );
+        
+        if (userChoice) {
+          // User wants to buy more inventory - open wholesale modal
+          setShowPurchaseRequest(true);
+        }
+        // Either way, don't proceed with notifying customer
+        return;
+      }
+
+      // Inventory is available, proceed with notification
       const res = await fetch('/api/purchase-intent/ready', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

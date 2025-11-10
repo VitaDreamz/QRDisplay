@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
             process.env.TWILIO_ACCOUNT_SID,
             process.env.TWILIO_AUTH_TOKEN
           );
-          const sms = `Purchase Request at ${store.storeName}: ${org?.name || 'VitaDreamz'} - ${product.name}\nPrice: $${parseFloat(finalPrice).toFixed(2)} (${discountPercent}% off $${parseFloat(originalPrice).toFixed(2)} MSRP)\n\nCheck to see if stock available & mark as ready: qrdisplay.com/store/login/${store.storeId}`;
+          const sms = `Purchase Request at ${store.storeName}: ${org?.name || 'VitaDreamz'} - ${product.name}\nPrice: $${parseFloat(finalPrice).toFixed(2)} (${discountPercent}% off $${parseFloat(originalPrice).toFixed(2)} MSRP)\n\nCheck stock & mark ready at qrdisplay.com/store/login/${store.storeId} in your dashboard.`;
           await client.messages.create({
             to: store.adminPhone,
             from: process.env.TWILIO_PHONE_NUMBER,

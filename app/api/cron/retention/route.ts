@@ -87,14 +87,21 @@ export async function GET(request: NextRequest) {
           const isFirstRetention = retentionDay === minDay;
           const isLastRetention = retentionDay === maxDay;
           const returningPromo = customer.store?.returningCustomerPromo || '10% Off In-Store Purchase';
+          const promoLink = customer.returningPromoSlug ? `${baseUrl}/p/${customer.returningPromoSlug}` : null;
 
           let message: string;
           if (isFirstRetention) {
-            message = `Hi ${customer.firstName}! Hope you're enjoying your ${customer.sampleChoice}! ${customer.store?.storeName} is offering ${returningPromo} for returning customers. Come back anytime!\n\nReply STOP to opt out.`;
+            message = promoLink
+              ? `Hi ${customer.firstName}! Hope you're enjoying your ${customer.sampleChoice}! ${customer.store?.storeName} is offering ${returningPromo} for returning customers. Redeem at ${promoLink} anytime! Reply STOP to opt out.`
+              : `Hi ${customer.firstName}! Hope you're enjoying your ${customer.sampleChoice}! ${customer.store?.storeName} is offering ${returningPromo} for returning customers. Come back anytime! Reply STOP to opt out.`;
           } else if (isLastRetention) {
-            message = `${customer.firstName}, we miss you at ${customer.store?.storeName}! Still offering ${returningPromo} on your next purchase. Stop by soon!\n\nReply STOP to opt out.`;
+            message = promoLink
+              ? `${customer.firstName}, we miss you at ${customer.store?.storeName}! Still offering ${returningPromo} on your next purchase. Redeem at ${promoLink} today! Reply STOP to opt out.`
+              : `${customer.firstName}, we miss you at ${customer.store?.storeName}! Still offering ${returningPromo} on your next purchase. Stop by soon! Reply STOP to opt out.`;
           } else {
-            message = `Hi ${customer.firstName}! Reminder: ${customer.store?.storeName} offers ${returningPromo} for returning customers like you!\n\nReply STOP to opt out.`;
+            message = promoLink
+              ? `Hi ${customer.firstName}! Reminder: ${customer.store?.storeName} offers ${returningPromo} for returning customers like you. Redeem at ${promoLink} before it expires! Reply STOP to opt out.`
+              : `Hi ${customer.firstName}! Reminder: ${customer.store?.storeName} offers ${returningPromo} for returning customers like you! Reply STOP to opt out.`;
           }
 
           try {

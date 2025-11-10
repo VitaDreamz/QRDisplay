@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
           } else if (isLastFollowup) {
             message = `Hi ${customer.firstName}, just checking in one last time before your ${customer.store?.promoOffer} at ${customer.store?.storeName} expires. Click here to redeem: ${baseUrl}/p/${customer.promoSlug}\n\nReply STOP to opt out.`;
           } else {
-            message = `Hi ${customer.firstName}! Reminder: Get ${customer.store?.promoOffer} at ${customer.store?.storeName}!\n\nRedeem: ${baseUrl}/p/${customer.promoSlug}\n\nReply STOP to opt out.`;
+            message = `Hi ${customer.firstName}! Reminder: Get ${customer.store?.promoOffer} at ${customer.store?.storeName}! Redeem at ${baseUrl}/p/${customer.promoSlug} before it expires. Reply STOP to opt out.`;
           }
 
           try {

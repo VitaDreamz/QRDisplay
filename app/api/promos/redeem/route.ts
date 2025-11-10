@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { sendBrandPromoRedemptionEmail } from '@/lib/email';
 import { addCustomerTimelineEvent, updateCustomerStage } from '@/lib/shopify';
 import { awardInStoreSalePoints } from '@/lib/staff-points';
+import { generateSlug } from '@/lib/slugs';
 
 export async function POST(request: NextRequest) {
   try {
@@ -239,6 +240,12 @@ export async function POST(request: NextRequest) {
     }
 
     // 8. Update customer
+    // Generate returning customer promo slug if they don't have one yet
+    let returningPromoSlug = customer.returningPromoSlug;
+    if (!returningPromoSlug) {
+      returningPromoSlug = generateSlug('p');
+    }
+    
     const updatedCustomer = await prisma.customer.update({
       where: { id: customer.id },
       data: {
@@ -246,11 +253,13 @@ export async function POST(request: NextRequest) {
         promoRedeemedAt: new Date(),
         currentStage: 'purchased',
         stageChangedAt: new Date(),
-        promoRedeemedByStaffId: staffMember?.id
+        promoRedeemedByStaffId: staffMember?.id,
+        returningPromoSlug
       }
     });
     
     console.log(`✅ Customer ${updatedCustomer.memberId} updated to 'purchased' stage (was: ${customer.currentStage})`);
+    console.log(`✅ Returning promo slug: ${returningPromoSlug}`);
 
     // 9. Mark shortlink used
     await prisma.shortlink.update({

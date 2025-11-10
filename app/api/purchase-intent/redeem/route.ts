@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { addCustomerTimelineEvent, updateCustomerStage, addStoreCredit } from '@/lib/shopify';
+import { generateSlug } from '@/lib/slugs';
 
 export async function POST(request: NextRequest) {
   try {
@@ -57,11 +58,23 @@ export async function POST(request: NextRequest) {
 
     // Update customer status to "purchased"
     try {
+      // Generate returning customer promo slug if they don't have one yet
+      let returningPromoSlug = null;
+      const existingCustomer = await prisma.customer.findUnique({
+        where: { id: intent.customerId },
+        select: { returningPromoSlug: true }
+      });
+      
+      if (!existingCustomer?.returningPromoSlug) {
+        returningPromoSlug = generateSlug('p');
+      }
+      
       const customer = await prisma.customer.update({
         where: { id: intent.customerId },
         data: {
           currentStage: 'purchased',
-          stageChangedAt: new Date()
+          stageChangedAt: new Date(),
+          ...(returningPromoSlug && { returningPromoSlug })
         }
       });
       

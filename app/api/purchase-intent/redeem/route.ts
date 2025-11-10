@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { addCustomerTimelineEvent, updateCustomerStage } from '@/lib/shopify';
+import { addCustomerTimelineEvent, updateCustomerStage, addStoreCredit } from '@/lib/shopify';
 
 export async function POST(request: NextRequest) {
   try {
@@ -116,6 +116,41 @@ export async function POST(request: NextRequest) {
       } catch (e) {
         console.warn('Failed to increment staff salesGenerated:', e);
       }
+    }
+
+    // Apply discount match based on store's subscription tier
+    try {
+      const store = await prisma.store.findUnique({
+        where: { id: intent.storeId },
+        select: { 
+          storeId: true,
+          storeName: true,
+          promoReimbursementRate: true,
+          subscriptionTier: true
+        }
+      });
+
+      if (store && intent.discountPercent > 0) {
+        // Calculate the discount amount given to customer
+        const discountAmount = Number(intent.originalPrice) - Number(intent.finalPrice);
+        
+        // Calculate reimbursement based on subscription tier
+        const reimbursementAmount = discountAmount * (store.promoReimbursementRate / 100);
+        
+        if (reimbursementAmount > 0) {
+          await addStoreCredit(
+            store.storeId,
+            reimbursementAmount,
+            `${store.promoReimbursementRate}% Discount Match - Purchase Reimbursement`,
+            `purchase-${intent.id}` // Reference for tracking
+          );
+          
+          console.log(`✅ Added $${reimbursementAmount.toFixed(2)} discount match to store ${store.storeId} (${store.promoReimbursementRate}% of $${discountAmount.toFixed(2)} discount)`);
+        }
+      }
+    } catch (creditErr) {
+      console.error('❌ Failed to apply discount match:', creditErr);
+      // Don't fail the purchase if discount match fails
     }
 
     return NextResponse.json({ 

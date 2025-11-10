@@ -581,7 +581,7 @@ model PromoRedemption {
   store         Store     @relation(fields: [storeId], references: [id])
   
   orgId         String
-  organization  Organization @relation(fields: [orgId], references: [orgId])
+  organization  Organization @relation(fields: [orgId], references: [id])
   
   promoOffer    String
   promoSlug     String    @unique

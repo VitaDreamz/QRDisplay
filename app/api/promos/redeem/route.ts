@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
         data: {
           customerId: customer.id,
           storeId: store.id,
-          orgId: store.orgId,
+          orgId: customer.orgId, // Use customer's orgId (CUID), not store.orgId string
           promoOffer: store.promoOffer,
           promoSlug: slug,
           redeemedAt: new Date(),

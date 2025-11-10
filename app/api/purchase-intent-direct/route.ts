@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     const customer = await prisma.customer.create({
       data: {
         memberId,
-        orgId: display.assignedOrgId || display.organization!.orgId,
+        orgId: display.assignedOrgId || display.organization!.id,
         storeId: display.store.storeId,
         firstName: String(firstName).trim(),
         lastName: String(lastName).trim(),

@@ -197,12 +197,20 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
     // Always preserve shopifyCustomerId if it exists (for tagging purposes)
     const shopifyCustomerId = progress?.shopifyCustomerId || undefined;
     
+    // Preserve orgId and existingStoreId for products step
+    const orgId = progress?.orgId;
+    const existingStoreId = progress?.existingStoreId;
+    const isNewLocation = progress?.isNewLocation;
+    
     // Persist current form fields to progress and navigate
     saveProgress({
       currentStep: 8,
       storeName: finalStoreName,
       parentAccountName,
       shopifyCustomerId,
+      orgId, // Pass through orgId
+      existingStoreId, // Pass through existingStoreId
+      isNewLocation, // Pass through isNewLocation flag
       hasMultipleLocations,
       centralizedPurchasing,
       locationName,

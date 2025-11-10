@@ -41,6 +41,7 @@ export interface WizardProgress {
   wholesaleBusinessName?: string; // From Shopify firstName (e.g. "Nature's Elite" without "Wholesale")
   isNewLocation?: boolean;
   existingStoreId?: string; // If store already exists in database
+  orgId?: string; // Organization ID (saved from existing store for products step)
   // Multi-location fields
   hasMultipleLocations?: boolean;
   centralizedPurchasing?: boolean;

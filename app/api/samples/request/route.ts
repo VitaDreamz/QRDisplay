@@ -145,7 +145,7 @@ export async function POST(req: NextRequest) {
       const last4 = customer.phone.replace(/\D/g, '').slice(-4);
 
   // Customer SMS with activation link
-  const customerMsg = `Hi ${first}, Your ${sampleLabel} is ready for pickup! Ask a ${storeName} Staff Member to enter their PIN on this link to unlock your freebie. ${baseUrl}/a/${slugActivate}`;
+  const customerMsg = `Hi ${first}, Your ${sampleLabel} is ready for pickup! Ask a ${storeName} Staff Member to enter their PIN at ${baseUrl}/a/${slugActivate} to unlock your freebie.`;
       await client.messages.create({
         to: customer.phone,
         from: process.env.TWILIO_PHONE_NUMBER,

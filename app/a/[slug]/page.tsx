@@ -10,6 +10,8 @@ export default function ActivateShortlinkPage({ params }: { params: Promise<{ sl
   const [requiresPin, setRequiresPin] = useState(false);
   const [storeName, setStoreName] = useState<string>('');
   const [sampleChoice, setSampleChoice] = useState<string>('');
+  const [productImage, setProductImage] = useState<string | null>(null);
+  const [productPrice, setProductPrice] = useState<number | null>(null);
   const [pin, setPin] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<{ storeName: string; sampleChoice: string; memberId: string } | null>(null);
@@ -31,6 +33,8 @@ export default function ActivateShortlinkPage({ params }: { params: Promise<{ sl
           setRequiresPin(!!json.requiresPin);
           setStoreName(json.storeName || 'the store');
           setSampleChoice(json.sampleChoice || 'your sample');
+          setProductImage(json.productImage);
+          setProductPrice(json.productPrice);
         }
       } catch (e) {
         setLinkError('Network error');
@@ -137,16 +141,35 @@ export default function ActivateShortlinkPage({ params }: { params: Promise<{ sl
   return (
     <div className="min-h-svh bg-gradient-to-br from-purple-700 to-purple-500 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-2xl">
+        {/* Product Image & Details */}
+        {productImage && (
+          <div className="flex flex-col items-center mb-8">
+            <div className="w-48 h-48 md:w-56 md:h-56 bg-white rounded-3xl shadow-2xl p-4 mb-4">
+              <img 
+                src={productImage} 
+                alt={sampleChoice}
+                className="w-full h-full object-contain"
+              />
+            </div>
+            {productPrice && (
+              <div className="bg-white/20 backdrop-blur rounded-full px-6 py-2 mb-2">
+                <span className="text-white/60 text-2xl line-through mr-3">${productPrice.toFixed(2)}</span>
+                <span className="text-white text-3xl md:text-4xl font-black">FREE</span>
+              </div>
+            )}
+          </div>
+        )}
+        
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-4">
-            Enter Staff PIN
-          </h1>
-          <p className="text-xl md:text-2xl text-white/90">
-            Confirm redemption for {sampleChoice}
+          <p className="text-xl md:text-2xl text-white/75 mb-2">
+            {storeName}
           </p>
-          <p className="text-lg text-white/75 mt-2">
-            at {storeName}
+          <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-4">
+            {sampleChoice}
+          </h1>
+          <p className="text-lg md:text-xl text-white/90">
+            Enter Staff PIN to Confirm
           </p>
         </div>
 

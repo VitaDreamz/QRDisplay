@@ -18,9 +18,21 @@ export async function GET(
 
     let storeName: string | null = null;
     let sampleChoice: string | null = null;
+    let productImage: string | null = null;
+    let productPrice: number | null = null;
+    
     if (short.memberId) {
       const cust = await prisma.customer.findUnique({ where: { memberId: short.memberId } });
-      if (cust) sampleChoice = cust.sampleChoice;
+      if (cust) {
+        sampleChoice = cust.sampleChoice;
+        
+        // Get product details
+        const product = await prisma.product.findUnique({ where: { sku: cust.sampleChoice } });
+        if (product) {
+          productImage = product.imageUrl;
+          productPrice = Number(product.retailPrice);
+        }
+      }
       if (cust?.storeId) {
         const store = await prisma.store.findUnique({ where: { storeId: cust.storeId } });
         storeName = store?.storeName || null;
@@ -37,6 +49,8 @@ export async function GET(
       used,
       storeName,
       sampleChoice,
+      productImage,
+      productPrice,
     });
   } catch (err) {
     console.error('Shortlink lookup error:', err);

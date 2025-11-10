@@ -172,16 +172,26 @@ export default function PurchaseSuccessPage({ params }: { params: Promise<{ slug
             </div>
           </div>
 
-          {/* Opt Out Section */}
+          {/* Done Button - Primary Action */}
           <div className="mt-8 pt-6 border-t-2 border-gray-200">
+            <button
+              onClick={() => router.push('/')}
+              className="w-full h-14 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-lg"
+            >
+              Done
+            </button>
+          </div>
+
+          {/* Opt Out Section - Secondary/Optional */}
+          <div className="mt-6 pt-6 border-t border-gray-200">
             <label className="flex items-start gap-3 cursor-pointer group">
               <input
                 type="checkbox"
                 checked={optOut}
                 onChange={(e) => setOptOut(e.target.checked)}
-                className="w-5 h-5 mt-0.5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 focus:ring-offset-0 cursor-pointer"
+                className="w-5 h-5 mt-0.5 rounded border-gray-300 text-gray-600 focus:ring-gray-500 focus:ring-offset-0 cursor-pointer"
               />
-              <span className="text-sm text-gray-600 group-hover:text-gray-900">
+              <span className="text-sm text-gray-500 group-hover:text-gray-700">
                 Opt out of future promotional messages from {storeName}
               </span>
             </label>
@@ -190,20 +200,12 @@ export default function PurchaseSuccessPage({ params }: { params: Promise<{ slug
               <button
                 onClick={handleOptOut}
                 disabled={submittingOptOut}
-                className="mt-4 w-full h-12 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700 active:scale-[0.98] transition-all disabled:opacity-50"
+                className="mt-4 w-full h-12 bg-gray-500 text-white rounded-lg font-semibold hover:bg-gray-600 active:scale-[0.98] transition-all disabled:opacity-50"
               >
                 {submittingOptOut ? 'Processing…' : 'Confirm Opt Out'}
               </button>
             )}
           </div>
-          
-          {/* Done Button */}
-          <button
-            onClick={() => window.close()}
-            className="mt-6 w-full h-14 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-lg"
-          >
-            Done
-          </button>
         </div>
 
         {/* Footer Message */}

@@ -145,6 +145,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
       followupDays: store.followupDays || [4, 12],
       status: store.status || 'active',
       displayId: store.displays?.[0]?.displayId || '',
+      subscriptionTier: store.subscriptionTier || 'free',
       // IMPORTANT: Preserve availableSamples so they don't reset
       availableSamples: store.availableSamples || []
     });
@@ -1364,6 +1365,20 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                   onChange={(e) => setStoreForm({ ...storeForm, promoOffer: e.target.value })}
                   className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Subscription Tier</label>
+                <select
+                  value={storeForm.subscriptionTier}
+                  onChange={(e) => setStoreForm({ ...storeForm, subscriptionTier: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="test">Test - $0/mo (50% Match) - Early Adopters</option>
+                  <option value="free">Free - $0/mo (10% Match)</option>
+                  <option value="basic">Basic - $150/mo (25% Match)</option>
+                  <option value="dreamer">Dreamer - $249/mo (50% Match)</option>
+                  <option value="mega">Mega - $499/mo (100% Match)</option>
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Status</label>

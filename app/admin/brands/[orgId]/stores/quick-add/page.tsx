@@ -63,7 +63,7 @@ export default function QuickAddStorePage() {
   const [purchasingEmail, setPurchasingEmail] = useState('');
   const [purchasingSameAsOwner, setPurchasingSameAsOwner] = useState(false);
   
-  const [subscriptionTier] = useState<SubscriptionTier>('free'); // Default to free tier
+  const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>('free'); // Default to free tier
   
   // Products and Inventory
   const [products, setProducts] = useState<Product[]>([]);
@@ -424,7 +424,35 @@ export default function QuickAddStorePage() {
               </div>
 
               <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-6 shadow-lg">
-                <h2 className="text-xl font-semibold text-white mb-4">👤 Owner Contact</h2>
+                <h2 className="text-xl font-semibold text-white mb-4">� Subscription Tier</h2>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-purple-200 mb-2">Select Tier</label>
+                    <select
+                      value={subscriptionTier}
+                      onChange={(e) => setSubscriptionTier(e.target.value as SubscriptionTier)}
+                      className="w-full border-2 border-white/30 bg-white/5 backdrop-blur-sm rounded-lg px-4 py-2 text-white focus:border-purple-400 focus:outline-none"
+                    >
+                      <option value="test" className="bg-gray-800">Test Tier - $0/mo (50% Discount Match) - For Early Adopters</option>
+                      <option value="free" className="bg-gray-800">Free Tier - $0/mo (10% Discount Match)</option>
+                      <option value="basic" className="bg-gray-800">Basic Tier - $150/mo (25% Discount Match)</option>
+                      <option value="dreamer" className="bg-gray-800">Dreamer Tier - $249/mo (50% Discount Match)</option>
+                      <option value="mega" className="bg-gray-800">Mega Tier - $499/mo (100% Discount Match)</option>
+                    </select>
+                    <p className="text-xs text-purple-300 mt-2">
+                      {subscriptionTier === 'test' && '🎁 Test tier: Same benefits as Dreamer but free for early adopters'}
+                      {subscriptionTier === 'free' && 'Limited features, 10% discount match on customer purchases'}
+                      {subscriptionTier === 'basic' && '25% discount match, good for small stores'}
+                      {subscriptionTier === 'dreamer' && '50% discount match, perfect for growing stores'}
+                      {subscriptionTier === 'mega' && '100% discount match, best for high-volume stores'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-6 shadow-lg">
+                <h2 className="text-xl font-semibold text-white mb-4">�👤 Owner Contact</h2>
                 
                 <div className="space-y-4">
                   <div>

@@ -75,7 +75,8 @@ export async function PATCH(
       promoOffer,
       followupDays,
       status,
-      displayId
+      displayId,
+      subscriptionTier
     } = body;
 
     // Get current store data to check for display changes
@@ -166,6 +167,7 @@ export async function PATCH(
           ...(promoOffer !== undefined && { promoOffer }),
           ...(followupDays !== undefined && { followupDays }),
           ...(status !== undefined && { status }),
+          ...(subscriptionTier !== undefined && { subscriptionTier }),
           // Preserve availableSamples if not provided (don't reset to default)
           ...(body.availableSamples !== undefined && { availableSamples: body.availableSamples })
         }

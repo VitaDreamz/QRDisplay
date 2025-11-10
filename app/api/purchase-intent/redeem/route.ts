@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       });
       
       if (!existingCustomer?.returningPromoSlug) {
-        returningPromoSlug = generateSlug('p');
+        returningPromoSlug = generateSlug();
       }
       
       const customer = await prisma.customer.update({

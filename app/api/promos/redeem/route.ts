@@ -243,7 +243,7 @@ export async function POST(request: NextRequest) {
     // Generate returning customer promo slug if they don't have one yet
     let returningPromoSlug = customer.returningPromoSlug;
     if (!returningPromoSlug) {
-      returningPromoSlug = generateSlug('p');
+      returningPromoSlug = generateSlug();
     }
     
     const updatedCustomer = await prisma.customer.update({

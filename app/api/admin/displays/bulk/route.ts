@@ -88,7 +88,7 @@ export async function PATCH(req: NextRequest) {
         
         // Assigning to org = ONLY change org, preserve current state!
         data = {
-          assignedOrgId: rawValue
+          assignedOrgId: org.id // Use CUID, not orgId string
           // Don't touch: status, storeId, activatedAt
           // Let display keep its current activation state
         };

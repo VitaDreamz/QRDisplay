@@ -21,12 +21,14 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
     }
 
-    // If assignedOrgId provided, verify it exists
+    // If assignedOrgId provided, verify it exists and get the CUID
+    let orgCuid: string | null = null;
     if (assignedOrgId) {
       const org = await prisma.organization.findUnique({ where: { orgId: assignedOrgId } });
       if (!org) {
         return NextResponse.json({ error: 'Organization not found' }, { status: 400 });
       }
+      orgCuid = org.id; // Use CUID, not orgId string
     }
 
     // Ensure display exists
@@ -37,7 +39,8 @@ export async function PATCH(
 
     const updateData: any = {};
     if (typeof status === 'string') updateData.status = status;
-    if (typeof assignedOrgId === 'string' || assignedOrgId === null) updateData.assignedOrgId = assignedOrgId;
+    if (typeof assignedOrgId === 'string') updateData.assignedOrgId = orgCuid; // Use CUID
+    if (assignedOrgId === null) updateData.assignedOrgId = null; // Allow clearing
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });

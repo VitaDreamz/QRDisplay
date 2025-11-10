@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
           { name: { equals: 'VitaDreamz', mode: 'insensitive' } },
         ],
       },
-      select: { orgId: true, name: true },
+      select: { id: true, orgId: true, name: true },
     });
     
     if (!vitaDreamz) {
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
         ownerOrgId: 'ORG-QRDISPLAY',
         // Single-brand MVP: default all new displays as sold to VitaDreamz
         status: 'sold',
-        assignedOrgId: vitaDreamz.orgId,
+        assignedOrgId: vitaDreamz.id, // Use CUID, not orgId string
         qrPngUrl: qrDataUrl,
         targetUrl: url,
         createdAt: new Date()

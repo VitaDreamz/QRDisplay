@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
       
       // Update Shopify stage and add timeline event
       const org = await prisma.organization.findUnique({
-        where: { orgId: customer.orgId }
+        where: { id: customer.orgId } // customer.orgId is CUID, matches Organization.id
       });
       
       if (org?.shopifyActive && (customer as any).shopifyCustomerId) {

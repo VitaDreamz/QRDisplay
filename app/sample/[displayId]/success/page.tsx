@@ -47,9 +47,9 @@ export default async function SampleSuccessPage({
     }
   });
   
-  // Fetch organization data (fetch all fields to avoid TS caching issues)
+  // Fetch organization data using id (customer.orgId is now a CUID)
   const organization = await prisma.organization.findUnique({
-    where: { orgId: customer.orgId }
+    where: { id: customer.orgId }
   });
   
   if (!store || !organization) {

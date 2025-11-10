@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
     // Send brand notification email (fire-and-forget)
     try {
       const org = await prisma.organization.findUnique({
-        where: { orgId: customer.orgId }
+        where: { id: customer.orgId } // customer.orgId is CUID, matches Organization.id
       });
       if (org?.supportEmail) {
         await sendBrandSampleRedemptionEmail({

@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       
       // Update Shopify with in-store purchase
       const org = await prisma.organization.findUnique({
-        where: { orgId: customer.orgId }
+        where: { id: customer.orgId } // customer.orgId is CUID, matches Organization.id
       });
       
       const store = await prisma.store.findUnique({

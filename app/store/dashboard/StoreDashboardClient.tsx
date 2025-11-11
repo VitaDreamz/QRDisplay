@@ -100,6 +100,10 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
     newQuantity: number;
     reason: string;
   } | null>(null);
+  const [expandedInventory, setExpandedInventory] = useState<string | null>(null);
+  const [inventoryHistory, setInventoryHistory] = useState<any[]>([]);
+  const [inventoryHistoryProduct, setInventoryHistoryProduct] = useState<string | null>(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   
   // Modals
   const [editingPromo, setEditingPromo] = useState(false);
@@ -870,6 +874,73 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
     } catch (err) {
       console.error('Error updating inventory:', err);
     }
+  };
+
+  // Mark incoming order as received
+  const markAsReceived = async (incomingOrderId: string) => {
+    try {
+      const res = await fetch('/api/store/inventory/receive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ incomingOrderId })
+      });
+
+      if (res.ok) {
+        await fetchProducts(); // Refresh to show updated inventory
+        console.log('✅ Order marked as received');
+      } else {
+        console.error('Failed to mark order as received');
+      }
+    } catch (err) {
+      console.error('Error marking order as received:', err);
+    }
+  };
+
+  // Load inventory history
+  const loadInventoryHistory = async (productSku: string) => {
+    setLoadingHistory(true);
+    setInventoryHistoryProduct(productSku);
+    try {
+      const storeDbId = (data.store as any).id;
+      const res = await fetch(`/api/store/inventory/history?productSku=${productSku}&storeId=${storeDbId}`);
+      if (res.ok) {
+        const historyData = await res.json();
+        setInventoryHistory(historyData.transactions || []);
+      } else {
+        console.error('Failed to fetch inventory history');
+      }
+    } catch (err) {
+      console.error('Error fetching inventory history:', err);
+    }
+    setLoadingHistory(false);
+  };
+
+  // Format transaction type for display
+  const formatTransactionType = (type: string) => {
+    const typeMap: Record<string, string> = {
+      'restock': '📦 Restocked',
+      'wholesale_ordered': '🛒 Wholesale Ordered',
+      'wholesale_shipped': '🚚 Shipped',
+      'wholesale_received': '✅ Received',
+      'sample_redemption': '🎁 Sample Redeemed',
+      'promo_sale': '💰 Sale (Promo)',
+      'hold_created': '🔒 Hold Created',
+      'hold_released': '🔓 Hold Released',
+      'hold_expired': '⏰ Hold Expired',
+      'manual_adjustment': '✏️ Manual Adjustment'
+    };
+    return typeMap[type] || type;
+  };
+
+  // Format date
+  const formatDate = (date: string | Date) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   useEffect(() => {

@@ -36,6 +36,14 @@ export async function GET(request: NextRequest) {
           storeInventory: {
             where: {
               storeId: storeId
+            },
+            include: {
+              incomingOrders: {
+                where: {
+                  status: { notIn: ['received', 'cancelled'] }
+                },
+                orderBy: { createdAt: 'desc' }
+              }
             }
           }
         }
@@ -64,12 +72,19 @@ export async function GET(request: NextRequest) {
     }
     
     // Transform inventory data for easier consumption
-    const productsWithInventory = products.map((product: any) => ({
-      ...product,
-      inventoryQuantity: product.storeInventory?.[0]?.quantityOnHand || 0,
-      inventoryAvailable: product.storeInventory?.[0]?.quantityAvailable || 0,
-      storeInventory: undefined // Remove the array to keep response clean
-    }));
+    const productsWithInventory = products.map((product: any) => {
+      const inventory = product.storeInventory?.[0];
+      return {
+        ...product,
+        inventoryQuantity: inventory?.quantityOnHand || 0,
+        inventoryAvailable: inventory?.quantityAvailable || 0,
+        inventoryIncoming: inventory?.quantityIncoming || 0,
+        inventoryReserved: inventory?.quantityReserved || 0,
+        lowStockThreshold: inventory?.lowStockThreshold || 10,
+        incomingOrders: inventory?.incomingOrders || [],
+        storeInventory: undefined // Remove the array to keep response clean
+      };
+    });
     
     return NextResponse.json({ products: productsWithInventory });
   } catch (error) {

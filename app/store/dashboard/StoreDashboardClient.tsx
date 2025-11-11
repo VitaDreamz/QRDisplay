@@ -3649,12 +3649,20 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                         >
                           {/* Mobile: Image + Title + Quantity in row */}
                           <div className="flex items-start gap-3 sm:contents">
-                            {product.imageUrl && (
+                            {product.imageUrl ? (
                               <img
                                 src={product.imageUrl}
                                 alt={product.name}
                                 className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded flex-shrink-0"
+                                onError={(e) => {
+                                  console.error('Failed to load image:', product.imageUrl);
+                                  e.currentTarget.style.display = 'none';
+                                }}
                               />
+                            ) : (
+                              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-200 rounded flex-shrink-0 flex items-center justify-center text-gray-400 text-xs">
+                                No image
+                              </div>
                             )}
                             <div className="flex-1 min-w-0">
                               <div className="font-bold text-sm sm:text-base">{product.name}</div>

@@ -186,18 +186,23 @@ model StoreInventory {
   storeId         String
   productSku      String
   
-  quantityOnHand  Int      @default(0)  // Physical inventory in store
-  quantityReserved Int     @default(0)  // Reserved for customer holds (2hr)
-  quantityAvailable Int    @default(0)  // onHand - reserved (computed)
+  quantityOnHand     Int      @default(0)  // Physical inventory in store
+  quantityIncoming   Int      @default(0)  // Ordered but not yet received
+  quantityReserved   Int      @default(0)  // Reserved for customer holds (24hr)
+  quantityAvailable  Int      @default(0)  // onHand - reserved (computed)
+  
+  lowStockThreshold  Int      @default(10) // Alert when onHand falls below this
   
   lastRestocked   DateTime?
   updatedAt       DateTime @updatedAt
   
   store   Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productSku], references: [sku])
+  incomingOrders IncomingInventoryOrder[]
   
   @@unique([storeId, productSku])
   @@index([storeId])
+  @@index([quantityOnHand]) // For low stock queries
   @@map("store_inventory")
 }
 
@@ -207,7 +212,7 @@ model InventoryTransaction {
   storeId     String
   productSku  String
   
-  type        String   // "restock", "sample_redemption", "promo_sale", "hold_created", "hold_released", "hold_expired"
+  type        String   // "restock", "wholesale_ordered", "wholesale_shipped", "wholesale_received", "sample_redemption", "promo_sale", "hold_created", "hold_released", "hold_expired", "manual_adjustment"
   quantity    Int      // Positive for incoming, negative for outgoing
   
   customerId  String?  // If related to a customer action
@@ -223,10 +228,12 @@ model InventoryTransaction {
   
   @@index([storeId, createdAt])
   @@index([expiresAt]) // For finding expired holds
+  @@index([productSku])
+  @@index([type])
   @@map("inventory_transactions")
 }
 
-// Product Holds (2-hour pickup reservations)
+// Product Holds (24-hour pickup reservations)
 model ProductHold {
   id          String   @id @default(cuid())
   storeId     String
@@ -237,7 +244,7 @@ model ProductHold {
   status      String   @default("active") // active, picked_up, expired, cancelled
   
   createdAt   DateTime @default(now())
-  expiresAt   DateTime // 2 hours from creation
+  expiresAt   DateTime // 24 hours from creation
   notifiedAt  DateTime? // When store was notified
   pickedUpAt  DateTime?
   
@@ -248,6 +255,49 @@ model ProductHold {
   @@index([expiresAt])
   @@index([customerId])
   @@map("product_holds")
+}
+
+// Incoming Inventory Orders (Wholesale orders in transit)
+model IncomingInventoryOrder {
+  id                String   @id @default(cuid())
+  storeId           String
+  productSku        String
+  storeInventoryId  String
+  
+  shopifyOrderId    String   // Shopify order ID
+  shopifyOrderNumber String  // Human-readable #1234
+  
+  quantityOrdered   Int      // Number of units ordered
+  quantityReceived  Int @default(0) // Number actually received
+  
+  status            String @default("ordered") // ordered, paid, shipped, in_transit, delivered, received, cancelled
+  
+  // Tracking information
+  trackingNumber    String?
+  carrier           String?
+  trackingUrl       String?
+  
+  // Timeline
+  orderedAt         DateTime
+  paidAt            DateTime?
+  shippedAt         DateTime?
+  estimatedDelivery DateTime?
+  deliveredAt       DateTime?
+  receivedAt        DateTime? // When store marks as received in system
+  
+  // Webhook data
+  shopifyFulfillmentId String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  storeInventory StoreInventory @relation(fields: [storeInventoryId], references: [id], onDelete: Cascade)
+  
+  @@index([storeId])
+  @@index([shopifyOrderId])
+  @@index([status])
+  @@index([storeInventoryId])
+  @@map("incoming_inventory_orders")
 }
 
 // Store Credit Transactions

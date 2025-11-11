@@ -14,6 +14,7 @@ const prisma = new PrismaClient();
 
 interface ShopifyOrder {
   id: number;
+  order_number?: number;
   email: string;
   phone: string | null;
   total_price: string;
@@ -32,6 +33,14 @@ interface ShopifyOrder {
     title: string;
     quantity: number;
     price: string;
+    sku?: string; // SKU for wholesale detection
+  }>;
+  fulfillments?: Array<{
+    id: number;
+    tracking_number?: string;
+    tracking_company?: string;
+    tracking_url?: string;
+    estimated_delivery_at?: string;
   }>;
 }
 
@@ -96,8 +105,10 @@ export async function POST(req: NextRequest) {
     // Handle different webhook topics
     if (topic === 'orders/paid' || topic === 'orders/create') {
       await handleOrderPaid(org.id, order, topic);
+      await handleWholesaleOrder(org.id, order, topic); // Process wholesale orders
     } else if (topic === 'orders/fulfilled') {
       await handleOrderFulfilled(org.id, order, topic);
+      await handleWholesaleFulfilled(org.id, order, topic); // Update wholesale tracking
     } else {
       log(`ℹ️  Ignoring webhook topic: ${topic}`);
       console.log(`ℹ️  Ignoring webhook topic: ${topic}`);
@@ -473,6 +484,226 @@ async function handleOrderFulfilled(orgId: string, order: ShopifyOrder, topic: s
       error instanceof Error ? error.message : 'Unknown error'
     );
     throw error;
+  }
+}
+
+/**
+ * Handle wholesale orders when paid
+ * Detects wholesale SKUs (ending in -BX) and creates incoming inventory records
+ */
+async function handleWholesaleOrder(orgId: string, order: ShopifyOrder, topic: string) {
+  try {
+    // Check if order contains wholesale products (SKUs ending in -BX)
+    const wholesaleItems = order.line_items.filter(item => item.sku?.endsWith('-BX'));
+    
+    if (wholesaleItems.length === 0) {
+      return; // Not a wholesale order
+    }
+
+    console.log(`📦 Wholesale order detected with ${wholesaleItems.length} wholesale items`);
+
+    // Find which store this order is for (via shopifyCustomerId)
+    const store = await prisma.store.findFirst({
+      where: { 
+        shopifyCustomerId: order.customer.id.toString(),
+        orgId // Ensure store belongs to this organization
+      }
+    });
+
+    if (!store) {
+      console.error(`❌ Store not found for wholesale order. Shopify Customer ID: ${order.customer.id}`);
+      return;
+    }
+
+    console.log(`✅ Found store: ${store.storeName} (${store.storeId})`);
+
+    // Process each wholesale item
+    for (const item of wholesaleItems) {
+      try {
+        if (!item.sku) continue;
+
+        // Convert wholesale SKU to retail SKU (VD-SB-30-BX → VD-SB-30)
+        const retailSku = item.sku.replace(/-BX$/, '');
+        
+        // Get wholesale product to find unitsPerBox
+        const wholesaleProduct = await prisma.product.findUnique({
+          where: { sku: item.sku }
+        });
+
+        if (!wholesaleProduct || !wholesaleProduct.unitsPerBox) {
+          console.error(`❌ Wholesale product ${item.sku} not found or missing unitsPerBox`);
+          continue;
+        }
+
+        const unitsOrdered = item.quantity * wholesaleProduct.unitsPerBox;
+        console.log(`📦 ${item.quantity}x ${item.sku} = ${unitsOrdered} units of ${retailSku}`);
+
+        // Get or create store inventory
+        let inventory = await prisma.storeInventory.findUnique({
+          where: { 
+            storeId_productSku: { 
+              storeId: store.id, 
+              productSku: retailSku 
+            } 
+          }
+        });
+
+        if (!inventory) {
+          console.log(`➕ Creating new inventory record for ${retailSku}`);
+          inventory = await prisma.storeInventory.create({
+            data: {
+              storeId: store.id,
+              productSku: retailSku,
+              quantityOnHand: 0,
+              quantityIncoming: unitsOrdered,
+              quantityReserved: 0,
+              quantityAvailable: 0,
+              lowStockThreshold: 10
+            }
+          });
+        } else {
+          console.log(`📈 Updating existing inventory for ${retailSku}`);
+          // Add to incoming
+          inventory = await prisma.storeInventory.update({
+            where: { id: inventory.id },
+            data: {
+              quantityIncoming: { increment: unitsOrdered }
+            }
+          });
+        }
+
+        // Create incoming order tracking
+        const incomingOrder = await prisma.incomingInventoryOrder.create({
+          data: {
+            storeInventoryId: inventory.id,
+            storeId: store.id,
+            productSku: retailSku,
+            shopifyOrderId: order.id.toString(),
+            shopifyOrderNumber: order.order_number?.toString() || order.id.toString(),
+            quantityOrdered: unitsOrdered,
+            status: 'paid',
+            orderedAt: new Date(order.created_at),
+            paidAt: new Date()
+          }
+        });
+
+        console.log(`✅ Created incoming order: ${incomingOrder.shopifyOrderNumber}`);
+
+        // Create transaction log
+        await prisma.inventoryTransaction.create({
+          data: {
+            storeId: store.id,
+            productSku: retailSku,
+            type: 'wholesale_ordered',
+            quantity: unitsOrdered,
+            balanceAfter: inventory.quantityOnHand,
+            notes: `Wholesale order #${order.order_number || order.id} - ${item.quantity}x ${item.sku} (${unitsOrdered} units) - Status: Paid`
+          }
+        });
+
+        console.log(`📝 Logged transaction for ${retailSku}`);
+
+      } catch (itemError) {
+        console.error(`❌ Error processing wholesale item ${item.sku}:`, itemError);
+        // Continue processing other items
+      }
+    }
+
+    console.log(`✅ Wholesale order processing complete`);
+
+    // TODO: Notify store owner about incoming inventory
+    // Can send email/SMS here with order details
+
+  } catch (error) {
+    console.error('❌ Error in handleWholesaleOrder:', error);
+    // Don't throw - let the main webhook continue processing
+  }
+}
+
+/**
+ * Handle wholesale orders when fulfilled
+ * Updates tracking information and order status
+ */
+async function handleWholesaleFulfilled(orgId: string, order: ShopifyOrder, topic: string) {
+  try {
+    // Check if order contains wholesale products
+    const wholesaleItems = order.line_items.filter(item => item.sku?.endsWith('-BX'));
+    
+    if (wholesaleItems.length === 0) {
+      return; // Not a wholesale order
+    }
+
+    console.log(`🚚 Wholesale order fulfilled: ${wholesaleItems.length} items`);
+
+    // Find which store this order is for
+    const store = await prisma.store.findFirst({
+      where: { 
+        shopifyCustomerId: order.customer.id.toString(),
+        orgId
+      }
+    });
+
+    if (!store) {
+      console.error(`❌ Store not found for fulfilled order`);
+      return;
+    }
+
+    // Get fulfillment data (tracking, carrier, etc.)
+    const fulfillment = order.fulfillments?.[0];
+
+    for (const item of wholesaleItems) {
+      try {
+        if (!item.sku) continue;
+
+        const retailSku = item.sku.replace(/-BX$/, '');
+
+        // Update incoming order status
+        const updated = await prisma.incomingInventoryOrder.updateMany({
+          where: {
+            storeId: store.id,
+            productSku: retailSku,
+            shopifyOrderId: order.id.toString(),
+            status: { in: ['ordered', 'paid'] }
+          },
+          data: {
+            status: 'shipped',
+            shippedAt: new Date(),
+            trackingNumber: fulfillment?.tracking_number,
+            carrier: fulfillment?.tracking_company,
+            trackingUrl: fulfillment?.tracking_url,
+            estimatedDelivery: fulfillment?.estimated_delivery_at 
+              ? new Date(fulfillment.estimated_delivery_at)
+              : null
+          }
+        });
+
+        if (updated.count > 0) {
+          console.log(`✅ Updated ${updated.count} incoming order(s) for ${retailSku} to shipped`);
+
+          // Create transaction log
+          await prisma.inventoryTransaction.create({
+            data: {
+              storeId: store.id,
+              productSku: retailSku,
+              type: 'wholesale_shipped',
+              quantity: 0, // No balance change yet
+              balanceAfter: 0, // Will be updated when received
+              notes: `Order shipped - Tracking: ${fulfillment?.tracking_number || 'N/A'}`
+            }
+          });
+        }
+
+      } catch (itemError) {
+        console.error(`❌ Error updating fulfilled item ${item.sku}:`, itemError);
+      }
+    }
+
+    console.log(`✅ Wholesale fulfillment processing complete`);
+
+    // TODO: Notify store owner with tracking information
+
+  } catch (error) {
+    console.error('❌ Error in handleWholesaleFulfilled:', error);
   }
 }
 

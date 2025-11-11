@@ -1537,7 +1537,13 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                   </div>
                 </div>
                 <button
-                  onClick={() => setShowPurchaseRequest(true)}
+                  onClick={() => {
+                    setShowPurchaseRequest(true);
+                    // Fetch products if not already loaded
+                    if (products.length === 0 && !loadingProducts) {
+                      fetchProducts();
+                    }
+                  }}
                   className="px-6 py-3 bg-white text-purple-600 rounded-lg hover:bg-purple-50 transition-colors text-lg font-bold shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
                   + Place Order
@@ -3629,16 +3635,39 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                   {products
                     .filter((p: any) => p.productType === 'wholesale-box')
                     .sort((a: any, b: any) => {
-                      // Sort by name (which includes product line and count)
-                      return a.name.localeCompare(b.name);
+                      // Extract product base name (e.g., "BlissBerry", "SlumberBerry")
+                      const getBaseName = (name: string) => {
+                        // Remove "BOX of X - " prefix and size info
+                        return name.replace(/BOX of \d+ - /, '').replace(/\s*\d+ct.*$/i, '').trim();
+                      };
+                      
+                      // Extract count from name (e.g., "30ct", "4ct")
+                      const getCount = (name: string) => {
+                        const match = name.match(/(\d+)ct/i);
+                        return match ? parseInt(match[1]) : 999;
+                      };
+                      
+                      const baseNameA = getBaseName(a.name);
+                      const baseNameB = getBaseName(b.name);
+                      const countA = getCount(a.name);
+                      const countB = getCount(b.name);
+                      
+                      // First sort by product name alphabetically
+                      const nameCompare = baseNameA.localeCompare(baseNameB);
+                      if (nameCompare !== 0) return nameCompare;
+                      
+                      // Then sort by count (4ct, 20ct/30ct, 60ct)
+                      return countA - countB;
                     })
                     .map((product: any) => {
                       const qty = boxQuantities[product.sku] || 0;
                       const wholesalePrice = parseFloat(product.wholesalePrice || 0);
                       const retailPrice = parseFloat(product.retailPrice || 0);
-                      const boxPrice = parseFloat(product.price);
+                      const boxPrice = parseFloat(product.price || 0);
                       const unitsPerBox = product.unitsPerBox || 1;
-                      const margin = retailPrice > 0 ? ((retailPrice - wholesalePrice) / retailPrice * 100).toFixed(0) : 0;
+                      const margin = (retailPrice > 0 && wholesalePrice >= 0) 
+                        ? Math.round(((retailPrice - wholesalePrice) / retailPrice * 100)) 
+                        : 0;
                       
                       return (
                         <div
@@ -3672,13 +3701,13 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                               <div className="text-xs sm:text-sm space-y-1">
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className="text-gray-600">Box ({unitsPerBox} units):</span>
-                                  <span className="font-bold text-green-600">${boxPrice.toFixed(2)}</span>
+                                  <span className="font-bold text-green-600">${isNaN(boxPrice) ? '0.00' : boxPrice.toFixed(2)}</span>
                                 </div>
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className="text-gray-600">Per Unit:</span>
-                                  <span className="font-semibold">${wholesalePrice.toFixed(2)}</span>
+                                  <span className="font-semibold">${isNaN(wholesalePrice) ? '0.00' : wholesalePrice.toFixed(2)}</span>
                                   <span className="text-gray-400">→</span>
-                                  <span className="font-semibold">${retailPrice.toFixed(2)}</span>
+                                  <span className="font-semibold">${isNaN(retailPrice) ? '0.00' : retailPrice.toFixed(2)}</span>
                                   <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{margin}% margin</span>
                                 </div>
                               </div>

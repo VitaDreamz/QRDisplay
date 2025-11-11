@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { InventoryTab } from './InventoryTab';
 
 type Activity = {
-  type: 'sample' | 'store' | 'redemption' | 'promo';
+  type: 'sample' | 'store' | 'redemption' | 'promo' | 'returning-promo';
   timestamp: Date;
   data: any;
 };
@@ -1045,6 +1045,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                   {activity.type === 'store' && '🏪'}
                   {activity.type === 'redemption' && '✅'}
                   {activity.type === 'promo' && '💰'}
+                  {activity.type === 'returning-promo' && '🔄'}
                 </div>
                 <div className="flex-1">
                   <div className="text-xs text-gray-500 mb-1">
@@ -1071,7 +1072,13 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                     {activity.type === 'promo' && (
                       <>
                         <span className="font-semibold">{activity.data.customerName}</span> redeemed{' '}
-                        {activity.data.promoOffer}
+                        {activity.data.promoOffer} (First Purchase)
+                      </>
+                    )}
+                    {activity.type === 'returning-promo' && (
+                      <>
+                        <span className="font-semibold">{activity.data.customerName}</span> redeemed{' '}
+                        {activity.data.promoOffer} (Returning Customer)
                       </>
                     )}
                   </div>

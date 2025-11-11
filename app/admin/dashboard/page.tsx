@@ -122,8 +122,11 @@ export default async function AdminDashboardPage() {
 
     // Add promo redemptions
     promoRedemptions.filter(p => p.redeemedAt).slice(0, 10).forEach(p => {
+    // Determine if this is a first purchase or returning customer promo
+    const isReturningPromo = p.customer.returningPromoSlug && p.promoSlug === p.customer.returningPromoSlug;
+    
     activities.push({
-      type: 'promo',
+      type: isReturningPromo ? 'returning-promo' : 'promo',
       timestamp: p.redeemedAt!,
       data: {
         customerName: `${p.customer.firstName} ${p.customer.lastName.charAt(0)}.`,

@@ -1703,8 +1703,15 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                     }
                   });
 
-                  // Promo redemptions
-                  data.customers.filter(c => c.promoRedeemed && c.promoRedeemedAt).forEach(c => {
+                  // Promo redemptions - only for customers who had samples (not direct purchases)
+                  data.customers
+                    .filter(c => 
+                      c.promoRedeemed && 
+                      c.promoRedeemedAt && 
+                      c.sampleChoice && 
+                      c.sampleChoice.trim() !== ''
+                    )
+                    .forEach(c => {
                     activities.push({
                       id: `promo-${c.id}`,
                       type: 'promo-redeemed',

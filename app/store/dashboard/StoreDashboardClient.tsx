@@ -3635,31 +3635,14 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                   {products
                     .filter((p: any) => p.productType === 'wholesale-box')
                     .sort((a: any, b: any) => {
-                      // Extract product base name (e.g., "BlissBerry", "SlumberBerry")
-                      const getBaseName = (name: string) => {
-                        // Remove "BOX of X - " prefix and size info
-                        return name.replace(/BOX of \d+ - /, '').replace(/\s*\d+ct.*$/i, '').trim();
-                      };
-                      
-                      // Extract count from name (e.g., "30ct", "4ct")
-                      const getCount = (name: string) => {
-                        const match = name.match(/(\d+)ct/i);
-                        return match ? parseInt(match[1]) : 999;
-                      };
-                      
-                      const baseNameA = getBaseName(a.name);
-                      const baseNameB = getBaseName(b.name);
-                      const countA = getCount(a.name);
-                      const countB = getCount(b.name);
-                      
-                      // First sort by product name alphabetically
-                      const nameCompare = baseNameA.localeCompare(baseNameB);
-                      if (nameCompare !== 0) return nameCompare;
-                      
-                      // Then sort by count (4ct, 20ct/30ct, 60ct)
-                      return countA - countB;
+                      // Sort by SKU which naturally orders them correctly
+                      // VD-BB-4-BX, VD-BB-30-BX, VD-BB-60-BX
+                      // VD-CC-4-BX, VD-CC-20-BX
+                      // VD-SB-4-BX, VD-SB-30-BX, VD-SB-60-BX
+                      return a.sku.localeCompare(b.sku);
                     })
                     .map((product: any) => {
+                      console.log(`[Wholesale Modal] Product: ${product.sku}, ImageURL: ${product.imageUrl}`);
                       const qty = boxQuantities[product.sku] || 0;
                       const wholesalePrice = parseFloat(product.wholesalePrice || 0);
                       const retailPrice = parseFloat(product.retailPrice || 0);

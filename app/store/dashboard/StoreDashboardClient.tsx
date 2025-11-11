@@ -3642,11 +3642,25 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                   {products
                     .filter((p: any) => p.productType === 'wholesale-box')
                     .sort((a: any, b: any) => {
-                      // Sort by SKU which naturally orders them correctly
-                      // VD-BB-4-BX, VD-BB-30-BX, VD-BB-60-BX
-                      // VD-CC-4-BX, VD-CC-20-BX
-                      // VD-SB-4-BX, VD-SB-30-BX, VD-SB-60-BX
-                      return a.sku.localeCompare(b.sku);
+                      // Extract product line (BB, CC, SB) and size (4, 20, 30, 60)
+                      const extractParts = (sku: string) => {
+                        // SKU format: VD-XX-##-BX (e.g., VD-BB-30-BX)
+                        const match = sku.match(/VD-([A-Z]+)-(\d+)-BX/);
+                        if (match) {
+                          return { line: match[1], size: parseInt(match[2]) };
+                        }
+                        return { line: '', size: 999 };
+                      };
+                      
+                      const partsA = extractParts(a.sku);
+                      const partsB = extractParts(b.sku);
+                      
+                      // First sort by product line alphabetically (BB, CC, SB)
+                      const lineCompare = partsA.line.localeCompare(partsB.line);
+                      if (lineCompare !== 0) return lineCompare;
+                      
+                      // Then sort by size (4, 20, 30, 60)
+                      return partsA.size - partsB.size;
                     })
                     .map((product: any) => {
                       console.log(`[Wholesale Modal] Product: ${product.sku}, ImageURL: ${product.imageUrl}`);

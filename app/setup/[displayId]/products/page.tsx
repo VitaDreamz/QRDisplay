@@ -349,8 +349,9 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
       const data = await res.json();
       console.log('[ProductsStep] ✅ Display activated:', data);
 
-      // Navigate to next step (staff)
-      router.push(`/setup/${displayId}/staff`);
+      // Navigate to next step (staff) with storeId
+      const storeId = data.store?.storeId || data.storeId;
+      router.push(`/setup/${displayId}/staff${storeId ? `?storeId=${storeId}` : ''}`);
     } catch (e: any) {
       console.error('[ProductsStep] Error activating display:', e);
       setError(e.message || 'Failed to activate display');

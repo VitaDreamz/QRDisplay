@@ -23,7 +23,7 @@ export default function SuccessPage({ params }: { params: Promise<{ displayId: s
       const sid = searchParams.get('storeId');
       if (sid) setStoreId(sid);
       
-      // Check if there's a setup photo
+      // Check if there's a setup photo from the display record
       if (p.displayId) {
         fetch(`/api/displays/${p.displayId}/info`)
           .then(res => res.json())
@@ -37,6 +37,24 @@ export default function SuccessPage({ params }: { params: Promise<{ displayId: s
       }
     });
   }, [params, searchParams]);
+
+  // Also check if photo was uploaded during wizard (stored in progress)
+  useEffect(() => {
+    if (progress?.photoUploaded && !hasPhoto) {
+      // Photo was marked as uploaded in progress, check display again
+      if (displayId) {
+        fetch(`/api/displays/${displayId}/info`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.setupPhotoUrl) {
+              setSetupPhotoUrl(data.setupPhotoUrl);
+              setHasPhoto(true);
+            }
+          })
+          .catch(err => console.error('Failed to fetch photo:', err));
+      }
+    }
+  }, [progress?.photoUploaded, displayId, hasPhoto]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

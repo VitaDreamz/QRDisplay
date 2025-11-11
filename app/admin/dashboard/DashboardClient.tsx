@@ -651,6 +651,28 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         {/* Stores Tab */}
         {activeTab === 'stores' && (
           <div>
+            {/* Quick Add Section */}
+            <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg p-6 mb-4 shadow-lg">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-white mb-1">Quick Add New Store</h3>
+                  <p className="text-sm text-purple-100">Add a new store to a brand with inventory</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {data.organizations.map((org) => (
+                    <a
+                      key={org.orgId}
+                      href={`/admin/brands/${org.orgId}/stores/quick-add`}
+                      className="inline-flex items-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-purple-700 shadow-md hover:bg-purple-50 transition-colors"
+                    >
+                      <span className="mr-2">+</span>
+                      {org.name}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             {/* Filters */}
             <div className="bg-white rounded-lg p-4 mb-4 space-y-3 md:flex md:space-y-0 md:space-x-4">
               <select

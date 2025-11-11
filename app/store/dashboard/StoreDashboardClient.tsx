@@ -2599,6 +2599,21 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                             isAvailable ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'
                           }`}
                         >
+                          {/* Low Stock Badge */}
+                          {(product.inventoryQuantity || 0) <= (product.lowStockThreshold || 10) && 
+                           (product.inventoryQuantity || 0) > 0 && (
+                            <div className="absolute top-2 left-2 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded-full z-10 flex items-center gap-1">
+                              ⚠️ Low Stock
+                            </div>
+                          )}
+
+                          {/* Out of Stock Badge */}
+                          {(product.inventoryQuantity || 0) === 0 && (
+                            <div className="absolute top-2 left-2 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full z-10">
+                              ❌ Out of Stock
+                            </div>
+                          )}
+                          
                           {/* Product Image */}
                           <div className="h-40 bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center p-4">
                             {product.imageUrl ? (
@@ -2628,35 +2643,99 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                               Free Sample (Retail: ${parseFloat(product.price).toFixed(2)})
                             </div>
                             
-                            {/* Inventory Display - Clickable */}
+                            {/* Inventory Display - Expandable (Simple version for samples) */}
                             <button
-                              onClick={() => setEditingInventory({
-                                productSku: product.sku,
-                                productName: product.name,
-                                currentQuantity: product.inventoryQuantity || 0,
-                                newQuantity: product.inventoryQuantity || 0,
-                                reason: 'restock'
-                              })}
+                              onClick={() => setExpandedInventory(
+                                expandedInventory === product.sku ? null : product.sku
+                              )}
                               className="w-full mb-3 p-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors group"
                             >
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Inventory</span>
-                                <svg className="w-4 h-4 text-gray-400 group-hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
-                              </div>
-                              <div className="flex items-baseline gap-2 mt-1">
-                                <span className={`text-3xl font-bold ${
-                                  product.inventoryQuantity > 10 
-                                    ? 'text-green-600' 
-                                    : product.inventoryQuantity > 0 
-                                    ? 'text-yellow-600' 
-                                    : 'text-red-600'
-                                }`}>
-                                  {product.inventoryQuantity || 0}
-                                </span>
-                                <span className="text-sm text-gray-500">in stock</span>
-                              </div>
+                              {expandedInventory === product.sku ? (
+                                // EXPANDED VIEW
+                                <div className="space-y-2 text-left">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-semibold text-gray-600 uppercase">Inventory</span>
+                                    <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                    </svg>
+                                  </div>
+                                  
+                                  <div className="space-y-2 pt-2 border-t border-gray-200">
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-sm text-gray-600">🏪 In Stock:</span>
+                                      <span className={`text-lg font-bold ${
+                                        (product.inventoryQuantity || 0) > (product.lowStockThreshold || 10)
+                                          ? 'text-green-600' 
+                                          : (product.inventoryQuantity || 0) > 0
+                                          ? 'text-yellow-600' 
+                                          : 'text-red-600'
+                                      }`}>
+                                        {product.inventoryQuantity || 0} units
+                                      </span>
+                                    </div>
+                                    
+                                    {product.incomingOrders && product.incomingOrders.length > 0 && (
+                                      <div className="bg-blue-50 rounded p-2">
+                                        <div className="flex justify-between text-sm">
+                                          <span className="text-blue-900 font-semibold">📦 Incoming:</span>
+                                          <span className="text-blue-600 font-bold">
+                                            +{product.incomingOrders.reduce((sum: number, o: any) => sum + o.quantityOrdered, 0)}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  <div className="flex gap-2 pt-2 border-t border-gray-200">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        loadInventoryHistory(product.sku);
+                                      }}
+                                      className="flex-1 py-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded font-medium"
+                                    >
+                                      📋 History
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingInventory({
+                                          productSku: product.sku,
+                                          productName: product.name,
+                                          currentQuantity: product.inventoryQuantity || 0,
+                                          newQuantity: product.inventoryQuantity || 0,
+                                          reason: 'restock'
+                                        });
+                                      }}
+                                      className="flex-1 py-1.5 text-xs bg-purple-600 text-white hover:bg-purple-700 rounded font-medium"
+                                    >
+                                      ✏️ Adjust
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                // COLLAPSED VIEW
+                                <div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Inventory</span>
+                                    <svg className="w-4 h-4 text-gray-400 group-hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                  </div>
+                                  <div className="flex items-baseline gap-2 mt-1">
+                                    <span className={`text-3xl font-bold ${
+                                      (product.inventoryQuantity || 0) > 10 
+                                        ? 'text-green-600' 
+                                        : (product.inventoryQuantity || 0) > 0 
+                                        ? 'text-yellow-600' 
+                                        : 'text-red-600'
+                                    }`}>
+                                      {product.inventoryQuantity || 0}
+                                    </span>
+                                    <span className="text-sm text-gray-500">in stock</span>
+                                  </div>
+                                </div>
+                              )}
                             </button>
                             
                             <button
@@ -2747,6 +2826,21 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                         isOffered ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
+                      {/* Low Stock Badge */}
+                      {(product.inventoryQuantity || 0) <= (product.lowStockThreshold || 10) && 
+                       (product.inventoryQuantity || 0) > 0 && (
+                        <div className="absolute top-2 left-2 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded-full z-10 flex items-center gap-1">
+                          ⚠️ Low Stock
+                        </div>
+                      )}
+
+                      {/* Out of Stock Badge */}
+                      {(product.inventoryQuantity || 0) === 0 && (
+                        <div className="absolute top-2 left-2 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full z-10">
+                          ❌ Out of Stock
+                        </div>
+                      )}
+                      
                       {product.featured && (
                         <div className="absolute top-2 right-2 bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded-full z-10">
                           ⭐ Featured
@@ -2785,35 +2879,183 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                           ${parseFloat(product.price).toFixed(2)}
                         </div>
                         
-                        {/* Inventory Display - Clickable */}
+                        {/* Inventory Display - Expandable */}
                         <button
-                          onClick={() => setEditingInventory({
-                            productSku: product.sku,
-                            productName: product.name,
-                            currentQuantity: product.inventoryQuantity || 0,
-                            newQuantity: product.inventoryQuantity || 0,
-                            reason: 'restock'
-                          })}
+                          onClick={() => setExpandedInventory(
+                            expandedInventory === product.sku ? null : product.sku
+                          )}
                           className="w-full mb-3 p-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors group"
                         >
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Inventory</span>
-                            <svg className="w-4 h-4 text-gray-400 group-hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </div>
-                          <div className="flex items-baseline gap-2 mt-1">
-                            <span className={`text-3xl font-bold ${
-                              product.inventoryQuantity > 10 
-                                ? 'text-green-600' 
-                                : product.inventoryQuantity > 0 
-                                ? 'text-yellow-600' 
-                                : 'text-red-600'
-                            }`}>
-                              {product.inventoryQuantity || 0}
-                            </span>
-                            <span className="text-sm text-gray-500">in stock</span>
-                          </div>
+                          {expandedInventory === product.sku ? (
+                            // EXPANDED VIEW
+                            <div className="space-y-3 text-left">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold text-gray-600 uppercase">Inventory Details</span>
+                                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                </svg>
+                              </div>
+                              
+                              <div className="border-t border-gray-200 pt-3 space-y-2">
+                                {/* In Stock */}
+                                <div className="flex justify-between items-center">
+                                  <span className="text-sm text-gray-600">🏪 In Stock:</span>
+                                  <span className={`text-lg font-bold ${
+                                    (product.inventoryQuantity || 0) > (product.lowStockThreshold || 10)
+                                      ? 'text-green-600' 
+                                      : (product.inventoryQuantity || 0) > 0
+                                      ? 'text-yellow-600' 
+                                      : 'text-red-600'
+                                  }`}>
+                                    {product.inventoryQuantity || 0} units
+                                  </span>
+                                </div>
+                                
+                                {/* Incoming */}
+                                {product.incomingOrders && product.incomingOrders.length > 0 && (
+                                  <div className="bg-blue-50 rounded p-2">
+                                    <div className="flex justify-between items-center mb-1">
+                                      <span className="text-sm text-blue-900 font-semibold">📦 Incoming:</span>
+                                      <span className="text-lg font-bold text-blue-600">
+                                        +{product.incomingOrders.reduce((sum: number, o: any) => sum + o.quantityOrdered, 0)} units
+                                      </span>
+                                    </div>
+                                    {product.incomingOrders.map((order: any) => (
+                                      <div key={order.id} className="text-xs text-blue-800 ml-4 mt-1 space-y-1">
+                                        <div className="flex justify-between items-center">
+                                          <span>└ Order #{order.shopifyOrderNumber}</span>
+                                          <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                                            order.status === 'shipped' ? 'bg-blue-200 text-blue-900' :
+                                            order.status === 'delivered' ? 'bg-green-200 text-green-900' :
+                                            'bg-gray-200 text-gray-900'
+                                          }`}>
+                                            {order.status}
+                                          </span>
+                                        </div>
+                                        {order.status === 'shipped' && order.estimatedDelivery && (
+                                          <div className="text-blue-600 ml-2">
+                                            ETA: {new Date(order.estimatedDelivery).toLocaleDateString()}
+                                          </div>
+                                        )}
+                                        {order.trackingNumber && (
+                                          <div className="ml-2">
+                                            <a 
+                                              href={order.trackingUrl || '#'} 
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              onClick={(e) => e.stopPropagation()}
+                                              className="text-blue-600 hover:underline"
+                                            >
+                                              Track: {order.trackingNumber}
+                                            </a>
+                                          </div>
+                                        )}
+                                        {(order.status === 'delivered' || order.status === 'shipped') && (
+                                          <button
+                                            onClick={async (e) => {
+                                              e.stopPropagation();
+                                              if (confirm(`Mark ${order.quantityOrdered} units as received?`)) {
+                                                await markAsReceived(order.id);
+                                              }
+                                            }}
+                                            className="ml-2 mt-1 px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                                          >
+                                            ✓ Mark as Received
+                                          </button>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                
+                                {/* Reserved */}
+                                {(product.inventoryReserved || 0) > 0 && (
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-sm text-gray-600">🔒 Reserved (Holds):</span>
+                                    <span className="text-sm font-medium text-orange-600">
+                                      {product.inventoryReserved} units
+                                    </span>
+                                  </div>
+                                )}
+                                
+                                {/* Available */}
+                                <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                                  <span className="text-sm font-semibold text-gray-700">✅ Available to Sell:</span>
+                                  <span className="text-lg font-bold text-purple-600">
+                                    {product.inventoryAvailable || 0} units
+                                  </span>
+                                </div>
+                                
+                                {/* Projected Total */}
+                                {product.incomingOrders && product.incomingOrders.length > 0 && (
+                                  <div className="flex justify-between items-center bg-purple-50 -mx-3 -mb-3 px-3 py-2 rounded-b-lg">
+                                    <span className="text-sm font-semibold text-purple-900">
+                                      📊 Projected Total:
+                                    </span>
+                                    <span className="text-lg font-bold text-purple-700">
+                                      {(product.inventoryQuantity || 0) + 
+                                       product.incomingOrders.reduce((sum: number, o: any) => sum + o.quantityOrdered, 0)} units
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Quick Actions */}
+                              <div className="flex gap-2 pt-2 border-t border-gray-200">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    loadInventoryHistory(product.sku);
+                                  }}
+                                  className="flex-1 py-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded font-medium"
+                                >
+                                  📋 History
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingInventory({
+                                      productSku: product.sku,
+                                      productName: product.name,
+                                      currentQuantity: product.inventoryQuantity || 0,
+                                      newQuantity: product.inventoryQuantity || 0,
+                                      reason: 'restock'
+                                    });
+                                  }}
+                                  className="flex-1 py-1.5 text-xs bg-purple-600 text-white hover:bg-purple-700 rounded font-medium"
+                                >
+                                  ✏️ Adjust
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            // COLLAPSED VIEW
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Inventory</span>
+                                <svg className="w-4 h-4 text-gray-400 group-hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </div>
+                              <div className="flex items-baseline gap-2 mt-1 flex-wrap">
+                                <span className={`text-3xl font-bold ${
+                                  (product.inventoryQuantity || 0) > (product.lowStockThreshold || 10)
+                                    ? 'text-green-600' 
+                                    : (product.inventoryQuantity || 0) > 0
+                                    ? 'text-yellow-600' 
+                                    : 'text-red-600'
+                                }`}>
+                                  {product.inventoryQuantity || 0}
+                                </span>
+                                <span className="text-sm text-gray-500">in stock</span>
+                                {product.incomingOrders && product.incomingOrders.length > 0 && (
+                                  <span className="text-sm text-blue-600 font-medium">
+                                    +{product.incomingOrders.reduce((sum: number, o: any) => sum + o.quantityOrdered, 0)} incoming
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </button>
                         
                         <button
@@ -5119,6 +5361,84 @@ Thanks for choosing ${orgName}!`;
                 className="flex-1 px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Inventory History Modal */}
+      {inventoryHistoryProduct && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] flex flex-col">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Inventory History</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {products.find(p => p.sku === inventoryHistoryProduct)?.name || inventoryHistoryProduct}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setInventoryHistoryProduct(null);
+                    setInventoryHistory([]);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              {loadingHistory ? (
+                <div className="text-center py-8 text-gray-500">Loading history...</div>
+              ) : inventoryHistory.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">No transactions yet</div>
+              ) : (
+                <div className="space-y-2">
+                  {inventoryHistory.map((txn: any) => (
+                    <div key={txn.id} className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900">
+                          {formatTransactionType(txn.type)}
+                        </div>
+                        {txn.notes && (
+                          <div className="text-sm text-gray-600 mt-1">{txn.notes}</div>
+                        )}
+                        <div className="text-xs text-gray-500 mt-1">
+                          {formatDate(txn.createdAt)}
+                          {txn.customerId && ` • Customer: ${txn.customerId}`}
+                        </div>
+                      </div>
+                      <div className="text-right ml-4">
+                        <div className={`text-lg font-bold ${
+                          txn.quantity > 0 ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {txn.quantity > 0 ? '+' : ''}{txn.quantity}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          Balance: {txn.balanceAfter}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => {
+                  setInventoryHistoryProduct(null);
+                  setInventoryHistory([]);
+                }}
+                className="w-full px-6 py-3 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700 transition-colors"
+              >
+                Close
               </button>
             </div>
           </div>

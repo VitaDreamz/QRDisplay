@@ -78,7 +78,7 @@ export default async function AdminDashboardPage() {
 
     // Build activity feed (last 10 events)
     const activities: Array<{
-      type: 'sample' | 'store' | 'redemption' | 'promo';
+      type: 'sample' | 'store' | 'redemption' | 'promo' | 'returning-promo';
       timestamp: Date;
       data: any;
     }> = [];

@@ -3655,8 +3655,13 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                       const partsA = extractParts(a.sku);
                       const partsB = extractParts(b.sku);
                       
-                      // First sort by product line alphabetically (BB, CC, SB)
-                      const lineCompare = partsA.line.localeCompare(partsB.line);
+                      // Custom order: SB (Slumber Berry), BB (Bliss Berry), CC (Berry Chill)
+                      const lineOrder: Record<string, number> = { 'SB': 1, 'BB': 2, 'CC': 3 };
+                      const orderA = lineOrder[partsA.line] || 999;
+                      const orderB = lineOrder[partsB.line] || 999;
+                      
+                      // First sort by custom product line order
+                      const lineCompare = orderA - orderB;
                       if (lineCompare !== 0) return lineCompare;
                       
                       // Then sort by size (4, 20, 30, 60)

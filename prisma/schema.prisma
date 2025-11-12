@@ -52,6 +52,29 @@ model Organization {
   commissionRate       Float?    @default(10.0) // Percentage (e.g., 10.0 = 10%)
   attributionWindow    Int?      @default(30)   // Days to attribute sale to store
   
+  // Brand Subscription & Limits (for type='client' only)
+  brandTier              String?   @default("free") // free, basic, pro, mega
+  brandStatus            String?   @default("pending") // pending, approved, rejected, suspended
+  maxStoresPerMonth      Int?      @default(5)      // New store partnerships allowed per month
+  maxSampleProducts      Int?      @default(1)      // How many sample SKUs they can offer
+  maxFullSizeProducts    Int?      @default(2)      // How many full-size SKUs they can sell
+  
+  // Brand Usage Tracking (resets monthly)
+  storesAddedThisMonth   Int       @default(0)      // Counter (resets monthly)
+  lastMonthlyReset       DateTime? // When counter was last reset
+  currentActiveStores    Int       @default(0)      // Total active store partnerships
+  
+  // Transaction Fees (QRDisplay revenue from brands)
+  transactionFeePercent  Float?    @default(5.0)    // % QRDisplay takes per sale/wholesale
+  monthlyPlatformFee     Float?    @default(0.0)    // Fixed monthly fee
+  
+  // Brand Approval Workflow
+  approvalStatus         String    @default("pending") // pending, approved, rejected, suspended
+  approvedAt             DateTime?
+  approvedBy             String?   // Super-admin userId who approved
+  rejectionReason        String?
+  onboardingStep         String    @default("registration") // registration, shopify_setup, products_added, pending_approval, live
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
@@ -165,6 +188,10 @@ model Store {
   
   // Available products for purchase (SKUs that this store carries)
   availableProducts String[] @default([])
+  
+  // Multi-Brand Limits (based on subscription tier)
+  maxBrandPartnerships   Int       @default(1)      // free=1, basic=10, pro=25, mega=50
+  activeBrandCount       Int       @default(0)      // Cached count of active partnerships
   
   activatedAt  DateTime?
   createdAt    DateTime @default(now())
@@ -410,6 +437,9 @@ model Customer {
   syncedAt          DateTime?
   attributedStoreId String?   // Store that gets credit for conversions
   sampleDate        DateTime? // When they got their sample (for attribution window)
+  
+  // Daily Sample Limit Tracking (1 sample per day total)
+  lastSampleDate    DateTime? // Last date they received ANY sample (date only, not time)
   
   requestedAt  DateTime  @default(now())
   
@@ -833,111 +863,5 @@ model MagicLink {
   createdAt DateTime @default(now())
   
   @@map("magic_links")
-}
-
-// ============================================================================
-// MULTI-BRAND ARCHITECTURE MODELS
-// ============================================================================
-
-// Product Catalog - Each brand's products
-model Product {
-  id          String   @id @default(cuid())
-  sku         String   @unique
-  
-  // Brand relationship
-  brandId     String
-  brand       Organization @relation("BrandProducts", fields: [brandId], references: [id], onDelete: Cascade)
-  
-  // Product details
-  name        String
-  description String?
-  category    String   // 'sample', 'retail', 'wholesale'
-  
-  // Pricing
-  price       Decimal  @db.Decimal(10, 2)
-  msrp        Decimal? @db.Decimal(10, 2)
-  
-  // Shopify integration
-  shopifyProductId String?
-  shopifyVariantId String?
-  
-  // Media
-  imageUrl    String?
-  
-  // Inventory
-  sampleSize  String?  // "4-pack", "1oz", etc.
-  featured    Boolean  @default(false)
-  active      Boolean  @default(true)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  // Relations
-  sampleHistory SampleHistory[]
-  
-  @@index([brandId])
-  @@index([category])
-  @@index([active])
-  @@map("products")
-}
-
-// Store-Brand Partnerships (Many-to-Many)
-model StoreBrandPartnership {
-  id          String   @id @default(cuid())
-  
-  // Store relationship
-  storeId     String
-  store       Store    @relation("StorePartnerships", fields: [storeId], references: [id], onDelete: Cascade)
-  
-  // Brand relationship
-  brandId     String
-  brand       Organization @relation("BrandPartnerships", fields: [brandId], references: [id], onDelete: Cascade)
-  
-  // Partnership settings
-  commissionRate          Float    @default(10.0)
-  availableSamples        String[] @default([])  // SKUs this store carries for this brand
-  availableProducts       String[] @default([])  // SKUs this store can sell
-  
-  // Status
-  active                  Boolean  @default(true)
-  partnerSince            DateTime @default(now())
-  partnershipEndedAt      DateTime?
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@unique([storeId, brandId])
-  @@index([storeId])
-  @@index([brandId])
-  @@map("store_brand_partnerships")
-}
-
-// Sample History - Track which brand's products customers have sampled
-model SampleHistory {
-  id          String   @id @default(cuid())
-  
-  // Customer relationship
-  customerId  String
-  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  
-  // Brand relationship
-  brandId     String
-  brand       Organization @relation("BrandSamples", fields: [brandId], references: [id], onDelete: Cascade)
-  
-  // Product details
-  productSku  String
-  product     Product? @relation(fields: [productSku], references: [sku], onDelete: SetNull)
-  
-  // Display/Store context
-  displayId   String?
-  storeId     String?
-  
-  // Timing
-  sampledAt   DateTime @default(now())
-  
-  @@index([customerId])
-  @@index([brandId])
-  @@index([productSku])
-  @@map("sample_history")
 }
 

@@ -52,6 +52,29 @@ model Organization {
   commissionRate       Float?    @default(10.0) // Percentage (e.g., 10.0 = 10%)
   attributionWindow    Int?      @default(30)   // Days to attribute sale to store
   
+  // Brand Subscription & Limits (for type='client' only)
+  brandTier              String?   @default("free") // free, basic, pro, mega
+  brandStatus            String?   @default("pending") // pending, approved, rejected, suspended
+  maxStoresPerMonth      Int?      @default(5)      // New store partnerships allowed per month
+  maxSampleProducts      Int?      @default(1)      // How many sample SKUs they can offer
+  maxFullSizeProducts    Int?      @default(2)      // How many full-size SKUs they can sell
+  
+  // Brand Usage Tracking (resets monthly)
+  storesAddedThisMonth   Int       @default(0)      // Counter (resets monthly)
+  lastMonthlyReset       DateTime? // When counter was last reset
+  currentActiveStores    Int       @default(0)      // Total active store partnerships
+  
+  // Transaction Fees (QRDisplay revenue from brands)
+  transactionFeePercent  Float?    @default(5.0)    // % QRDisplay takes per sale/wholesale
+  monthlyPlatformFee     Float?    @default(0.0)    // Fixed monthly fee
+  
+  // Brand Approval Workflow
+  approvalStatus         String    @default("pending") // pending, approved, rejected, suspended
+  approvedAt             DateTime?
+  approvedBy             String?   // Super-admin userId who approved
+  rejectionReason        String?
+  onboardingStep         String    @default("registration") // registration, shopify_setup, products_added, pending_approval, live
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
@@ -64,6 +87,10 @@ model Organization {
   promoRedemptions PromoRedemption[]
   conversions Conversion[]
   webhookLogs ShopifyWebhookLog[]
+  
+  // Multi-brand relationships
+  brandPartnerships   StoreBrandPartnership[] @relation("BrandPartnerships")
+  sampleHistory       SampleHistory[] @relation("BrandSampleHistory")
   
   @@map("organizations")
 }
@@ -91,7 +118,8 @@ model User {
 model Store {
   id           String   @id @default(cuid())
   storeId      String   @unique
-  orgId        String
+  orgId        String   // LEGACY: Will be deprecated in favor of platformId
+  platformId   String?  // NEW: Store belongs to platform (QRDisplay/SampleHound)
   
   status       String   @default("active")
   storeName    String
@@ -161,6 +189,10 @@ model Store {
   // Available products for purchase (SKUs that this store carries)
   availableProducts String[] @default([])
   
+  // Multi-Brand Limits (based on subscription tier)
+  maxBrandPartnerships   Int       @default(1)      // free=1, basic=10, pro=25, mega=50
+  activeBrandCount       Int       @default(0)      // Cached count of active partnerships
+  
   activatedAt  DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -176,6 +208,11 @@ model Store {
   inventory    StoreInventory[]
   inventoryTransactions InventoryTransaction[]
   productHolds ProductHold[]
+  wholesaleOrders WholesaleOrder[]
+  
+  // Multi-brand relationships
+  brandPartnerships StoreBrandPartnership[]
+  sampleHistory     SampleHistory[] @relation("StoreSampleHistory")
   
   @@map("stores")
 }
@@ -186,23 +223,22 @@ model StoreInventory {
   storeId         String
   productSku      String
   
-  quantityOnHand     Int      @default(0)  // Physical inventory in store
-  quantityIncoming   Int      @default(0)  // Ordered but not yet received
-  quantityReserved   Int      @default(0)  // Reserved for customer holds (24hr)
-  quantityAvailable  Int      @default(0)  // onHand - reserved (computed)
+  quantityOnHand  Int      @default(0)  // Physical inventory in store
+  quantityReserved Int     @default(0)  // Reserved for customer holds (2hr)
+  quantityIncoming Int     @default(0)  // On order, not yet received
+  quantityAvailable Int    @default(0)  // onHand - reserved (computed)
   
-  lowStockThreshold  Int      @default(10) // Alert when onHand falls below this
+  // Incoming order tracking
+  pendingOrderId   String?  // WholesaleOrder.orderId if there's incoming inventory
   
   lastRestocked   DateTime?
   updatedAt       DateTime @updatedAt
   
   store   Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productSku], references: [sku])
-  incomingOrders IncomingInventoryOrder[]
   
   @@unique([storeId, productSku])
   @@index([storeId])
-  @@index([quantityOnHand]) // For low stock queries
   @@map("store_inventory")
 }
 
@@ -212,7 +248,7 @@ model InventoryTransaction {
   storeId     String
   productSku  String
   
-  type        String   // "restock", "wholesale_ordered", "wholesale_shipped", "wholesale_received", "sample_redemption", "promo_sale", "hold_created", "hold_released", "hold_expired", "manual_adjustment"
+  type        String   // "restock", "sample_redemption", "promo_sale", "hold_created", "hold_released", "hold_expired"
   quantity    Int      // Positive for incoming, negative for outgoing
   
   customerId  String?  // If related to a customer action
@@ -228,12 +264,86 @@ model InventoryTransaction {
   
   @@index([storeId, createdAt])
   @@index([expiresAt]) // For finding expired holds
-  @@index([productSku])
-  @@index([type])
   @@map("inventory_transactions")
 }
 
-// Product Holds (24-hour pickup reservations)
+// Wholesale Orders (Store → Brand Purchase Orders)
+model WholesaleOrder {
+  id                String   @id @default(cuid())
+  orderId           String   @unique // e.g., "WO-20250114-001"
+  
+  storeId           String
+  store             Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  // Shopify Integration
+  shopifyDomain     String   // e.g., "vitadreamz.myshopify.com"
+  shopifyDraftOrderId String? // Shopify Draft Order ID
+  shopifyDraftOrderUrl String? // Link to draft order in Shopify admin
+  
+  // Financials
+  subtotal          Decimal  @db.Decimal(10, 2)
+  creditApplied     Decimal  @db.Decimal(10, 2) @default(0.00)
+  total             Decimal  @db.Decimal(10, 2)
+  
+  // Status
+  status            String   @default("pending") // pending, submitted, fulfilled, delivered, received, cancelled
+  submittedAt       DateTime?
+  fulfilledAt       DateTime?
+  deliveredAt       DateTime?
+  receivedAt        DateTime?
+  cancelledAt       DateTime?
+  
+  // Verification
+  verificationToken String?  @unique // For SMS verification link
+  verifiedBy        String?  // Staff/Owner who verified receipt
+  
+  // Shopify tracking
+  shopifyOrderId    String?  // When draft becomes a real order
+  shopifyFulfillmentId String?
+  trackingNumber    String?
+  
+  // Notes
+  notes             String?  @db.Text
+  verificationNotes String?  @db.Text // Notes from store when verifying receipt
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  items             WholesaleOrderItem[]
+  
+  @@index([storeId, createdAt])
+  @@index([shopifyDomain, status])
+  @@map("wholesale_orders")
+}
+
+model WholesaleOrderItem {
+  id                String   @id @default(cuid())
+  
+  orderId           String
+  order             WholesaleOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  productSku        String
+  product           Product  @relation(fields: [productSku], references: [sku])
+  
+  brandOrgId        String   // Which brand this product belongs to
+  
+  quantity          Int
+  unitPrice         Decimal  @db.Decimal(10, 2)
+  total             Decimal  @db.Decimal(10, 2)
+  
+  // Fulfillment tracking
+  retailUnits       Int?     // Calculated retail units (quantity * unitsPerBox)
+  retailSku         String?  // The retail SKU this converts to
+  receivedQuantity  Int?     // Actual quantity received (may differ if short/damaged)
+  verified          Boolean  @default(false) // Has store verified receipt?
+  
+  createdAt         DateTime @default(now())
+  
+  @@index([orderId])
+  @@map("wholesale_order_items")
+}
+
+// Product Holds (2-hour pickup reservations)
 model ProductHold {
   id          String   @id @default(cuid())
   storeId     String
@@ -244,7 +354,7 @@ model ProductHold {
   status      String   @default("active") // active, picked_up, expired, cancelled
   
   createdAt   DateTime @default(now())
-  expiresAt   DateTime // 24 hours from creation
+  expiresAt   DateTime // 2 hours from creation
   notifiedAt  DateTime? // When store was notified
   pickedUpAt  DateTime?
   
@@ -255,49 +365,6 @@ model ProductHold {
   @@index([expiresAt])
   @@index([customerId])
   @@map("product_holds")
-}
-
-// Incoming Inventory Orders (Wholesale orders in transit)
-model IncomingInventoryOrder {
-  id                String   @id @default(cuid())
-  storeId           String
-  productSku        String
-  storeInventoryId  String
-  
-  shopifyOrderId    String   // Shopify order ID
-  shopifyOrderNumber String  // Human-readable #1234
-  
-  quantityOrdered   Int      // Number of units ordered
-  quantityReceived  Int @default(0) // Number actually received
-  
-  status            String @default("ordered") // ordered, paid, shipped, in_transit, delivered, received, cancelled
-  
-  // Tracking information
-  trackingNumber    String?
-  carrier           String?
-  trackingUrl       String?
-  
-  // Timeline
-  orderedAt         DateTime
-  paidAt            DateTime?
-  shippedAt         DateTime?
-  estimatedDelivery DateTime?
-  deliveredAt       DateTime?
-  receivedAt        DateTime? // When store marks as received in system
-  
-  // Webhook data
-  shopifyFulfillmentId String?
-  
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
-  storeInventory StoreInventory @relation(fields: [storeInventoryId], references: [id], onDelete: Cascade)
-  
-  @@index([storeId])
-  @@index([shopifyOrderId])
-  @@index([status])
-  @@index([storeInventoryId])
-  @@map("incoming_inventory_orders")
 }
 
 // Store Credit Transactions
@@ -383,6 +450,9 @@ model Display {
   store        Store?         @relation(fields: [storeId], references: [storeId])
   order        Order?         @relation(fields: [orderId], references: [orderId])
   
+  // Multi-brand tracking
+  sampleHistory SampleHistory[]
+  
   @@map("displays")
 }
 
@@ -438,9 +508,6 @@ model Customer {
   promoRedeemed    Boolean   @default(false)
   promoRedeemedAt  DateTime?
   
-  // Returning customer promo (generated after first purchase)
-  returningPromoSlug String?
-  
   // Lifecycle stage tracking
   currentStage     String    @default("pending") // pending, redeemed, purchased, repeat
   stageChangedAt   DateTime  @default(now())
@@ -451,6 +518,9 @@ model Customer {
   syncedAt          DateTime?
   attributedStoreId String?   // Store that gets credit for conversions
   sampleDate        DateTime? // When they got their sample (for attribution window)
+  
+  // Daily Sample Limit Tracking (1 sample per day total)
+  lastSampleDate    DateTime? // Last date they received ANY sample (date only, not time)
   
   requestedAt  DateTime  @default(now())
   
@@ -464,6 +534,9 @@ model Customer {
   webhookLogs      ShopifyWebhookLog[]
   productHolds     ProductHold[]
   staffPointTransactions StaffPointTransaction[]
+  
+  // Multi-brand tracking
+  sampleHistory    SampleHistory[]
   
   @@index([shopifyCustomerId])
   @@map("customers")
@@ -579,6 +652,7 @@ model Product {
   
   purchaseIntents PurchaseIntent[]
   storeInventory  StoreInventory[]
+  wholesaleOrderItems WholesaleOrderItem[]
   
   @@map("products")
 }
@@ -622,6 +696,84 @@ model PurchaseIntent {
   
   @@map("purchase_intents")
 }
+
+// ============================================================================
+// MULTI-BRAND ARCHITECTURE - New Models for Brand Partnerships
+// ============================================================================
+
+// Store-Brand Partnerships (Many-to-Many)
+// Allows stores to partner with multiple brands and carry their products
+model StoreBrandPartnership {
+  id          String   @id @default(cuid())
+  
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  brandId     String
+  brand       Organization @relation("BrandPartnerships", fields: [brandId], references: [id], onDelete: Cascade)
+  
+  // Partnership-specific settings
+  commissionRate      Float    @default(10.0) // Percentage (e.g., 10.0 = 10%)
+  onlineCommission    Float    @default(20.0) // Online sale commission
+  subscriptionCommission Float @default(5.0)  // Subscription commission
+  promoCommission     Float    @default(50.0) // Promo redemption commission
+  storeCreditBalance  Decimal  @db.Decimal(10, 2) @default(0.00) // Credit with this brand
+  
+  availableSamples    String[] @default([])   // SKUs this store offers as samples for this brand
+  availableProducts   String[] @default([])   // SKUs this store can sell for this brand
+  
+  // Partnership status
+  status              String   @default("active") // active, pending, suspended, ended
+  active              Boolean  @default(true)
+  partnerSince        DateTime @default(now())
+  partnershipEndedAt  DateTime?
+  
+  // Notes/terms
+  notes               String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([storeId, brandId])
+  @@index([storeId])
+  @@index([brandId])
+  @@map("store_brand_partnerships")
+}
+
+// Sample History - Track which brand's products customers have sampled
+// This replaces the single sampleChoice field with per-brand tracking
+model SampleHistory {
+  id          String   @id @default(cuid())
+  
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  brandId     String
+  brand       Organization @relation("BrandSampleHistory", fields: [brandId], references: [id], onDelete: Cascade)
+  
+  storeId     String
+  store       Store    @relation("StoreSampleHistory", fields: [storeId], references: [id], onDelete: Cascade)
+  
+  displayId   String?
+  display     Display? @relation(fields: [displayId], references: [displayId], onDelete: SetNull)
+  
+  productSku  String
+  productName String?  // Cached for reporting
+  
+  sampledAt   DateTime @default(now())
+  
+  // Attribution tracking
+  attributionWindow Int @default(30) // Days to attribute purchases to this sample
+  expiresAt        DateTime // sampledAt + attributionWindow days
+  
+  @@index([customerId])
+  @@index([brandId])
+  @@index([storeId])
+  @@index([sampledAt])
+  @@map("sample_history")
+}
+
+// ============================================================================
 
 // Promo Redemptions
 model PromoRedemption {
@@ -788,6 +940,19 @@ model StaffPointTransaction {
   @@map("staff_point_transactions")
 }
 
+// Label Print History
+model LabelPrintHistory {
+  id          String   @id @default(cuid())
+  batchId     String   @unique
+  displayIds  String[] // Array of display IDs printed
+  quantity    Int?     // Number of labels printed
+  sheets      Int?     // Number of sheets printed
+  printedBy   String?  // User who initiated the print
+  printedAt   DateTime @default(now())
+  
+  @@map("label_print_history")
+}
+
 // Magic Links for Store Auth
 model MagicLink {
   id        String   @id @default(cuid())
@@ -800,5 +965,4 @@ model MagicLink {
   
   @@map("magic_links")
 }
-
 

@@ -42,6 +42,18 @@ type Customer = {
   currentStage: string;
   stageChangedAt: Date;
   totalPurchases: number;
+  // Multi-brand: Sample history with brand info
+  sampleHistory?: Array<{
+    id: string;
+    productSku: string;
+    productName: string | null;
+    sampledAt: Date;
+    brand: {
+      orgId: string;
+      name: string;
+      logoUrl: string | null;
+    } | null;
+  }>;
   purchaseIntents?: Array<{
     id: string;
     status: string;
@@ -61,6 +73,55 @@ type DashboardData = {
   displays: any[];
   organization: any;
   role: 'owner' | 'staff';
+  // Multi-brand: Brand partnerships
+  brandPartnerships?: Array<{
+    id: string;
+    status: string;
+    onlineCommission: number;
+    subscriptionCommission: number;
+    promoCommission: number;
+    storeCreditBalance: number;
+    active: boolean;
+    availableSamples: string[];
+    availableProducts: string[];
+    brand: {
+      orgId: string;
+      name: string;
+      logoUrl: string | null;
+    };
+  }>;
+  // Multi-brand: Store inventory (retail & samples only)
+  inventory?: Array<{
+    id: string;
+    productSku: string;
+    quantityOnHand: number;
+    quantityAvailable: number;
+    product: {
+      sku: string;
+      name: string;
+      orgId: string;
+      price: number;
+      imageUrl: string | null;
+      productType: string;
+      description: string | null;
+    } | null;
+  }>;
+  // Multi-brand: Wholesale inventory (wholesale boxes only)
+  wholesaleInventory?: Array<{
+    id: string;
+    productSku: string;
+    quantityOnHand: number;
+    quantityAvailable: number;
+    product: {
+      sku: string;
+      name: string;
+      orgId: string;
+      price: number;
+      imageUrl: string | null;
+      productType: string;
+      description: string | null;
+    } | null;
+  }>;
   purchaseIntents?: Array<{
     id: string;
     status: 'pending' | 'ready' | 'fulfilled' | string;
@@ -81,8 +142,20 @@ type DashboardData = {
 };
 
 export default function StoreDashboardClient({ initialData, role }: { initialData: DashboardData; role: 'owner' | 'staff' }) {
+  // Helper function to get consistent brand colors
+  const getBrandColor = (brandName: string) => {
+    const colors = {
+      'VitaDreamz Slumber': { bg: 'bg-indigo-100', text: 'text-indigo-800' },
+      'VitaDreamz Bliss': { bg: 'bg-pink-100', text: 'text-pink-800' },
+      'VitaDreamz Chill': { bg: 'bg-cyan-100', text: 'text-cyan-800' },
+    };
+    
+    // Return color if found, otherwise use a default
+    return colors[brandName as keyof typeof colors] || { bg: 'bg-purple-100', text: 'text-purple-800' };
+  };
+
   const [data, setData] = useState(initialData);
-  const [activeTab, setActiveTab] = useState<'overview' | 'customers' | 'products' | 'orders' | 'staff' | 'credit' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'customers' | 'brands' | 'products' | 'orders' | 'staff' | 'credit' | 'settings'>('overview');
   const [customerFilter, setCustomerFilter] = useState<'all' | 'pending' | 'redeemed' | 'promo-used'>('all');
   const [mounted, setMounted] = useState(false);
   
@@ -100,10 +173,6 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
     newQuantity: number;
     reason: string;
   } | null>(null);
-  const [expandedInventory, setExpandedInventory] = useState<string | null>(null);
-  const [inventoryHistory, setInventoryHistory] = useState<any[]>([]);
-  const [inventoryHistoryProduct, setInventoryHistoryProduct] = useState<string | null>(null);
-  const [loadingHistory, setLoadingHistory] = useState(false);
   
   // Modals
   const [editingPromo, setEditingPromo] = useState(false);
@@ -120,6 +189,26 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
   const [purchaseRequestsExpanded, setPurchaseRequestsExpanded] = useState(false);
   const [samplesRequestedExpanded, setSamplesRequestedExpanded] = useState(false);
   
+  // Brand inventory expansion state
+  const [expandedBrandInventory, setExpandedBrandInventory] = useState<Record<string, boolean>>({});
+  
+  // Inventory detail modal state
+  const [selectedInventoryProduct, setSelectedInventoryProduct] = useState<any>(null);
+  const [showInventoryDetailModal, setShowInventoryDetailModal] = useState(false);
+  
+  // Inventory adjustment modal state
+  const [showInventoryAdjustModal, setShowInventoryAdjustModal] = useState(false);
+  const [adjustingProduct, setAdjustingProduct] = useState<any>(null);
+  const [adjustmentAmount, setAdjustmentAmount] = useState('');
+  const [adjustmentReason, setAdjustmentReason] = useState('');
+  const [adjustmentType, setAdjustmentType] = useState<'decrease' | 'increase'>('decrease');
+  
+  // Wholesale modal state
+  const [showWholesaleModal, setShowWholesaleModal] = useState(false);
+  const [expandedWholesaleBrands, setExpandedWholesaleBrands] = useState<Record<string, boolean>>({});
+  const [wholesaleCart, setWholesaleCart] = useState<Record<string, number>>({});  // { sku: quantity }
+  const [isSubmittingWholesale, setIsSubmittingWholesale] = useState(false);
+  
   // Fix hydration by only showing relative times after mount
   useEffect(() => {
     setMounted(true);
@@ -134,31 +223,6 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
 
   async function notifyReady(verifySlug: string) {
     try {
-      // Find the purchase intent to get the product SKU
-      const intent = purchaseIntents.find(i => i.verifySlug === verifySlug);
-      if (!intent) {
-        alert('Purchase request not found');
-        return;
-      }
-
-      // Check inventory for this product
-      const product = products.find(p => p.sku === intent.product.sku);
-      if (product && product.inventoryQuantity <= 0) {
-        // Product is out of stock - show custom dialog
-        const userChoice = confirm(
-          `⚠️ ${intent.product.name} is currently out of stock (0 units available).\n\n` +
-          `Click OK to order more inventory, or Cancel to wait.`
-        );
-        
-        if (userChoice) {
-          // User wants to buy more inventory - open wholesale modal
-          setShowPurchaseRequest(true);
-        }
-        // Either way, don't proceed with notifying customer
-        return;
-      }
-
-      // Inventory is available, proceed with notification
       const res = await fetch('/api/purchase-intent/ready', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -820,15 +884,11 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
       console.log('🔍 [Products Tab] data.store keys:', Object.keys(data.store));
       console.log('🔍 [Products Tab] Available keys are:', Object.keys(data.store).join(', '));
       const storeDbId = (data.store as any).id; // Use database ID, not human-readable storeId
-      console.log('🔍 [Products Tab] Fetching products for orgId:', orgId);
+      console.log('🔍 [Products Tab] Fetching products for store:', data.store.storeId);
       console.log('🔍 [Products Tab] storeDbId extracted:', storeDbId);
-      console.log('🔍 [Products Tab] Fetching inventory for store:', data.store.storeId, '(DB ID:', storeDbId, ')');
-      if (!orgId) {
-        console.error('❌ [Products Tab] No orgId found');
-        setLoadingProducts(false);
-        return;
-      }
-      const res = await fetch(`/api/products?orgId=${orgId}&storeId=${storeDbId}`);
+      
+      // Use the store-specific products endpoint that fetches from brand partnerships
+      const res = await fetch(`/api/stores/${data.store.storeId}/products`);
       console.log('🔍 [Products Tab] API response status:', res.status);
       if (res.ok) {
         const productsData = await res.json();
@@ -874,73 +934,6 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
     } catch (err) {
       console.error('Error updating inventory:', err);
     }
-  };
-
-  // Mark incoming order as received
-  const markAsReceived = async (incomingOrderId: string) => {
-    try {
-      const res = await fetch('/api/store/inventory/receive', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ incomingOrderId })
-      });
-
-      if (res.ok) {
-        await fetchProducts(); // Refresh to show updated inventory
-        console.log('✅ Order marked as received');
-      } else {
-        console.error('Failed to mark order as received');
-      }
-    } catch (err) {
-      console.error('Error marking order as received:', err);
-    }
-  };
-
-  // Load inventory history
-  const loadInventoryHistory = async (productSku: string) => {
-    setLoadingHistory(true);
-    setInventoryHistoryProduct(productSku);
-    try {
-      const storeDbId = (data.store as any).id;
-      const res = await fetch(`/api/store/inventory/history?productSku=${productSku}&storeId=${storeDbId}`);
-      if (res.ok) {
-        const historyData = await res.json();
-        setInventoryHistory(historyData.transactions || []);
-      } else {
-        console.error('Failed to fetch inventory history');
-      }
-    } catch (err) {
-      console.error('Error fetching inventory history:', err);
-    }
-    setLoadingHistory(false);
-  };
-
-  // Format transaction type for display
-  const formatTransactionType = (type: string) => {
-    const typeMap: Record<string, string> = {
-      'restock': '📦 Restocked',
-      'wholesale_ordered': '🛒 Wholesale Ordered',
-      'wholesale_shipped': '🚚 Shipped',
-      'wholesale_received': '✅ Received',
-      'sample_redemption': '🎁 Sample Redeemed',
-      'promo_sale': '💰 Sale (Promo)',
-      'hold_created': '🔒 Hold Created',
-      'hold_released': '🔓 Hold Released',
-      'hold_expired': '⏰ Hold Expired',
-      'manual_adjustment': '✏️ Manual Adjustment'
-    };
-    return typeMap[type] || type;
-  };
-
-  // Format date
-  const formatDate = (date: string | Date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
   };
 
   useEffect(() => {
@@ -1237,6 +1230,26 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
             📊 {role === 'staff' ? 'My Stats' : 'Overview'}
           </button>
           <button
+            onClick={() => setActiveTab('customers')}
+            className={`px-6 py-3 text-base font-semibold transition-all rounded-t-lg ${
+              activeTab === 'customers'
+                ? 'bg-purple-600 text-white shadow-lg'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+            }`}
+          >
+            👥 Customers
+          </button>
+          <button
+            onClick={() => setActiveTab('brands')}
+            className={`px-6 py-3 text-base font-semibold transition-all rounded-t-lg ${
+              activeTab === 'brands'
+                ? 'bg-purple-600 text-white shadow-lg'
+                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+            }`}
+          >
+            🏷️ Brands
+          </button>
+          <button
             onClick={() => setActiveTab('products')}
             className={`px-6 py-3 text-base font-semibold transition-all rounded-t-lg ${
               activeTab === 'products'
@@ -1255,16 +1268,6 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
             }`}
           >
             📦 Orders
-          </button>
-          <button
-            onClick={() => setActiveTab('customers')}
-            className={`px-6 py-3 text-base font-semibold transition-all rounded-t-lg ${
-              activeTab === 'customers'
-                ? 'bg-purple-600 text-white shadow-lg'
-                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-            }`}
-          >
-            👥 Customers
           </button>
           {role === 'owner' && (
             <>
@@ -1458,6 +1461,21 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                             <div className="text-xs sm:text-sm text-gray-600 truncate">
                               {customer.sampleChoice}
                             </div>
+                            {/* Multi-brand: Show brand badge if sample history exists */}
+                            {customer.sampleHistory && customer.sampleHistory.length > 0 && customer.sampleHistory[0].brand && (
+                              <div className="flex items-center gap-1.5 mt-1">
+                                {customer.sampleHistory[0].brand.logoUrl && (
+                                  <img 
+                                    src={customer.sampleHistory[0].brand.logoUrl} 
+                                    alt={customer.sampleHistory[0].brand.name}
+                                    className="w-4 h-4 rounded object-contain"
+                                  />
+                                )}
+                                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-medium">
+                                  {customer.sampleHistory[0].brand.name}
+                                </span>
+                              </div>
+                            )}
                             <div className="text-xs text-gray-500 mt-1">
                               {mounted ? formatRelativeTime(customer.requestedAt) : new Date(customer.requestedAt).toLocaleDateString()}
                             </div>
@@ -1591,13 +1609,18 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                 <div className="flex-1">
                   <h2 className="text-2xl font-bold mb-2">Place Wholesale Order</h2>
                   <p className="text-purple-100 mb-3">
-                    Order wholesale products for your store inventory
+                    Order wholesale products from your brand partners
                   </p>
                   <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-lg px-4 py-3">
                     <span className="text-3xl">💰</span>
                     <div className="flex-1">
-                      <p className="text-xs text-purple-100 uppercase tracking-wide">Available Store Credit</p>
-                      <p className="text-2xl font-bold">${((data.store as any).storeCredit || 0).toFixed(2)}</p>
+                      <p className="text-xs text-purple-100 uppercase tracking-wide">Total Store Credit Available</p>
+                      <p className="text-2xl font-bold">
+                        ${(data.brandPartnerships?.reduce((sum, bp) => sum + bp.storeCreditBalance, 0) || 0).toFixed(2)}
+                      </p>
+                      <p className="text-xs text-purple-200 mt-1">
+                        Across {data.brandPartnerships?.filter(bp => bp.status === 'active').length || 0} active brand{(data.brandPartnerships?.filter(bp => bp.status === 'active').length || 0) !== 1 ? 's' : ''}
+                      </p>
                     </div>
                     <button
                       onClick={() => setActiveTab('credit')}
@@ -1608,16 +1631,10 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                   </div>
                 </div>
                 <button
-                  onClick={() => {
-                    setShowPurchaseRequest(true);
-                    // Fetch products if not already loaded
-                    if (products.length === 0 && !loadingProducts) {
-                      fetchProducts();
-                    }
-                  }}
+                  onClick={() => setShowWholesaleModal(true)}
                   className="px-6 py-3 bg-white text-purple-600 rounded-lg hover:bg-purple-50 transition-colors text-lg font-bold shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
-                  + Place Order
+                  📦 Wholesale Order
                 </button>
               </div>
             </div>
@@ -1774,15 +1791,8 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                     }
                   });
 
-                  // Promo redemptions - only for customers who had samples (not direct purchases)
-                  data.customers
-                    .filter(c => 
-                      c.promoRedeemed && 
-                      c.promoRedeemedAt && 
-                      c.sampleChoice && 
-                      c.sampleChoice.trim() !== ''
-                    )
-                    .forEach(c => {
+                  // Promo redemptions
+                  data.customers.filter(c => c.promoRedeemed && c.promoRedeemedAt).forEach(c => {
                     activities.push({
                       id: `promo-${c.id}`,
                       type: 'promo-redeemed',
@@ -1992,7 +2002,15 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                         })()}
                       </div>
                     </div>
-                  <div className="text-sm text-gray-600">{customer.sampleChoice}</div>
+                  <div className="text-sm text-gray-600">
+                    {customer.sampleChoice}
+                    {/* Multi-brand: Show brand badge */}
+                    {customer.sampleHistory && customer.sampleHistory.length > 0 && customer.sampleHistory[0].brand && (
+                      <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-medium">
+                        {customer.sampleHistory[0].brand.name}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-gray-500 mt-1">
                     {mounted ? formatRelativeTime(customer.requestedAt) : new Date(customer.requestedAt).toLocaleDateString()}
                   </div>
@@ -2095,7 +2113,15 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-600">Sample:</span>
-                            <span>{customer.sampleChoice}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span>{customer.sampleChoice}</span>
+                              {/* Multi-brand: Show brand badge */}
+                              {customer.sampleHistory && customer.sampleHistory.length > 0 && customer.sampleHistory[0].brand && (
+                                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-medium">
+                                  {customer.sampleHistory[0].brand.name}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-gray-600">Product Requested:</span>
@@ -2392,6 +2418,12 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                   <span className="text-gray-600">Sample Choice:</span>
                                   <div className="flex items-center gap-2">
                                     <span className="text-gray-900">{customer.sampleChoice}</span>
+                                    {/* Multi-brand: Show brand badge */}
+                                    {customer.sampleHistory && customer.sampleHistory.length > 0 && customer.sampleHistory[0].brand && (
+                                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-medium">
+                                        {customer.sampleHistory[0].brand.name}
+                                      </span>
+                                    )}
                                     {!customer.redeemed && customer.currentStage === 'pending' && role === 'owner' && (
                                       <button
                                         onClick={async (e) => {
@@ -2544,6 +2576,305 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
           </div>
         )}
 
+        {/* Brands Tab */}
+        {activeTab === 'brands' && (
+          <div className="space-y-6">
+            {/* Wholesale Order Button */}
+            <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg shadow-lg p-6 text-white">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="flex-1">
+                  <h2 className="text-2xl font-bold mb-2">Place Wholesale Order</h2>
+                  <p className="text-purple-100">
+                    Order wholesale products from your brand partners
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowWholesaleModal(true)}
+                  className="px-6 py-3 bg-white text-purple-600 rounded-lg hover:bg-purple-50 transition-colors text-lg font-bold shadow-lg hover:shadow-xl transform hover:scale-105"
+                >
+                  📦 Wholesale Order
+                </button>
+              </div>
+            </div>
+
+            {/* Pending Partnership Requests */}
+            {data.brandPartnerships && data.brandPartnerships.filter(bp => bp.status === 'pending').length > 0 && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm font-bold">
+                    {data.brandPartnerships.filter(bp => bp.status === 'pending').length}
+                  </span>
+                  Partnership Requests
+                </h2>
+                <div className="space-y-3">
+                  {data.brandPartnerships
+                    .filter(bp => bp.status === 'pending')
+                    .map((partnership) => (
+                      <div
+                        key={partnership.id}
+                        className="border border-yellow-200 bg-yellow-50 rounded-lg p-4 flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-4">
+                          {partnership.brand.logoUrl && (
+                            <img
+                              src={partnership.brand.logoUrl}
+                              alt={partnership.brand.name}
+                              className="w-12 h-12 rounded-lg object-cover"
+                            />
+                          )}
+                          <div>
+                            <h3 className="font-semibold text-gray-900">{partnership.brand.name}</h3>
+                            <p className="text-sm text-gray-600">
+                              {partnership.availableProducts.length} products available
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium">
+                            Approve
+                          </button>
+                          <button className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium">
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Active Partnerships */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-bold mb-4">Active Partnerships</h2>
+              <p className="text-sm text-gray-600 mb-6">
+                Manage your brand partnerships and view available products from each brand.
+              </p>
+              
+              {data.brandPartnerships && data.brandPartnerships.filter(bp => bp.status === 'active').length > 0 ? (
+                <div className="grid gap-4">
+                  {data.brandPartnerships
+                    .filter(bp => bp.status === 'active')
+                    .map((partnership) => {
+                      // Get products for this brand with inventory (exclude wholesale boxes)
+                      const brandProducts = products?.filter(
+                        (p) => p.orgId === partnership.brand.orgId && 
+                               p.productType !== 'wholesale-box'
+                      ) || [];
+                      const isExpanded = expandedBrandInventory[partnership.id] || false;
+                      
+                      return (
+                      <div
+                        key={partnership.id}
+                        className="border border-gray-200 rounded-lg overflow-hidden"
+                      >
+                        <div className="p-4 bg-white hover:bg-gray-50 transition-colors">
+                          <div className="flex items-start gap-4">
+                            {partnership.brand.logoUrl && (
+                              <img
+                                src={partnership.brand.logoUrl}
+                                alt={partnership.brand.name}
+                                className="w-16 h-16 rounded-lg object-cover"
+                              />
+                            )}
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-3">
+                                <span className={`${getBrandColor(partnership.brand.name).bg} ${getBrandColor(partnership.brand.name).text} px-3 py-1 rounded-full text-sm font-bold`}>
+                                  {partnership.brand.name}
+                                </span>
+                                {partnership.active && (
+                                  <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">
+                                    Active
+                                  </span>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-6 gap-3 text-sm">
+                                <div className="bg-green-50 rounded p-3">
+                                  <div className="text-green-600 font-medium mb-1">💰 Store Credit</div>
+                                  <div className="text-2xl font-bold text-green-700">
+                                    ${partnership.storeCreditBalance.toFixed(2)}
+                                  </div>
+                                  <div className="text-xs text-green-600 mt-1">Available balance</div>
+                                </div>
+                                <div className="bg-orange-50 rounded p-3">
+                                  <div className="text-orange-600 font-medium mb-1">Promo</div>
+                                  <div className="text-center">
+                                    <div className="text-2xl font-bold text-orange-700">
+                                      {(partnership.promoCommission || 50).toFixed(0)}%
+                                    </div>
+                                    <div className="text-[10px] font-semibold text-orange-600 -mt-1">rebate</div>
+                                  </div>
+                                  <div className="text-xs text-orange-600 text-center mt-1">In-Store Promo</div>
+                                  <div className="text-xs text-orange-600 text-center">Brand Match</div>
+                                </div>
+                                <div className="bg-purple-50 rounded p-3">
+                                  <div className="text-purple-600 font-medium mb-1">Online</div>
+                                  <div className="text-center">
+                                    <div className="text-2xl font-bold text-purple-700">
+                                      {(partnership.onlineCommission || 20).toFixed(0)}%
+                                    </div>
+                                    <div className="text-[10px] font-semibold text-purple-600 -mt-1">commission</div>
+                                  </div>
+                                  <div className="text-xs text-purple-600 text-center mt-1">Purchases on</div>
+                                  <div className="text-xs text-purple-600 text-center">Brand Website</div>
+                                </div>
+                                <div className="bg-indigo-50 rounded p-3">
+                                  <div className="text-indigo-600 font-medium mb-1">Subscription</div>
+                                  <div className="text-center">
+                                    <div className="text-2xl font-bold text-indigo-700">
+                                      {(partnership.subscriptionCommission || 5).toFixed(0)}%
+                                    </div>
+                                    <div className="text-[10px] font-semibold text-indigo-600 -mt-1">commission</div>
+                                  </div>
+                                  <div className="text-xs text-indigo-600 text-center mt-1">Subscriptions on</div>
+                                  <div className="text-xs text-indigo-600 text-center">Brand Website</div>
+                                </div>
+                                <div className="bg-blue-50 rounded p-3">
+                                  <div className="text-blue-600 font-medium mb-1">Samples</div>
+                                  <div className="text-2xl font-bold text-blue-700">
+                                    {partnership.availableSamples.length}
+                                  </div>
+                                  <div className="text-xs text-blue-600 mt-1">
+                                    SKUs available
+                                  </div>
+                                </div>
+                                <div className="bg-amber-50 rounded p-3">
+                                  <div className="text-amber-600 font-medium mb-1">Products</div>
+                                  <div className="text-2xl font-bold text-amber-700">
+                                    {partnership.availableProducts.length}
+                                  </div>
+                                  <div className="text-xs text-amber-600 mt-1">
+                                    SKUs available
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Expandable Inventory Section */}
+                          {brandProducts.length > 0 && (
+                            <button
+                              onClick={() => setExpandedBrandInventory(prev => ({
+                                ...prev,
+                                [partnership.id]: !prev[partnership.id]
+                              }))}
+                              className="mt-4 w-full flex items-center justify-between px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                            >
+                              <span className="font-medium text-gray-700">
+                                View Inventory ({brandProducts.length} products)
+                              </span>
+                              <span className="text-gray-500">
+                                {isExpanded ? '▼' : '▶'}
+                              </span>
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Inventory Drawer */}
+                        {isExpanded && brandProducts.length > 0 && (
+                          <div className="border-t border-gray-200 bg-gray-50 p-4">
+                            <div className="overflow-x-auto">
+                              <table className="w-full">
+                                <thead className="bg-gray-100 border-b">
+                                  <tr>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Price</th>
+                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">In Stock</th>
+                                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200 bg-white">
+                                  {brandProducts.map((product) => (
+                                    <tr key={product.id} className="hover:bg-gray-50">
+                                      <td className="px-4 py-3">
+                                        <div className="flex items-center gap-3">
+                                          {product.imageUrl && (
+                                            <img
+                                              src={product.imageUrl}
+                                              alt={product.name}
+                                              className="w-10 h-10 rounded object-cover"
+                                            />
+                                          )}
+                                          <div>
+                                            <div className="font-medium text-sm">{product.name || product.sku}</div>
+                                            <div className="text-xs text-gray-500">{product.sku}</div>
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                          product.productType === 'sample'
+                                            ? 'bg-purple-100 text-purple-700'
+                                            : 'bg-green-100 text-green-700'
+                                        }`}>
+                                          {product.productType || 'N/A'}
+                                        </span>
+                                      </td>
+                                      <td className="px-4 py-3 text-right font-medium text-sm">
+                                        ${Number(product.price).toFixed(2)}
+                                      </td>
+                                      <td className="px-4 py-3 text-right">
+                                        <button
+                                          onClick={async () => {
+                                            setSelectedInventoryProduct(product);
+                                            setShowInventoryDetailModal(true);
+                                          }}
+                                          className={`font-medium hover:underline cursor-pointer ${
+                                            (product.inventoryQuantity || 0) > 20 ? 'text-green-600' :
+                                            (product.inventoryQuantity || 0) > 5 ? 'text-yellow-600' :
+                                            'text-red-600'
+                                          }`}
+                                        >
+                                          {product.inventoryQuantity || 0}
+                                          {/* Show holds and incoming if they exist */}
+                                          {(product.quantityReserved > 0 || product.quantityIncoming > 0) && (
+                                            <span className="text-xs ml-1">
+                                              {product.quantityReserved > 0 && (
+                                                <span className="text-yellow-600">(-{product.quantityReserved})</span>
+                                              )}
+                                              {product.quantityIncoming > 0 && (
+                                                <span className="text-blue-600">(+{product.quantityIncoming})</span>
+                                              )}
+                                            </span>
+                                          )}
+                                        </button>
+                                      </td>
+                                      <td className="px-4 py-3 text-center">
+                                        {product.quantityIncoming > 0 && product.verificationToken && (
+                                          <button
+                                            onClick={() => {
+                                              window.location.href = `/store/wholesale/verify/${product.verificationToken}`;
+                                            }}
+                                            className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors"
+                                          >
+                                            📦 Verify Received
+                                          </button>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-gray-50 rounded-lg">
+                  <span className="text-6xl mb-4 block">🏷️</span>
+                  <p className="text-gray-600">No brand partnerships yet</p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Contact support to add brand partnerships to your store
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Products Tab */}
         {activeTab === 'products' && (
           <div className="space-y-6">
@@ -2552,22 +2883,15 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex-1">
                   <h2 className="text-2xl font-bold mb-2">Place Wholesale Order</h2>
-                  <p className="text-purple-100 mb-3">
-                    Order wholesale products for your store inventory
+                  <p className="text-purple-100">
+                    Order wholesale products from your brand partners
                   </p>
-                  <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-lg px-4 py-3 inline-flex">
-                    <span className="text-3xl">💰</span>
-                    <div>
-                      <p className="text-xs text-purple-100 uppercase tracking-wide">Available Store Credit</p>
-                      <p className="text-2xl font-bold">${((data.store as any).storeCredit || 0).toFixed(2)}</p>
-                    </div>
-                  </div>
                 </div>
                 <button
-                  onClick={() => setShowPurchaseRequest(true)}
+                  onClick={() => setShowWholesaleModal(true)}
                   className="px-6 py-3 bg-white text-purple-600 rounded-lg hover:bg-purple-50 transition-colors text-lg font-bold shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
-                  + Place Order
+                  📦 Wholesale Order
                 </button>
               </div>
             </div>
@@ -2577,531 +2901,278 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
               <div className="mb-6">
                 <h2 className="text-xl font-bold">Available Samples</h2>
                 <p className="text-sm text-gray-600 mt-1">
-                  Free 4ct sample options customers can choose from. Click to enable/disable each sample.
+                  Sample products available across all your brand partnerships
                 </p>
               </div>
 
-              {loadingProducts ? (
-                <div className="text-center py-8 text-gray-500">Loading samples...</div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {(() => {
-                    // Get 4ct sample products (active only)
-                    const sampleProducts = products.filter(p => p.sku.endsWith('-4') && p.active !== false);
-                    
-                    return sampleProducts.map((product) => {
-                      const isAvailable = (data.store.availableSamples || []).includes(product.sku);
-                      
+              {(() => {
+                const samples = products?.filter(p => p.productType === 'sample') || [];
+                
+                if (samples.length === 0) {
+                  return (
+                    <div className="text-center py-12 bg-gray-50 rounded-lg">
+                      <span className="text-6xl mb-4 block">📦</span>
+                      <p className="text-gray-600">No sample products in inventory</p>
+                      <p className="text-sm text-gray-500 mt-2">
+                        Use the wholesale order button above to stock up
+                      </p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-2">
+                    {samples.map((product) => {
+                      if (!product) return null;
+
+                      const brand = data.brandPartnerships?.find(
+                        bp => bp.brand.orgId === product.orgId
+                      );
+
+                      // Check if this sample is currently offered by the store
+                      const isOffered = (data.store.availableSamples || []).includes(product.sku);
+
                       return (
                         <div
-                          key={product.sku}
-                          className={`relative border-2 rounded-lg overflow-hidden transition-all ${
-                            isAvailable ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'
+                          key={product.id}
+                          className={`flex items-center justify-between p-4 border-2 rounded-lg transition-all ${
+                            isOffered 
+                              ? 'border-purple-500 bg-purple-50' 
+                              : 'border-gray-200 hover:border-gray-300'
                           }`}
                         >
-                          {/* Low Stock Badge */}
-                          {(product.inventoryQuantity || 0) <= (product.lowStockThreshold || 10) && 
-                           (product.inventoryQuantity || 0) > 0 && (
-                            <div className="absolute top-2 left-2 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded-full z-10 flex items-center gap-1">
-                              ⚠️ Low Stock
-                            </div>
-                          )}
-
-                          {/* Out of Stock Badge */}
-                          {(product.inventoryQuantity || 0) === 0 && (
-                            <div className="absolute top-2 left-2 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full z-10">
-                              ❌ Out of Stock
-                            </div>
-                          )}
-                          
-                          {/* Product Image */}
-                          <div className="h-40 bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center p-4">
+                          <div className="flex items-center gap-4 flex-1">
                             {product.imageUrl ? (
                               <img
                                 src={product.imageUrl}
                                 alt={product.name}
-                                className="max-h-full max-w-full object-contain"
+                                className="w-12 h-12 rounded object-cover"
                               />
                             ) : (
-                              <div className="text-4xl">🍬</div>
+                              <span className="text-2xl">🍬</span>
                             )}
-                          </div>
-                          
-                          <div className="p-4">
-                            <h3 className="font-bold text-sm text-gray-900 mb-1">
-                              {product.name}
-                            </h3>
-                            {product.description && (
-                              <p className="text-xs text-gray-600 mb-2">{product.description}</p>
-                            )}
-                            {product.category && (
-                              <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded mb-2">
-                                {product.category}
-                              </span>
-                            )}
-                            <div className="text-sm font-semibold text-purple-600 mb-3">
-                              Free Sample (Retail: ${parseFloat(product.price).toFixed(2)})
+                            <div className="flex-1">
+                              <div className="font-medium">{product.name}</div>
+                              <div className="text-sm text-gray-500">{product.sku}</div>
+                              {brand && (
+                                <span className={`inline-block ${getBrandColor(brand.brand.name).bg} ${getBrandColor(brand.brand.name).text} text-xs px-2 py-1 rounded font-medium mt-1`}>
+                                  {brand.brand.name}
+                                </span>
+                              )}
+                              {product.description && (
+                                <div className="text-xs text-gray-500 mt-1">{product.description}</div>
+                              )}
                             </div>
-                            
-                            {/* Inventory Display - Expandable (Simple version for samples) */}
-                            <button
-                              onClick={() => setExpandedInventory(
-                                expandedInventory === product.sku ? null : product.sku
-                              )}
-                              className="w-full mb-3 p-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors group"
-                            >
-                              {expandedInventory === product.sku ? (
-                                // EXPANDED VIEW
-                                <div className="space-y-2 text-left">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-xs font-semibold text-gray-600 uppercase">Inventory</span>
-                                    <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                                    </svg>
-                                  </div>
-                                  
-                                  <div className="space-y-2 pt-2 border-t border-gray-200">
-                                    <div className="flex justify-between items-center">
-                                      <span className="text-sm text-gray-600">🏪 In Stock:</span>
-                                      <span className={`text-lg font-bold ${
-                                        (product.inventoryQuantity || 0) > (product.lowStockThreshold || 10)
-                                          ? 'text-green-600' 
-                                          : (product.inventoryQuantity || 0) > 0
-                                          ? 'text-yellow-600' 
-                                          : 'text-red-600'
-                                      }`}>
-                                        {product.inventoryQuantity || 0} units
-                                      </span>
-                                    </div>
-                                    
-                                    {product.incomingOrders && product.incomingOrders.length > 0 && (
-                                      <div className="bg-blue-50 rounded p-2">
-                                        <div className="flex justify-between text-sm">
-                                          <span className="text-blue-900 font-semibold">📦 Incoming:</span>
-                                          <span className="text-blue-600 font-bold">
-                                            +{product.incomingOrders.reduce((sum: number, o: any) => sum + o.quantityOrdered, 0)}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                  
-                                  <div className="flex gap-2 pt-2 border-t border-gray-200">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        loadInventoryHistory(product.sku);
-                                      }}
-                                      className="flex-1 py-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded font-medium"
-                                    >
-                                      📋 History
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setEditingInventory({
-                                          productSku: product.sku,
-                                          productName: product.name,
-                                          currentQuantity: product.inventoryQuantity || 0,
-                                          newQuantity: product.inventoryQuantity || 0,
-                                          reason: 'restock'
-                                        });
-                                      }}
-                                      className="flex-1 py-1.5 text-xs bg-purple-600 text-white hover:bg-purple-700 rounded font-medium"
-                                    >
-                                      ✏️ Adjust
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                // COLLAPSED VIEW
-                                <div>
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Inventory</span>
-                                    <svg className="w-4 h-4 text-gray-400 group-hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                    </svg>
-                                  </div>
-                                  <div className="flex items-baseline gap-2 mt-1">
-                                    <span className={`text-3xl font-bold ${
-                                      (product.inventoryQuantity || 0) > 10 
-                                        ? 'text-green-600' 
-                                        : (product.inventoryQuantity || 0) > 0 
-                                        ? 'text-yellow-600' 
-                                        : 'text-red-600'
-                                    }`}>
-                                      {product.inventoryQuantity || 0}
-                                    </span>
-                                    <span className="text-sm text-gray-500">in stock</span>
-                                  </div>
-                                </div>
-                              )}
-                            </button>
-                            
-                            <button
-                              onClick={async () => {
-                                const currentSamples = data.store.availableSamples || [];
-                                const newSamples = isAvailable
-                                  ? currentSamples.filter((s: string) => s !== product.sku)
-                                  : [...currentSamples, product.sku];
-                                
-                                try {
-                                  const res = await fetch('/api/store/settings', {
-                                    method: 'PATCH',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ availableSamples: newSamples })
-                                  });
-                                  
-                                  if (res.ok) {
-                                    setData({
-                                      ...data,
-                                      store: {
-                                        ...data.store,
-                                        availableSamples: newSamples
-                                      }
-                                    });
-                                  }
-                                } catch (err) {
-                                  console.error('Failed to update samples:', err);
-                                }
-                              }}
-                              className={`w-full py-2 px-4 rounded-lg font-semibold transition-colors ${
-                                isAvailable
-                                  ? 'bg-purple-600 text-white hover:bg-purple-700'
-                                  : 'bg-red-100 text-red-700 hover:bg-red-200'
-                              }`}
-                            >
-                              {isAvailable ? '✓ Offering' : '+ Offer This Sample'}
-                            </button>
+                            <div className="text-right mr-4">
+                              <div className="text-lg font-bold text-green-600">
+                                FREE
+                              </div>
+                              <div className="text-sm text-gray-400 line-through">
+                                ${Number(product.price).toFixed(2)}
+                              </div>
+                              <div className={`text-sm font-medium ${
+                                (product.inventoryQuantity || 0) > 20 
+                                  ? 'text-green-600' 
+                                  : (product.inventoryQuantity || 0) > 5 
+                                  ? 'text-yellow-600' 
+                                  : 'text-red-600'
+                              }`}>
+                                {product.inventoryQuantity || 0} in stock
+                              </div>
+                            </div>
                           </div>
+
+                          {/* Offer Toggle Button */}
+                          <button
+                            onClick={async () => {
+                              const currentSamples = data.store.availableSamples || [];
+                              const newSamples = isOffered
+                                ? currentSamples.filter((s: string) => s !== product.sku)
+                                : [...currentSamples, product.sku];
+                              
+                              try {
+                                const res = await fetch('/api/store/settings', {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ availableSamples: newSamples })
+                                });
+                                
+                                if (res.ok) {
+                                  setData({
+                                    ...data,
+                                    store: {
+                                      ...data.store,
+                                      availableSamples: newSamples
+                                    }
+                                  });
+                                }
+                              } catch (err) {
+                                console.error('Error updating samples:', err);
+                              }
+                            }}
+                            className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                              isOffered
+                                ? 'bg-purple-600 text-white hover:bg-purple-700'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            {isOffered ? '✓ Currently Offering' : '+ Offer This Product'}
+                          </button>
                         </div>
                       );
-                    });
-                  })()}
-                </div>
-              )}
+                    })}
+                  </div>
+                );
+              })()}
             </div>
 
-            {/* Full-Size Products Section */}
+            {/* Available Full-Size Products Section */}
             <div className="bg-white rounded-lg shadow p-6">
               <div className="mb-6">
-                <h2 className="text-xl font-bold">Full-Size Products</h2>
+                <h2 className="text-xl font-bold">Available Full-Size Products</h2>
                 <p className="text-sm text-gray-600 mt-1">
-                  These are the full-size products customers can purchase
+                  Retail products available from your brand partnerships
                 </p>
               </div>
 
-            {loadingProducts ? (
-              <div className="text-center py-8 text-gray-500">Loading products...</div>
-            ) : products.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                No products available from your brand yet
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {(() => {
-                  // Filter out wholesale boxes, 4ct samples, and inactive products
-                  const filtered = products.filter((product: any) => 
-                    product.productType !== 'wholesale-box' && 
-                    !product.sku.endsWith('-4') && // Exclude 4ct products (samples)
-                    product.active !== false // Exclude inactive products like Luna Berry
-                  );
-                  console.log('🔍 [Products Tab] Total products:', products.length);
-                  console.log('🔍 [Products Tab] Filtered products (non-wholesale, non-4ct, active):', filtered.length);
-                  console.log('🔍 [Products Tab] Filtered SKUs:', filtered.map((p: any) => p.sku).join(', '));
-                  console.log('🔍 [Products Tab] data.store.availableProducts:', (data.store as any).availableProducts);
-                  console.log('🔍 [Products Tab] availableProducts type:', typeof (data.store as any).availableProducts);
-                  console.log('🔍 [Products Tab] availableProducts isArray:', Array.isArray((data.store as any).availableProducts));
-                  return filtered;
-                })()
-                  .map((product: any) => {
-                  const availableProducts = (data.store as any).availableProducts;
-                  const isOffered = Array.isArray(availableProducts) && availableProducts.includes(product.sku);
-                  console.log(`🔍 [Product ${product.sku}] isOffered:`, isOffered, '| availableProducts:', availableProducts);
-                  
+              {(() => {
+                const retailProducts = products?.filter(p => p.productType === 'retail') || [];
+                
+                if (retailProducts.length === 0) {
                   return (
-                    <div
-                      key={product.sku}
-                      className={`relative border-2 rounded-lg overflow-hidden transition-all ${
-                        isOffered ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      {/* Low Stock Badge */}
-                      {(product.inventoryQuantity || 0) <= (product.lowStockThreshold || 10) && 
-                       (product.inventoryQuantity || 0) > 0 && (
-                        <div className="absolute top-2 left-2 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded-full z-10 flex items-center gap-1">
-                          ⚠️ Low Stock
-                        </div>
-                      )}
-
-                      {/* Out of Stock Badge */}
-                      {(product.inventoryQuantity || 0) === 0 && (
-                        <div className="absolute top-2 left-2 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full z-10">
-                          ❌ Out of Stock
-                        </div>
-                      )}
-                      
-                      {product.featured && (
-                        <div className="absolute top-2 right-2 bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded-full z-10">
-                          ⭐ Featured
-                        </div>
-                      )}
-                      
-                      {/* Product Image */}
-                      <div className="h-40 bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center p-4">
-                        {product.imageUrl ? (
-                          <img
-                            src={product.imageUrl}
-                            alt={product.name}
-                            className="max-h-full max-w-full object-contain"
-                          />
-                        ) : (
-                          <div className="text-center">
-                            <div className="text-4xl mb-2">🍬</div>
-                            <div className="text-sm text-gray-600">{product.category}</div>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="p-4">
-                        <h3 className="font-bold text-sm text-gray-900 mb-1">
-                          {product.name}
-                        </h3>
-                        {product.description && (
-                          <p className="text-xs text-gray-600 mb-2">{product.description}</p>
-                        )}
-                        {product.category && (
-                          <span className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded mb-2">
-                            {product.category}
-                          </span>
-                        )}
-                        <div className="text-lg font-bold text-purple-600 mb-3">
-                          ${parseFloat(product.price).toFixed(2)}
-                        </div>
-                        
-                        {/* Inventory Display - Expandable */}
-                        <button
-                          onClick={() => setExpandedInventory(
-                            expandedInventory === product.sku ? null : product.sku
-                          )}
-                          className="w-full mb-3 p-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors group"
-                        >
-                          {expandedInventory === product.sku ? (
-                            // EXPANDED VIEW
-                            <div className="space-y-3 text-left">
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-semibold text-gray-600 uppercase">Inventory Details</span>
-                                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                                </svg>
-                              </div>
-                              
-                              <div className="border-t border-gray-200 pt-3 space-y-2">
-                                {/* In Stock */}
-                                <div className="flex justify-between items-center">
-                                  <span className="text-sm text-gray-600">🏪 In Stock:</span>
-                                  <span className={`text-lg font-bold ${
-                                    (product.inventoryQuantity || 0) > (product.lowStockThreshold || 10)
-                                      ? 'text-green-600' 
-                                      : (product.inventoryQuantity || 0) > 0
-                                      ? 'text-yellow-600' 
-                                      : 'text-red-600'
-                                  }`}>
-                                    {product.inventoryQuantity || 0} units
-                                  </span>
-                                </div>
-                                
-                                {/* Incoming */}
-                                {product.incomingOrders && product.incomingOrders.length > 0 && (
-                                  <div className="bg-blue-50 rounded p-2">
-                                    <div className="flex justify-between items-center mb-1">
-                                      <span className="text-sm text-blue-900 font-semibold">📦 Incoming:</span>
-                                      <span className="text-lg font-bold text-blue-600">
-                                        +{product.incomingOrders.reduce((sum: number, o: any) => sum + o.quantityOrdered, 0)} units
-                                      </span>
-                                    </div>
-                                    {product.incomingOrders.map((order: any) => (
-                                      <div key={order.id} className="text-xs text-blue-800 ml-4 mt-1 space-y-1">
-                                        <div className="flex justify-between items-center">
-                                          <span>└ Order #{order.shopifyOrderNumber}</span>
-                                          <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                                            order.status === 'shipped' ? 'bg-blue-200 text-blue-900' :
-                                            order.status === 'delivered' ? 'bg-green-200 text-green-900' :
-                                            'bg-gray-200 text-gray-900'
-                                          }`}>
-                                            {order.status}
-                                          </span>
-                                        </div>
-                                        {order.status === 'shipped' && order.estimatedDelivery && (
-                                          <div className="text-blue-600 ml-2">
-                                            ETA: {new Date(order.estimatedDelivery).toLocaleDateString()}
-                                          </div>
-                                        )}
-                                        {order.trackingNumber && (
-                                          <div className="ml-2">
-                                            <a 
-                                              href={order.trackingUrl || '#'} 
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              onClick={(e) => e.stopPropagation()}
-                                              className="text-blue-600 hover:underline"
-                                            >
-                                              Track: {order.trackingNumber}
-                                            </a>
-                                          </div>
-                                        )}
-                                        {(order.status === 'delivered' || order.status === 'shipped') && (
-                                          <button
-                                            onClick={async (e) => {
-                                              e.stopPropagation();
-                                              if (confirm(`Mark ${order.quantityOrdered} units as received?`)) {
-                                                await markAsReceived(order.id);
-                                              }
-                                            }}
-                                            className="ml-2 mt-1 px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
-                                          >
-                                            ✓ Mark as Received
-                                          </button>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                                
-                                {/* Reserved */}
-                                {(product.inventoryReserved || 0) > 0 && (
-                                  <div className="flex justify-between items-center">
-                                    <span className="text-sm text-gray-600">🔒 Reserved (Holds):</span>
-                                    <span className="text-sm font-medium text-orange-600">
-                                      {product.inventoryReserved} units
-                                    </span>
-                                  </div>
-                                )}
-                                
-                                {/* Available */}
-                                <div className="flex justify-between items-center pt-2 border-t border-gray-200">
-                                  <span className="text-sm font-semibold text-gray-700">✅ Available to Sell:</span>
-                                  <span className="text-lg font-bold text-purple-600">
-                                    {product.inventoryAvailable || 0} units
-                                  </span>
-                                </div>
-                                
-                                {/* Projected Total */}
-                                {product.incomingOrders && product.incomingOrders.length > 0 && (
-                                  <div className="flex justify-between items-center bg-purple-50 -mx-3 -mb-3 px-3 py-2 rounded-b-lg">
-                                    <span className="text-sm font-semibold text-purple-900">
-                                      📊 Projected Total:
-                                    </span>
-                                    <span className="text-lg font-bold text-purple-700">
-                                      {(product.inventoryQuantity || 0) + 
-                                       product.incomingOrders.reduce((sum: number, o: any) => sum + o.quantityOrdered, 0)} units
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                              
-                              {/* Quick Actions */}
-                              <div className="flex gap-2 pt-2 border-t border-gray-200">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    loadInventoryHistory(product.sku);
-                                  }}
-                                  className="flex-1 py-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded font-medium"
-                                >
-                                  📋 History
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditingInventory({
-                                      productSku: product.sku,
-                                      productName: product.name,
-                                      currentQuantity: product.inventoryQuantity || 0,
-                                      newQuantity: product.inventoryQuantity || 0,
-                                      reason: 'restock'
-                                    });
-                                  }}
-                                  className="flex-1 py-1.5 text-xs bg-purple-600 text-white hover:bg-purple-700 rounded font-medium"
-                                >
-                                  ✏️ Adjust
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            // COLLAPSED VIEW
-                            <div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Inventory</span>
-                                <svg className="w-4 h-4 text-gray-400 group-hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
-                              </div>
-                              <div className="flex items-baseline gap-2 mt-1 flex-wrap">
-                                <span className={`text-3xl font-bold ${
-                                  (product.inventoryQuantity || 0) > (product.lowStockThreshold || 10)
-                                    ? 'text-green-600' 
-                                    : (product.inventoryQuantity || 0) > 0
-                                    ? 'text-yellow-600' 
-                                    : 'text-red-600'
-                                }`}>
-                                  {product.inventoryQuantity || 0}
-                                </span>
-                                <span className="text-sm text-gray-500">in stock</span>
-                                {product.incomingOrders && product.incomingOrders.length > 0 && (
-                                  <span className="text-sm text-blue-600 font-medium">
-                                    +{product.incomingOrders.reduce((sum: number, o: any) => sum + o.quantityOrdered, 0)} incoming
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </button>
-                        
-                        <button
-                          onClick={async () => {
-                            const currentProducts = (data.store as any).availableProducts || [];
-                            const newProducts = isOffered
-                              ? currentProducts.filter((s: string) => s !== product.sku)
-                              : [...currentProducts, product.sku];
-                            
-                            try {
-                              const res = await fetch('/api/stores/update-products', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                  storeId: data.store.storeId,
-                                  availableProducts: newProducts
-                                })
-                              });
-                              
-                              if (res.ok) {
-                                setData({
-                                  ...data,
-                                  store: {
-                                    ...data.store,
-                                    availableProducts: newProducts
-                                  } as any
-                                });
-                              }
-                            } catch (err) {
-                              console.error('Failed to update products:', err);
-                            }
-                          }}
-                          className={`w-full py-2 px-4 rounded-lg font-semibold transition-colors ${
-                            isOffered
-                              ? 'bg-purple-600 text-white hover:bg-purple-700'
-                              : 'bg-red-100 text-red-700 hover:bg-red-200'
-                          }`}
-                        >
-                          {isOffered ? '✓ Offering' : '+ Offer This Product'}
-                        </button>
-                      </div>
+                    <div className="text-center py-12 bg-gray-50 rounded-lg">
+                      <span className="text-6xl mb-4 block">📦</span>
+                      <p className="text-gray-600">No retail products in inventory</p>
+                      <p className="text-sm text-gray-500 mt-2">
+                        Use the wholesale order button above to stock up
+                      </p>
                     </div>
                   );
-                })}
-              </div>
-            )}
+                }
+
+                // Group products by brand
+                const productsByBrand = data.brandPartnerships?.map(partnership => {
+                  const brandProducts = retailProducts.filter(
+                    p => p.orgId === partnership.brand.orgId
+                  );
+                  
+                  return {
+                    partnership,
+                    products: brandProducts
+                  };
+                }).filter(group => group.products.length > 0) || [];
+
+                return (
+                  <div className="space-y-6">
+                    {productsByBrand.map(({ partnership, products: brandProducts }) => (
+                      <div key={partnership.id} className="border rounded-lg p-4">
+                        {/* Brand Header */}
+                        <div className="flex items-center gap-3 mb-4 pb-3 border-b">
+                          {partnership.brand.logoUrl && (
+                            <img
+                              src={partnership.brand.logoUrl}
+                              alt={partnership.brand.name}
+                              className="w-8 h-8 rounded object-cover"
+                            />
+                          )}
+                          <span className={`${getBrandColor(partnership.brand.name).bg} ${getBrandColor(partnership.brand.name).text} text-sm px-3 py-1 rounded-full font-bold`}>
+                            {partnership.brand.name}
+                          </span>
+                        </div>
+
+                        {/* Products List */}
+                        <div className="space-y-3">
+                          {brandProducts.map((product) => {
+                            if (!product) return null;
+
+                            // Check if this product is currently offered by the store
+                            const isOffered = (data.store.availableProducts || []).includes(product.sku);
+
+                            return (
+                              <div
+                                key={product.id}
+                                className={`flex items-center justify-between p-4 border-2 rounded-lg transition-all ${
+                                  isOffered 
+                                    ? 'border-purple-500 bg-purple-50' 
+                                    : 'border-gray-200 hover:border-gray-300'
+                                }`}
+                              >
+                                <div className="flex items-center gap-4 flex-1">
+                                  {product.imageUrl && (
+                                    <img
+                                      src={product.imageUrl}
+                                      alt={product.name}
+                                      className="w-12 h-12 rounded object-cover"
+                                    />
+                                  )}
+                                  <div className="flex-1">
+                                    <div className="font-medium">{product.name}</div>
+                                    <div className="text-sm text-gray-500">{product.sku}</div>
+                                    {product.description && (
+                                      <div className="text-xs text-gray-500 mt-1">{product.description}</div>
+                                    )}
+                                  </div>
+                                  <div className="text-right mr-4">
+                                    <div className="text-lg font-bold text-purple-600">
+                                      ${Number(product.price).toFixed(2)}
+                                    </div>
+                                    <div className={`text-sm font-medium ${
+                                      (product.inventoryQuantity || 0) > 20 
+                                        ? 'text-green-600' 
+                                        : (product.inventoryQuantity || 0) > 5 
+                                        ? 'text-yellow-600' 
+                                        : 'text-red-600'
+                                    }`}>
+                                      {product.inventoryQuantity || 0} in stock
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Offer Toggle Button */}
+                                <button
+                                  onClick={async () => {
+                                    const currentProducts = data.store.availableProducts || [];
+                                    const newProducts = isOffered
+                                      ? currentProducts.filter((s: string) => s !== product.sku)
+                                      : [...currentProducts, product.sku];
+                                    
+                                    try {
+                                      const res = await fetch('/api/store/settings', {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ availableProducts: newProducts })
+                                      });
+                                      
+                                      if (res.ok) {
+                                        setData({
+                                          ...data,
+                                          store: {
+                                            ...data.store,
+                                            availableProducts: newProducts
+                                          }
+                                        });
+                                      }
+                                    } catch (err) {
+                                      console.error('Failed to update products:', err);
+                                    }
+                                  }}
+                                  className={`px-4 py-2 rounded-lg font-semibold transition-colors whitespace-nowrap ${
+                                    isOffered
+                                      ? 'bg-purple-600 text-white hover:bg-purple-700'
+                                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  {isOffered ? '✓ Offering' : '+ Offer This Product'}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
@@ -3589,15 +3660,83 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
         {/* Store Credit Tab (Owner Only) */}
         {activeTab === 'credit' && role === 'owner' && (
           <>
-            {/* Current Balance Card */}
+            {/* Total Balance Card */}
             <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg shadow-lg p-6 text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-purple-100 text-sm uppercase tracking-wide mb-2">Available Store Credit</p>
-                  <p className="text-5xl font-bold">${((data.store as any).storeCredit || 0).toFixed(2)}</p>
-                  <p className="text-purple-100 mt-2">Use credit towards wholesale product orders</p>
+                  <p className="text-purple-100 text-sm uppercase tracking-wide mb-2">Total Store Credit Available</p>
+                  <p className="text-5xl font-bold">
+                    ${(data.brandPartnerships?.reduce((sum, bp) => sum + bp.storeCreditBalance, 0) || 0).toFixed(2)}
+                  </p>
+                  <p className="text-purple-100 mt-2">
+                    Across {data.brandPartnerships?.filter(bp => bp.status === 'active').length || 0} active brand partnership{(data.brandPartnerships?.filter(bp => bp.status === 'active').length || 0) !== 1 ? 's' : ''}
+                  </p>
                 </div>
                 <span className="text-6xl">💰</span>
+              </div>
+            </div>
+
+            {/* Per-Brand Credit Balances */}
+            <div className="bg-white rounded-lg shadow">
+              <div className="p-4 border-b">
+                <h2 className="text-xl font-bold">Credit by Brand Partner</h2>
+                <p className="text-sm text-gray-600 mt-1">Available credit for each brand partnership</p>
+              </div>
+              
+              <div className="p-4">
+                {data.brandPartnerships && data.brandPartnerships.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {data.brandPartnerships
+                      .filter(bp => bp.status === 'active')
+                      .map((partnership) => (
+                        <div
+                          key={partnership.id}
+                          className="border-2 border-gray-200 rounded-lg p-4 hover:border-purple-300 transition-colors"
+                        >
+                          <div className="flex items-center gap-3 mb-3">
+                            {partnership.brand.logoUrl && (
+                              <img
+                                src={partnership.brand.logoUrl}
+                                alt={partnership.brand.name}
+                                className="w-12 h-12 rounded-lg object-cover"
+                              />
+                            )}
+                            <span className={`${getBrandColor(partnership.brand.name).bg} ${getBrandColor(partnership.brand.name).text} px-3 py-1 rounded-full text-sm font-bold`}>
+                              {partnership.brand.name}
+                            </span>
+                          </div>
+                          
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <p className="text-xs text-gray-600 uppercase tracking-wide mb-1">Available Credit</p>
+                            <p className="text-3xl font-bold text-green-600">
+                              ${partnership.storeCreditBalance.toFixed(2)}
+                            </p>
+                          </div>
+
+                          <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                            <div className="bg-orange-50 rounded p-2">
+                              <p className="text-orange-600 font-medium">Promo</p>
+                              <p className="text-lg font-bold text-orange-700">{(partnership.promoCommission || 50).toFixed(0)}%</p>
+                            </div>
+                            <div className="bg-purple-50 rounded p-2">
+                              <p className="text-purple-600 font-medium">Online</p>
+                              <p className="text-lg font-bold text-purple-700">{(partnership.onlineCommission || 20).toFixed(0)}%</p>
+                            </div>
+                            <div className="bg-indigo-50 rounded p-2">
+                              <p className="text-indigo-600 font-medium">Subscription</p>
+                              <p className="text-lg font-bold text-indigo-700">{(partnership.subscriptionCommission || 5).toFixed(0)}%</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-gray-500">
+                    <span className="text-4xl block mb-2">🤝</span>
+                    <p>No active brand partnerships</p>
+                    <p className="text-sm mt-1">Check the Brands tab for partnership requests</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -3625,6 +3764,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Brand</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
@@ -3632,47 +3772,59 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {creditTransactions.map((txn: any) => (
-                        <tr key={txn.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                            {new Date(txn.createdAt).toLocaleDateString('en-US', { 
-                              month: 'short', 
-                              day: 'numeric', 
-                              year: 'numeric',
-                              hour: 'numeric',
-                              minute: '2-digit'
-                            })}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              txn.type === 'earned' 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-red-100 text-red-800'
+                      {creditTransactions.map((txn: any) => {
+                        const brand = data.brandPartnerships?.find(bp => bp.id === txn.brandPartnershipId);
+                        return (
+                          <tr key={txn.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                              {new Date(txn.createdAt).toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric', 
+                                year: 'numeric',
+                                hour: 'numeric',
+                                minute: '2-digit'
+                              })}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {brand ? (
+                                <span className={`inline-flex ${getBrandColor(brand.brand.name).bg} ${getBrandColor(brand.brand.name).text} px-2 py-1 text-xs font-semibold rounded`}>
+                                  {brand.brand.name}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-gray-400">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                txn.type === 'earned' 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {txn.type === 'earned' ? '+ Credit' : '- Debit'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-900">
+                              <div>
+                                <p className="font-medium">{txn.reason}</p>
+                                {txn.displayId && (
+                                  <p className="text-xs text-gray-500">Display: {txn.displayId}</p>
+                                )}
+                                {txn.orderId && (
+                                  <p className="text-xs text-gray-500">Order: {txn.orderId}</p>
+                                )}
+                              </div>
+                            </td>
+                            <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold text-right ${
+                              txn.type === 'earned' ? 'text-green-600' : 'text-red-600'
                             }`}>
-                              {txn.type === 'earned' ? '+ Credit' : '- Debit'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">
-                            <div>
-                              <p className="font-medium">{txn.reason}</p>
-                              {txn.displayId && (
-                                <p className="text-xs text-gray-500">Display: {txn.displayId}</p>
-                              )}
-                              {txn.orderId && (
-                                <p className="text-xs text-gray-500">Order: {txn.orderId}</p>
-                              )}
-                            </div>
-                          </td>
-                          <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold text-right ${
-                            txn.type === 'earned' ? 'text-green-600' : 'text-red-600'
-                          }`}>
-                            {txn.type === 'earned' ? '+' : '-'}${Math.abs(txn.amount).toFixed(2)}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-right text-gray-900">
-                            ${txn.balance.toFixed(2)}
-                          </td>
-                        </tr>
-                      ))}
+                              {txn.type === 'earned' ? '+' : '-'}${Math.abs(txn.amount).toFixed(2)}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-right text-gray-900">
+                              ${txn.balance.toFixed(2)}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 )}
@@ -3857,6 +4009,15 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
             <span className="text-xs font-medium">Customers</span>
           </button>
           <button
+            onClick={() => setActiveTab('brands')}
+            className={`flex flex-col items-center justify-center h-14 space-y-1 transition-colors ${
+              activeTab === 'brands' ? 'bg-purple-600 text-white' : 'text-purple-100 hover:text-white'
+            }`}
+          >
+            <span className="text-xl">🏷️</span>
+            <span className="text-xs font-medium">Brands</span>
+          </button>
+          <button
             onClick={() => setActiveTab('products')}
             className={`flex flex-col items-center justify-center h-14 space-y-1 transition-colors ${
               activeTab === 'products' ? 'bg-purple-600 text-white' : 'text-purple-100 hover:text-white'
@@ -3955,41 +4116,16 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                   {products
                     .filter((p: any) => p.productType === 'wholesale-box')
                     .sort((a: any, b: any) => {
-                      // Extract product line (BB, CC, SB) and size (4, 20, 30, 60)
-                      const extractParts = (sku: string) => {
-                        // SKU format: VD-XX-##-BX (e.g., VD-BB-30-BX)
-                        const match = sku.match(/VD-([A-Z]+)-(\d+)-BX/);
-                        if (match) {
-                          return { line: match[1], size: parseInt(match[2]) };
-                        }
-                        return { line: '', size: 999 };
-                      };
-                      
-                      const partsA = extractParts(a.sku);
-                      const partsB = extractParts(b.sku);
-                      
-                      // Custom order: SB (Slumber Berry), BB (Bliss Berry), CC (Berry Chill)
-                      const lineOrder: Record<string, number> = { 'SB': 1, 'BB': 2, 'CC': 3 };
-                      const orderA = lineOrder[partsA.line] || 999;
-                      const orderB = lineOrder[partsB.line] || 999;
-                      
-                      // First sort by custom product line order
-                      const lineCompare = orderA - orderB;
-                      if (lineCompare !== 0) return lineCompare;
-                      
-                      // Then sort by size (4, 20, 30, 60)
-                      return partsA.size - partsB.size;
+                      // Sort by name (which includes product line and count)
+                      return a.name.localeCompare(b.name);
                     })
                     .map((product: any) => {
-                      console.log(`[Wholesale Modal] Product: ${product.sku}, ImageURL: ${product.imageUrl}`);
                       const qty = boxQuantities[product.sku] || 0;
                       const wholesalePrice = parseFloat(product.wholesalePrice || 0);
                       const retailPrice = parseFloat(product.retailPrice || 0);
-                      const boxPrice = parseFloat(product.price || 0);
+                      const boxPrice = parseFloat(product.price);
                       const unitsPerBox = product.unitsPerBox || 1;
-                      const margin = (retailPrice > 0 && wholesalePrice >= 0) 
-                        ? Math.round(((retailPrice - wholesalePrice) / retailPrice * 100)) 
-                        : 0;
+                      const margin = retailPrice > 0 ? ((retailPrice - wholesalePrice) / retailPrice * 100).toFixed(0) : 0;
                       
                       return (
                         <div
@@ -4000,20 +4136,12 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                         >
                           {/* Mobile: Image + Title + Quantity in row */}
                           <div className="flex items-start gap-3 sm:contents">
-                            {product.imageUrl ? (
+                            {product.imageUrl && (
                               <img
                                 src={product.imageUrl}
                                 alt={product.name}
                                 className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded flex-shrink-0"
-                                onError={(e) => {
-                                  console.error('Failed to load image:', product.imageUrl);
-                                  e.currentTarget.style.display = 'none';
-                                }}
                               />
-                            ) : (
-                              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gray-200 rounded flex-shrink-0 flex items-center justify-center text-gray-400 text-xs">
-                                No image
-                              </div>
                             )}
                             <div className="flex-1 min-w-0">
                               <div className="font-bold text-sm sm:text-base">{product.name}</div>
@@ -4023,13 +4151,13 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                               <div className="text-xs sm:text-sm space-y-1">
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className="text-gray-600">Box ({unitsPerBox} units):</span>
-                                  <span className="font-bold text-green-600">${isNaN(boxPrice) ? '0.00' : boxPrice.toFixed(2)}</span>
+                                  <span className="font-bold text-green-600">${boxPrice.toFixed(2)}</span>
                                 </div>
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className="text-gray-600">Per Unit:</span>
-                                  <span className="font-semibold">${isNaN(wholesalePrice) ? '0.00' : wholesalePrice.toFixed(2)}</span>
+                                  <span className="font-semibold">${wholesalePrice.toFixed(2)}</span>
                                   <span className="text-gray-400">→</span>
-                                  <span className="font-semibold">${isNaN(retailPrice) ? '0.00' : retailPrice.toFixed(2)}</span>
+                                  <span className="font-semibold">${retailPrice.toFixed(2)}</span>
                                   <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{margin}% margin</span>
                                 </div>
                               </div>
@@ -5367,78 +5495,548 @@ Thanks for choosing ${orgName}!`;
         </div>
       )}
 
-      {/* Inventory History Modal */}
-      {inventoryHistoryProduct && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] flex flex-col">
-            <div className="p-6 border-b border-gray-200">
+      {/* Wholesale Order Modal */}
+      {showWholesaleModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-6 text-white">
               <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Inventory History</h2>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {products.find(p => p.sku === inventoryHistoryProduct)?.name || inventoryHistoryProduct}
-                  </p>
-                </div>
+                <h2 className="text-2xl font-bold">📦 Place Wholesale Order</h2>
                 <button
                   onClick={() => {
-                    setInventoryHistoryProduct(null);
-                    setInventoryHistory([]);
+                    setShowWholesaleModal(false);
+                    setWholesaleCart({});
+                    setExpandedWholesaleBrands({});
                   }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-white/80 hover:text-white text-2xl"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  ✕
                 </button>
               </div>
+              <p className="text-purple-100 text-sm mt-2">
+                Select wholesale products from your brand partners
+              </p>
             </div>
-            
+
+            {/* Body */}
             <div className="flex-1 overflow-y-auto p-6">
-              {loadingHistory ? (
-                <div className="text-center py-8 text-gray-500">Loading history...</div>
-              ) : inventoryHistory.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">No transactions yet</div>
+              {data.brandPartnerships && data.brandPartnerships.length > 0 ? (
+                <div className="space-y-4">
+                  {data.brandPartnerships
+                    .filter(bp => bp.status === 'active')
+                    .map((partnership) => {
+                      // Get wholesale box products for this brand
+                      const brandWholesale = products.filter(
+                        (p) => p.orgId === partnership.brand.orgId && p.productType === 'wholesale-box'
+                      );
+                      
+                      if (brandWholesale.length === 0) return null;
+                      
+                      const isExpanded = expandedWholesaleBrands[partnership.id] || false;
+                      const brandTotal = brandWholesale.reduce((sum, product) => {
+                        const qty = wholesaleCart[product.sku] || 0;
+                        return sum + (qty * Number(product.price || 0));
+                      }, 0);
+
+                      return (
+                        <div key={partnership.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                          {/* Brand Header - Collapsible */}
+                          <button
+                            onClick={() => setExpandedWholesaleBrands(prev => ({
+                              ...prev,
+                              [partnership.id]: !prev[partnership.id]
+                            }))}
+                            className="w-full p-4 bg-gray-50 hover:bg-gray-100 transition-colors flex items-center justify-between"
+                          >
+                            <div className="flex items-center gap-3">
+                              {partnership.brand.logoUrl && (
+                                <img
+                                  src={partnership.brand.logoUrl}
+                                  alt={partnership.brand.name}
+                                  className="w-12 h-12 rounded-lg object-cover"
+                                />
+                              )}
+                              <div className="text-left">
+                                <span className={`${getBrandColor(partnership.brand.name).bg} ${getBrandColor(partnership.brand.name).text} px-3 py-1 rounded-full text-sm font-bold`}>
+                                  {partnership.brand.name}
+                                </span>
+                                <p className="text-sm text-gray-600 mt-1">
+                                  💰 Available Credit: ${partnership.storeCreditBalance.toFixed(2)}
+                                  {brandTotal > 0 && (
+                                    <span className="ml-2 text-purple-600 font-medium">
+                                      | Cart: ${brandTotal.toFixed(2)}
+                                    </span>
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+                            <span className="text-gray-500 text-xl">
+                              {isExpanded ? '▼' : '▶'}
+                            </span>
+                          </button>
+
+                          {/* Brand Products - Expandable */}
+                          {isExpanded && (
+                            <div className="p-4 bg-white">
+                              <div className="space-y-3">
+                                {brandWholesale.map((product) => {
+                                  const quantity = wholesaleCart[product.sku] || 0;
+                                  return (
+                                    <div
+                                      key={product.id}
+                                      className="flex items-center gap-4 p-3 border border-gray-200 rounded-lg hover:border-purple-300 transition-colors"
+                                    >
+                                      {product.imageUrl && (
+                                        <img
+                                          src={product.imageUrl}
+                                          alt={product.name}
+                                          className="w-16 h-16 rounded object-cover"
+                                        />
+                                      )}
+                                      <div className="flex-1">
+                                        <h4 className="font-semibold">{product.name}</h4>
+                                        <p className="text-sm text-gray-600">{product.sku}</p>
+                                        <p className="text-lg font-bold text-purple-600 mt-1">
+                                          ${Number(product.price).toFixed(2)}
+                                        </p>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          onClick={() => {
+                                            const newQty = Math.max(0, quantity - 1);
+                                            setWholesaleCart(prev => ({
+                                              ...prev,
+                                              [product.sku]: newQty
+                                            }));
+                                          }}
+                                          className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 font-bold"
+                                        >
+                                          −
+                                        </button>
+                                        <span className="w-12 text-center font-bold">{quantity}</span>
+                                        <button
+                                          onClick={() => {
+                                            setWholesaleCart(prev => ({
+                                              ...prev,
+                                              [product.sku]: quantity + 1
+                                            }));
+                                          }}
+                                          className="w-8 h-8 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-bold"
+                                        >
+                                          +
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
               ) : (
-                <div className="space-y-2">
-                  {inventoryHistory.map((txn: any) => (
-                    <div key={txn.id} className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-900">
-                          {formatTransactionType(txn.type)}
-                        </div>
-                        {txn.notes && (
-                          <div className="text-sm text-gray-600 mt-1">{txn.notes}</div>
-                        )}
-                        <div className="text-xs text-gray-500 mt-1">
-                          {formatDate(txn.createdAt)}
-                          {txn.customerId && ` • Customer: ${txn.customerId}`}
-                        </div>
-                      </div>
-                      <div className="text-right ml-4">
-                        <div className={`text-lg font-bold ${
-                          txn.quantity > 0 ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          {txn.quantity > 0 ? '+' : ''}{txn.quantity}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          Balance: {txn.balanceAfter}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="text-center py-12 text-gray-500">
+                  <p>No brand partnerships available</p>
                 </div>
               )}
             </div>
 
-            <div className="p-6 border-t border-gray-200 bg-gray-50">
+            {/* Footer */}
+            <div className="border-t border-gray-200 p-6 bg-gray-50">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-lg font-semibold">Total Order Value:</span>
+                <span className="text-2xl font-bold text-purple-600">
+                  ${Object.entries(wholesaleCart).reduce((sum, [sku, qty]) => {
+                    const product = products.find(p => p.sku === sku);
+                    return sum + (qty * Number(product?.price || 0));
+                  }, 0).toFixed(2)}
+                </span>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowWholesaleModal(false);
+                    setWholesaleCart({});
+                    setExpandedWholesaleBrands({});
+                  }}
+                  className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      // Filter out zero quantities
+                      const cart = Object.fromEntries(
+                        Object.entries(wholesaleCart).filter(([_, qty]) => qty > 0)
+                      );
+
+                      if (Object.keys(cart).length === 0) {
+                        alert('Please add items to your cart');
+                        return;
+                      }
+
+                      // Show loading state
+                      setIsSubmittingWholesale(true);
+                      
+                      const response = await fetch('/api/store/wholesale/submit', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ cart }),
+                      });
+
+                      if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Failed to submit order');
+                      }
+
+                      const result = await response.json();
+                      
+                      // Show success message with order details
+                      const orderDetails = result.orders.map((order: any) => 
+                        `Order ${order.orderId}: $${order.total.toFixed(2)} (${order.brands.join(', ')})`
+                      ).join('\n');
+                      
+                      alert(`✅ Wholesale Order(s) Submitted!\n\n${orderDetails}\n\nDraft orders have been created in Shopify. You will receive an invoice email shortly.`);
+
+                      // Close modal and reset cart
+                      setShowWholesaleModal(false);
+                      setWholesaleCart({});
+                      setExpandedWholesaleBrands({});
+
+                      // Refresh data to show updated store credit
+                      window.location.reload();
+                    } catch (error: any) {
+                      console.error('Error submitting wholesale order:', error);
+                      alert(`❌ Failed to submit order: ${error.message}`);
+                    } finally {
+                      setIsSubmittingWholesale(false);
+                    }
+                  }}
+                  disabled={Object.values(wholesaleCart).every(qty => qty === 0) || isSubmittingWholesale}
+                  className="flex-1 px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                >
+                  {isSubmittingWholesale ? (
+                    <>
+                      <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Submitting Order...
+                    </>
+                  ) : (
+                    'Send Purchase Order'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Inventory Detail Modal */}
+      {showInventoryDetailModal && selectedInventoryProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-6 z-10">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Inventory Details</h2>
+                  <p className="text-sm text-gray-600 mt-1">{selectedInventoryProduct.name}</p>
+                  <p className="text-xs text-gray-500">{selectedInventoryProduct.sku}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowInventoryDetailModal(false);
+                    setSelectedInventoryProduct(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Product Image */}
+              {selectedInventoryProduct.imageUrl && (
+                <div className="flex justify-center">
+                  <img
+                    src={selectedInventoryProduct.imageUrl}
+                    alt={selectedInventoryProduct.name}
+                    className="w-32 h-32 rounded-lg object-cover shadow-md"
+                  />
+                </div>
+              )}
+
+              {/* Inventory Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="text-green-600 text-sm font-medium mb-1">Current Inventory</div>
+                  <div className="text-3xl font-bold text-green-700">
+                    {selectedInventoryProduct.inventoryQuantity || 0}
+                  </div>
+                  <div className="text-xs text-green-600 mt-1">Units on hand</div>
+                </div>
+
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="text-yellow-600 text-sm font-medium mb-1">Reserved / Holds</div>
+                  <div className="text-3xl font-bold text-yellow-700">
+                    0
+                  </div>
+                  <div className="text-xs text-yellow-600 mt-1">Pending purchases</div>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="text-blue-600 text-sm font-medium mb-1">Incoming</div>
+                  <div className="text-3xl font-bold text-blue-700">
+                    0
+                  </div>
+                  <div className="text-xs text-blue-600 mt-1">On order</div>
+                </div>
+              </div>
+
+              {/* Available to Sell */}
+              <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-purple-600 text-sm font-medium mb-1">Available to Sell</div>
+                    <div className="text-xs text-purple-600">Current - Reserved</div>
+                  </div>
+                  <div className="text-4xl font-bold text-purple-700">
+                    {selectedInventoryProduct.inventoryQuantity || 0}
+                  </div>
+                </div>
+              </div>
+
+              {/* Inventory Adjustments */}
+              <div className="border-t border-gray-200 pt-4">
+                <h3 className="font-semibold text-gray-900 mb-3">Adjust Inventory</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Decrease Inventory */}
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <h4 className="font-medium text-gray-900 mb-2">Decrease Stock</h4>
+                    <p className="text-xs text-gray-600 mb-3">
+                      Reduce inventory for sold, damaged, or lost items
+                    </p>
+                    <button
+                      onClick={() => {
+                        setAdjustingProduct(selectedInventoryProduct);
+                        setAdjustmentType('decrease');
+                        setAdjustmentAmount('');
+                        setAdjustmentReason('');
+                        setShowInventoryAdjustModal(true);
+                        setShowInventoryDetailModal(false);
+                      }}
+                      className="w-full px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+                    >
+                      − Decrease
+                    </button>
+                  </div>
+
+                  {/* Increase Inventory - Disabled */}
+                  <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                    <h4 className="font-medium text-gray-400 mb-2">Increase Stock</h4>
+                    <p className="text-xs text-gray-500 mb-3">
+                      Use Wholesale Order to add inventory
+                    </p>
+                    <button
+                      disabled
+                      className="w-full px-4 py-2 bg-gray-300 text-gray-500 rounded-lg font-medium cursor-not-allowed"
+                      title="Use the Wholesale Order button to add inventory"
+                    >
+                      + Increase (Disabled)
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Product Details */}
+              <div className="border-t border-gray-200 pt-4">
+                <h3 className="font-semibold text-gray-900 mb-3">Product Information</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Type:</span>
+                    <span className="font-medium capitalize">{selectedInventoryProduct.productType}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Price:</span>
+                    <span className="font-medium">${Number(selectedInventoryProduct.price).toFixed(2)}</span>
+                  </div>
+                  {selectedInventoryProduct.brand && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Brand:</span>
+                      <span className="font-medium">{selectedInventoryProduct.brand.name}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Future: Pending Holds/Purchases Table */}
+              <div className="border-t border-gray-200 pt-4">
+                <h3 className="font-semibold text-gray-900 mb-3">Pending Holds</h3>
+                <div className="text-center py-8 bg-gray-50 rounded-lg">
+                  <p className="text-gray-500 text-sm">No pending holds for this product</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-6">
               <button
                 onClick={() => {
-                  setInventoryHistoryProduct(null);
-                  setInventoryHistory([]);
+                  setShowInventoryDetailModal(false);
+                  setSelectedInventoryProduct(null);
                 }}
-                className="w-full px-6 py-3 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700 transition-colors"
+                className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Inventory Adjustment Modal */}
+      {showInventoryAdjustModal && adjustingProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="bg-gradient-to-r from-red-600 to-orange-600 p-6 text-white rounded-t-lg">
+              <h2 className="text-2xl font-bold">Adjust Inventory</h2>
+              <p className="text-sm text-red-100 mt-1">{adjustingProduct.name}</p>
+              <p className="text-xs text-red-200">{adjustingProduct.sku}</p>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Current Inventory Display */}
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+                <div className="text-sm text-gray-600 mb-1">Current Inventory</div>
+                <div className="text-4xl font-bold text-gray-900">
+                  {adjustingProduct.inventoryQuantity || 0}
+                </div>
+              </div>
+
+              {/* Adjustment Amount */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Amount to Decrease
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max={adjustingProduct.inventoryQuantity || 0}
+                  value={adjustmentAmount}
+                  onChange={(e) => setAdjustmentAmount(e.target.value)}
+                  placeholder="Enter quantity"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-lg font-medium"
+                />
+              </div>
+
+              {/* Reason Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Reason for Decrease
+                </label>
+                <select
+                  value={adjustmentReason}
+                  onChange={(e) => setAdjustmentReason(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                >
+                  <option value="">Select a reason...</option>
+                  <option value="sold_outside_system">Sold Outside System</option>
+                  <option value="damaged">Damaged</option>
+                  <option value="lost">Lost / Missing</option>
+                  <option value="shrinkage">Shrinkage</option>
+                  <option value="expired">Expired</option>
+                  <option value="return_to_brand">Returned to Brand</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              {/* Preview */}
+              {adjustmentAmount && Number(adjustmentAmount) > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="text-sm text-yellow-800 font-medium mb-2">Preview Change:</div>
+                  <div className="flex items-center justify-between text-lg">
+                    <span className="font-bold">{adjustingProduct.inventoryQuantity || 0}</span>
+                    <span className="text-yellow-600">→</span>
+                    <span className="font-bold text-red-600">
+                      {(adjustingProduct.inventoryQuantity || 0) - Number(adjustmentAmount)}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-gray-200 p-6 flex gap-3">
+              <button
+                onClick={() => {
+                  setShowInventoryAdjustModal(false);
+                  setAdjustingProduct(null);
+                  setAdjustmentAmount('');
+                  setAdjustmentReason('');
+                }}
+                className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!adjustmentAmount || Number(adjustmentAmount) <= 0) {
+                    alert('Please enter a valid amount');
+                    return;
+                  }
+                  if (!adjustmentReason) {
+                    alert('Please select a reason');
+                    return;
+                  }
+
+                  try {
+                    const response = await fetch('/api/store/inventory/adjust', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        productSku: adjustingProduct.sku,
+                        quantity: -Number(adjustmentAmount), // Negative for decrease
+                        type: 'manual_decrease',
+                        notes: adjustmentReason,
+                      }),
+                    });
+
+                    if (!response.ok) {
+                      const error = await response.json();
+                      throw new Error(error.message || 'Failed to adjust inventory');
+                    }
+
+                    const result = await response.json();
+                    
+                    // Update local state
+                    setProducts(prevProducts =>
+                      prevProducts.map(p =>
+                        p.sku === adjustingProduct.sku
+                          ? { ...p, inventoryQuantity: result.newQuantity }
+                          : p
+                      )
+                    );
+
+                    // Close modal
+                    setShowInventoryAdjustModal(false);
+                    setAdjustingProduct(null);
+                    setAdjustmentAmount('');
+                    setAdjustmentReason('');
+
+                    alert('Inventory adjusted successfully!');
+                  } catch (error: any) {
+                    console.error('Error adjusting inventory:', error);
+                    alert(error.message || 'Failed to adjust inventory');
+                  }
+                }}
+                disabled={!adjustmentAmount || Number(adjustmentAmount) <= 0 || !adjustmentReason}
+                className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Confirm Decrease
               </button>
             </div>
           </div>

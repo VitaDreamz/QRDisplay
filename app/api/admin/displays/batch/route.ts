@@ -16,27 +16,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid quantity' }, { status: 400 });
     }
     
-    // Resolve VitaDreamz organization (do not create a new one)
-    const vitaDreamz = await prisma.organization.findFirst({
-      where: {
-        OR: [
-          { orgId: 'ORG-VITADREAMZ' },
-          { slug: 'vitadreamz' },
-          { name: { equals: 'VitaDreamz', mode: 'insensitive' } },
-        ],
-      },
-      select: { id: true, orgId: true, name: true },
-    });
-    
-    if (!vitaDreamz) {
-      return NextResponse.json(
-        { 
-          error: 'VitaDreamz organization not found. Please create it first at /admin/brands/new',
-        },
-        { status: 400 }
-      );
-    }
-    
     // Get current count
     const count = await prisma.display.count();
     
@@ -60,10 +39,9 @@ export async function POST(request: NextRequest) {
       
       displays.push({
         displayId,
-        ownerOrgId: 'ORG-QRDISPLAY',
-        // Single-brand MVP: default all new displays as sold to VitaDreamz
-        status: 'sold',
-        assignedOrgId: vitaDreamz.id, // Use CUID, not orgId string
+        ownerOrgId: 'ORG-QRDISPLAY', // Owned by QRDisplay platform
+        status: 'inventory', // In inventory, not assigned yet
+        assignedOrgId: null, // Not assigned to any brand yet
         qrPngUrl: qrDataUrl,
         targetUrl: url,
         createdAt: new Date()

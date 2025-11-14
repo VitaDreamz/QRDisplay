@@ -14,11 +14,14 @@ async function generateMemberId(): Promise<string> {
 export async function POST(req: NextRequest) {
   try {
   const body = await req.json();
-  const { displayId, firstName, lastName, phone, sampleChoice } = body || {};
+  const { displayId, firstName, lastName, phone, sampleChoice, brandOrgId } = body || {};
 
     if (!displayId || !firstName || !lastName || !phone || !sampleChoice) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
+
+    // Multi-brand: brandOrgId is optional for backwards compatibility
+    // If not provided, fall back to display's assigned org (single-brand mode)
 
     // Lookup display with relations
     const display = await prisma.display.findUnique({
@@ -39,9 +42,41 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Store is not active' }, { status: 400 });
     }
 
-    // Validate that the sample SKU is available at this store
-    if (!display.store.availableSamples || !display.store.availableSamples.includes(sampleChoice)) {
-      return NextResponse.json({ error: 'This sample is not offered at this store' }, { status: 400 });
+    // Multi-brand: Determine which brand org we're working with
+    const targetBrandOrgId = brandOrgId || (display.assignedOrgId || display.organization!.orgId);
+    
+    // Multi-brand: Get brand organization
+    const brandOrg = await prisma.organization.findUnique({
+      where: { orgId: targetBrandOrgId },
+    });
+    
+    if (!brandOrg) {
+      return NextResponse.json({ error: 'Brand not found' }, { status: 404 });
+    }
+
+    // Multi-brand: Validate brand partnership (if brandOrgId was provided)
+    if (brandOrgId) {
+      const partnership = await prisma.storeBrandPartnership.findFirst({
+        where: {
+          storeId: display.store.id,
+          brandId: brandOrg.id,
+          active: true,
+        },
+      });
+      
+      if (!partnership) {
+        return NextResponse.json({ error: 'This brand is not available at this store' }, { status: 400 });
+      }
+      
+      // Validate that the sample SKU is in the partnership's available samples
+      if (!partnership.availableSamples || !partnership.availableSamples.includes(sampleChoice)) {
+        return NextResponse.json({ error: 'This sample is not offered by this brand at this store' }, { status: 400 });
+      }
+    } else {
+      // Legacy single-brand validation
+      if (!display.store.availableSamples || !display.store.availableSamples.includes(sampleChoice)) {
+        return NextResponse.json({ error: 'This sample is not offered at this store' }, { status: 400 });
+      }
     }
 
     // Get the product name from database
@@ -63,6 +98,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: e?.message || 'Invalid phone' }, { status: 400 });
     }
 
+    // Multi-brand: Check if customer already exists (by phone)
+    const existingCustomer = await prisma.customer.findFirst({
+      where: {
+        phone: normalizedPhone,
+        orgId: brandOrg.id,
+      },
+      orderBy: {
+        requestedAt: 'desc',
+      },
+    });
+
+    // Multi-brand: Enforce 1 sample per day limit
+    if (existingCustomer?.lastSampleDate) {
+      const now = new Date();
+      const lastSample = new Date(existingCustomer.lastSampleDate);
+      const hoursSinceLastSample = (now.getTime() - lastSample.getTime()) / (1000 * 60 * 60);
+      
+      if (hoursSinceLastSample < 24) {
+        const hoursRemaining = Math.ceil(24 - hoursSinceLastSample);
+        return NextResponse.json({ 
+          error: `You can only claim one free sample per day. Please try again in ${hoursRemaining} hours.` 
+        }, { status: 429 });
+      }
+    }
+
     // Generate Member ID
     const memberId = await generateMemberId();
 
@@ -70,19 +130,37 @@ export async function POST(req: NextRequest) {
     const customer = await prisma.customer.create({
       data: {
         memberId,
-        orgId: display.assignedOrgId || display.organization!.id,
+        orgId: brandOrg.id, // Use brand org, not display org
         storeId: display.store.storeId,
         firstName: String(firstName).trim(),
         lastName: String(lastName).trim(),
         phone: normalizedPhone,
-        sampleChoice: sampleLabel,
+        sampleChoice: sampleLabel, // Keep for backwards compatibility
         activated: false,
         redeemed: false,
         requestedAt: new Date(),
         attributedStoreId: display.store.storeId, // Set for commission tracking
         sampleDate: new Date(), // Track when sample was requested
+        lastSampleDate: new Date(), // NEW: Track for daily limit
       }
     });
+
+    // Multi-brand: Create SampleHistory record
+    const sampleHistory = await prisma.sampleHistory.create({
+      data: {
+        customerId: customer.id,
+        brandId: brandOrg.id,
+        storeId: display.store.id,
+        displayId: display.id,
+        productSku: sampleChoice,
+        productName: sampleLabel,
+        sampledAt: new Date(),
+        attributionWindow: brandOrg.attributionWindow || 30,
+        expiresAt: new Date(Date.now() + (brandOrg.attributionWindow || 30) * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    console.log(`✅ SampleHistory created: ${sampleHistory.id} for ${customer.memberId} (${brandOrg.name})`);
 
     // Generate shortlink slugs
     const slugActivate = generateSlug(); // customer activation (requires PIN)
@@ -168,9 +246,9 @@ export async function POST(req: NextRequest) {
 
     // Send brand notification email
     try {
-      if (display.organization?.supportEmail) {
+      if (brandOrg?.supportEmail) {
         await sendBrandSampleRequestEmail({
-          brandEmail: display.organization.supportEmail,
+          brandEmail: brandOrg.supportEmail,
           customer: {
             firstName: customer.firstName,
             lastName: customer.lastName,
@@ -191,13 +269,9 @@ export async function POST(req: NextRequest) {
 
     // Sync customer to Shopify (if integration is active)
     try {
-      // Fetch full organization with Shopify fields
-      const org = await prisma.organization.findUnique({
-        where: { orgId: display.assignedOrgId || display.organization!.orgId },
-      });
-      
-      if (org?.shopifyActive) {
-        const result = await syncCustomerToShopify(org, {
+      // Use brand org for Shopify sync (not display org)
+      if (brandOrg?.shopifyActive) {
+        const result = await syncCustomerToShopify(brandOrg, {
           ...customer,
           sampleProduct: sampleLabel, // Pass the sample product for tagging
           stage: 'requested', // Initial stage
@@ -217,7 +291,7 @@ export async function POST(req: NextRequest) {
         
         // Add timeline event for sample request
         try {
-          await addCustomerTimelineEvent(org, result.shopifyCustomerId, {
+          await addCustomerTimelineEvent(brandOrg, result.shopifyCustomerId, {
             message: `Requested Sample: ${sampleLabel} at ${display.store.storeName}`,
             occurredAt: customer.requestedAt,
           });

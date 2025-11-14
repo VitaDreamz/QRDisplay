@@ -31,6 +31,9 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
   // Verification state for inventory counts
   const [samplesVerified, setSamplesVerified] = useState(false);
   const [productsVerified, setProductsVerified] = useState(false);
+  
+  // Brand verification state for each brand subsection
+  const [brandVerified, setBrandVerified] = useState<Record<string, boolean>>({});
 
   // Convert followupDays object from progress to array of numbers
   const selectedDays = useMemo(() => {
@@ -63,48 +66,52 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
     // Prevent infinite loop - only load once
     if (productsLoaded) return;
     
-    // Wait for progress to load before fetching products
-    if (!progress) return;
+    // Mark as loaded immediately to prevent re-runs
+    setProductsLoaded(true);
     
-    // Only fetch products once we have displayId and progress
+    // Only fetch products once we have displayId
     (async () => {
+
       try {
-        // Get orgId directly from progress (saved during store-lookup step)
-        let orgId: string | null = progress.orgId || null;
-        
-        if (!orgId) {
-          console.error('[ProductsStep] No orgId found in progress');
-          setError('Could not determine brand organization');
-          return;
-        }
-        
-        console.log('[ProductsStep] Using orgId from progress:', orgId);
-        
-        // Fetch retail products for this organization
-        const productsRes = await fetch(`/api/products?orgId=${orgId}&productType=retail`);
-        if (productsRes.ok) {
-          const data = await productsRes.json();
-          const all = Array.isArray(data.products) ? data.products : [];
+        // If we have an existing store, fetch products from its brand partnerships
+        if (progress?.existingStoreId) {
+          console.log('[ProductsStep] Fetching products for existing store:', progress.existingStoreId);
+          
+          const storeRes = await fetch(`/api/stores/${progress.existingStoreId}/products`);
+          if (!storeRes.ok) {
+            console.error('[ProductsStep] Failed to fetch store products', storeRes.status);
+            setError('Failed to load store products');
+            setProductsLoaded(false); // Allow retry
+            return;
+          }
+          
+          const storeData = await storeRes.json();
+          const allProducts = Array.isArray(storeData.products) ? storeData.products : [];
+          
           // Filter to only active retail products
-          const filtered = all.filter((p: any) => {
+          const filtered = allProducts.filter((p: any) => {
             if (p && p.active === false) return false;
             if (typeof p?.productType === 'string' && p.productType !== 'retail') return false;
             return true;
           });
-          setProducts(filtered);
-          setProductsLoaded(true); // Mark as loaded to prevent re-fetching
           
-          // Initialize default inventory (will be overwritten by second useEffect if store data exists)
+          console.log('[ProductsStep] Loaded products from store partnerships:', filtered.length);
+          setProducts(filtered);
           initializeDefaultInventory(filtered);
-        } else {
-          console.error('[ProductsStep] Failed to fetch products', productsRes.status);
+          return; // SUCCESS - don't run fallback
         }
+        
+        // Only run fallback if NO existing store ID
+        // This shouldn't happen in normal flow since we always select a store first
+        console.warn('[ProductsStep] No existing store found in progress - cannot load products');
+        setError('Please select a store first');
+        setProductsLoaded(false); // Allow retry
       } catch (e) {
         console.error('[ProductsStep] Error fetching products', e);
+        setProductsLoaded(false); // Allow retry
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displayId, progress]); // Re-run when displayId or progress changes
+  }, [displayId, progress?.existingStoreId]); // Re-run when we get the store ID
   
   // Load inventory once products and progress are both available
   useEffect(() => {
@@ -232,6 +239,19 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
       }),
     [products]
   );
+  
+  // Group full-size products by brand
+  const productsByBrand = useMemo(() => {
+    const grouped: Record<string, any[]> = {};
+    fullSizeProducts.forEach(product => {
+      const brandName = product.brand?.name || 'Unknown Brand';
+      if (!grouped[brandName]) {
+        grouped[brandName] = [];
+      }
+      grouped[brandName].push(product);
+    });
+    return grouped;
+  }, [fullSizeProducts]);
 
   const updateInventory = (sku: string, quantity: number) => {
     setInventory(prev => ({
@@ -240,10 +260,11 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
     }));
   };
 
-  // Validation - require at least one sample and one product selected, AND both sections verified
+  // Validation - require at least one sample and one product selected, AND all brands verified
   const isValid = useMemo(() => {
-    return selectedSamples.length > 0 && selectedProducts.length > 0 && samplesVerified && productsVerified;
-  }, [selectedSamples, selectedProducts, samplesVerified, productsVerified]);
+    const allBrandsVerified = Object.keys(productsByBrand).every(brandName => brandVerified[brandName]);
+    return selectedSamples.length > 0 && selectedProducts.length > 0 && samplesVerified && allBrandsVerified;
+  }, [selectedSamples, selectedProducts, samplesVerified, brandVerified, productsByBrand]);
 
   // Save inventory and selections to wizard progress
   useEffect(() => {
@@ -253,11 +274,11 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
         selectedSamples,
         selectedProducts,
         samplesVerified,
-        productsVerified,
+        brandVerified, // Save per-brand verification state
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inventory, selectedSamples, selectedProducts, samplesVerified, productsVerified]);
+  }, [inventory, selectedSamples, selectedProducts, samplesVerified, brandVerified]);
 
   async function handleActivate() {
     if (!isValid) {
@@ -265,11 +286,14 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
       if (!samplesVerified) {
         samplesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         setError('Please verify your samples inventory by clicking "Verify as Accurate" above');
-      } else if (!productsVerified) {
-        productsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        setError('Please verify your products inventory by clicking "Verify as Accurate" above');
       } else {
-        setError('Please select at least one sample and one product');
+        const unverifiedBrand = Object.keys(productsByBrand).find(brandName => !brandVerified[brandName]);
+        if (unverifiedBrand) {
+          productsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setError(`Please verify inventory for ${unverifiedBrand} by clicking "Verify as Accurate"`);
+        } else {
+          setError('Please select at least one sample and one product');
+        }
       }
       
       // Clear error after 5 seconds
@@ -349,9 +373,8 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
       const data = await res.json();
       console.log('[ProductsStep] ✅ Display activated:', data);
 
-      // Navigate to next step (staff) with storeId
-      const storeId = data.store?.storeId || data.storeId;
-      router.push(`/setup/${displayId}/staff${storeId ? `?storeId=${storeId}` : ''}`);
+      // Navigate to next step (staff)
+      router.push(`/setup/${displayId}/staff`);
     } catch (e: any) {
       console.error('[ProductsStep] Error activating display:', e);
       setError(e.message || 'Failed to activate display');
@@ -569,193 +592,170 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
           )}
         </div>
 
-        {/* Full-Size Products */}
+        {/* Full-Size Products - Grouped by Brand */}
         <div ref={productsRef} className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-          <div className="mb-4 flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <h2 className="font-semibold text-lg mb-1">Full-Size Products</h2>
-              <p className="text-sm text-gray-600">
-                {productsVerified
-                  ? `Locked in ${selectedProducts.length} product${selectedProducts.length !== 1 ? 's' : ''}`
-                  : 'Select which products to offer for promotions and update inventory'
-                }
-              </p>
-            </div>
-            <button
-              onClick={() => setProductsVerified(!productsVerified)}
-              className={`px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition-all ${
-                productsVerified
-                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                  : 'bg-red-600 text-white hover:bg-red-700'
-              }`}
-            >
-              {productsVerified ? '✓ Verified' : 'Verify as Accurate'}
-            </button>
+          <div className="mb-4">
+            <h2 className="font-semibold text-lg mb-1">Full-Size Products</h2>
+            <p className="text-sm text-gray-600">
+              Select which products to offer for promotions and verify inventory for each brand
+            </p>
           </div>
 
-          {productsVerified ? (
-            // Collapsed confirmed view
-            selectedProducts.length === 0 ? (
-              // No products selected - warning state
-              <div className="bg-gray-50 border-2 border-gray-300 rounded-lg p-6">
-                <div className="flex items-start gap-3">
-                  <div className="text-3xl">⚠️</div>
-                  <div className="flex-1">
-                    <h3 className="font-bold text-gray-900 text-lg mb-2">No Products Offered</h3>
-                    <p className="text-sm text-gray-600 mb-3">
-                      You've verified without selecting any full-size products. This display will not offer promotional discounts on products.
-                    </p>
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-3">
-                      <p className="text-xs text-yellow-800">
-                        💡 <strong>Tip:</strong> Offering promotional discounts on products helps convert sample customers into paying customers.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setProductsVerified(false)}
-                      className="text-sm text-purple-600 hover:text-purple-700 font-semibold underline"
-                    >
-                      Click "✓ Verified" above to add products
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              // Has products selected - confirmed state
-              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-                <div className="flex items-start gap-3">
-                  <div className="text-2xl">✅</div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-emerald-900 mb-2">Products Confirmed</h3>
-                    <div className="space-y-1">
-                      {selectedProducts.map(sku => {
-                        const product = fullSizeProducts.find(p => p.sku === sku);
-                        return product ? (
-                          <div key={sku} className="flex items-center justify-between text-sm">
-                            <span className="text-emerald-800 font-medium">{product.name}</span>
-                            <span className="text-emerald-600">{inventory[sku] || 0} units</span>
-                          </div>
-                        ) : null;
-                      })}
-                    </div>
-                    <button
-                      onClick={() => setProductsVerified(false)}
-                      className="mt-3 text-xs text-emerald-700 hover:text-emerald-800 underline"
-                    >
-                      Click "✓ Verified" above to make changes
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )
-          ) : fullSizeProducts.length === 0 ? (
+          {Object.keys(productsByBrand).length === 0 ? (
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center text-gray-500 text-sm">
               <div>No full-size products available yet.</div>
               <div className="text-xs mt-2">You can add products later from your dashboard.</div>
             </div>
           ) : (
-            <>
-              <div className="space-y-3">
-                {fullSizeProducts.map((product) => {
-                  const isSelected = selectedProducts.includes(product.sku);
-                  return (
-                    <div 
-                      key={product.sku} 
-                      className={`relative rounded-2xl p-6 transition-all hover:shadow-md ${
-                        isSelected
-                          ? 'bg-gradient-to-br from-purple-100 via-blue-100 to-purple-100 border-4 border-purple-500 shadow-xl ring-4 ring-purple-200'
-                          : 'bg-gradient-to-br from-purple-50 via-blue-50 to-purple-50 border border-gray-200'
-                      }`}
-                    >
-                      {product.featured && (
-                        <div className="absolute top-3 right-3">
-                          <span className="inline-flex items-center gap-1 bg-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
-                            ⭐ Featured
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex flex-col sm:flex-row items-start gap-4">
-                        {/* Product Image */}
-                        {product.imageUrl && (
-                          <div className="w-24 h-24 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
-                            <img
-                              src={product.imageUrl}
-                              alt={product.name}
-                              className="w-full h-full object-cover"
-                            />
+            <div className="space-y-4">
+              {Object.entries(productsByBrand).map(([brandName, brandProducts]) => {
+                const brandKey = brandName;
+                const isVerified = brandVerified[brandKey] || false;
+                const brandSelectedProducts = brandProducts.filter(p => selectedProducts.includes(p.sku));
+                
+                return (
+                  <div key={brandKey} className="border-2 border-indigo-200 rounded-lg overflow-hidden">
+                    {/* Brand Header */}
+                    <div className="bg-indigo-50 border-b-2 border-indigo-200 p-4 flex items-center justify-between">
+                      <div className="flex-1">
+                        <h3 className="font-bold text-indigo-900 text-lg">{brandName}</h3>
+                        <p className="text-sm text-indigo-700">
+                          {isVerified 
+                            ? `✓ Verified - ${brandSelectedProducts.length} product${brandSelectedProducts.length !== 1 ? 's' : ''} selected`
+                            : `${brandProducts.length} product${brandProducts.length !== 1 ? 's' : ''} available`
+                          }
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (isVerified) {
+                            setBrandVerified(prev => ({ ...prev, [brandKey]: false }));
+                          } else {
+                            setBrandVerified(prev => ({ ...prev, [brandKey]: true }));
+                          }
+                        }}
+                        className={`px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition-all ${
+                          isVerified
+                            ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                            : 'bg-red-600 text-white hover:bg-red-700'
+                        }`}
+                      >
+                        {isVerified ? '✓ Verified' : 'Verify as Accurate'}
+                      </button>
+                    </div>
+                    
+                    {/* Brand Products */}
+                    {isVerified ? (
+                      // Collapsed verified view
+                      <div className="p-4 bg-emerald-50">
+                        {brandSelectedProducts.length === 0 ? (
+                          <div className="text-sm text-emerald-700">
+                            No products selected for this brand
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {brandSelectedProducts.map(product => (
+                              <div key={product.sku} className="flex items-center justify-between text-sm bg-white rounded px-3 py-2">
+                                <span className="text-gray-900 font-medium">{product.name}</span>
+                                <span className="text-gray-600">{inventory[product.sku] || 0} units</span>
+                              </div>
+                            ))}
                           </div>
                         )}
-                        
-                        {/* Product Info & Controls */}
-                        <div className="flex-1 min-w-0 w-full">
-                          <div className="flex flex-col sm:flex-row items-start justify-between gap-3 mb-3">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-bold text-base mb-1 text-gray-900">{product.name}</h3>
-                              {product.description && (
-                                <p className="text-sm text-gray-600 mb-2">{product.description}</p>
-                              )}
-                              {product.category && (
-                                <div className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded mb-2">
-                                  {product.category}
-                                </div>
-                              )}
-                              <p className="text-sm font-semibold text-gray-900 mt-1">${parseFloat(product.price).toFixed(2)}</p>
-                            </div>
-                            
-                            {/* Selection Button */}
-                            <button
-                              onClick={() => {
-                                if (isSelected) {
-                                  setSelectedProducts(prev => prev.filter(sku => sku !== product.sku));
-                                } else {
-                                  setSelectedProducts(prev => [...prev, product.sku]);
-                                }
-                              }}
-                              className={`w-full sm:w-auto px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition-all ${
+                      </div>
+                    ) : (
+                      // Expanded editing view
+                      <div className="p-4 space-y-3 bg-white">
+                        {brandProducts.map((product) => {
+                          const isSelected = selectedProducts.includes(product.sku);
+                          return (
+                            <div 
+                              key={product.sku} 
+                              className={`relative rounded-lg p-4 transition-all ${
                                 isSelected
-                                  ? 'bg-purple-600 text-white hover:bg-purple-700'
-                                  : 'bg-red-100 text-red-600 border-2 border-red-200 hover:bg-red-200'
+                                  ? 'bg-indigo-50 border-2 border-indigo-400'
+                                  : 'bg-gray-50 border border-gray-200'
                               }`}
                             >
-                              {isSelected ? 'Offering This Product' : '+ Offer This Product'}
-                            </button>
-                          </div>
-                          
-                          {/* Inventory Control */}
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-                            <label className="text-sm font-semibold text-gray-700 whitespace-nowrap">Inventory:</label>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <button
-                                onClick={() => updateInventory(product.sku, Math.max(0, (inventory[product.sku] || 0) - 1))}
-                                className="w-10 h-10 rounded-lg border-2 border-gray-300 hover:bg-gray-50 font-bold text-gray-700 text-lg"
-                              >
-                                −
-                              </button>
-                              <input
-                                type="number"
-                                min="0"
-                                value={inventory[product.sku] || 0}
-                                onChange={(e) => updateInventory(product.sku, parseInt(e.target.value) || 0)}
-                                className="w-20 h-10 px-3 border-2 border-gray-300 rounded-lg text-center font-bold text-lg"
-                              />
-                              <button
-                                onClick={() => updateInventory(product.sku, (inventory[product.sku] || 0) + 1)}
-                                className="w-10 h-10 rounded-lg border-2 border-gray-300 hover:bg-gray-50 font-bold text-gray-700 text-lg"
-                              >
-                                +
-                              </button>
-                              <span className="text-sm text-gray-600">units on hand</span>
+                              <div className="flex flex-col sm:flex-row items-start gap-4">
+                                {/* Product Image */}
+                                {product.imageUrl && (
+                                  <div className="w-20 h-20 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
+                                    <img
+                                      src={product.imageUrl}
+                                      alt={product.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                )}
+                                
+                                {/* Product Info & Controls */}
+                                <div className="flex-1 min-w-0 w-full">
+                                  <div className="flex flex-col sm:flex-row items-start justify-between gap-3 mb-3">
+                                    <div className="flex-1 min-w-0">
+                                      <h4 className="font-semibold text-base text-gray-900">{product.name}</h4>
+                                      {product.description && (
+                                        <p className="text-xs text-gray-600 mt-1">{product.description}</p>
+                                      )}
+                                      <p className="text-sm font-semibold text-gray-900 mt-1">${parseFloat(product.price).toFixed(2)}</p>
+                                    </div>
+                                    
+                                    {/* Selection Button */}
+                                    <button
+                                      onClick={() => {
+                                        if (isSelected) {
+                                          setSelectedProducts(prev => prev.filter(sku => sku !== product.sku));
+                                        } else {
+                                          setSelectedProducts(prev => [...prev, product.sku]);
+                                        }
+                                      }}
+                                      className={`px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition-all ${
+                                        isSelected
+                                          ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                      }`}
+                                    >
+                                      {isSelected ? '✓ Offering' : '+ Offer'}
+                                    </button>
+                                  </div>
+                                  
+                                  {/* Inventory Control */}
+                                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                                    <label className="text-sm font-semibold text-gray-700">Inventory:</label>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={() => updateInventory(product.sku, Math.max(0, (inventory[product.sku] || 0) - 1))}
+                                        className="w-8 h-8 rounded border border-gray-300 hover:bg-gray-100 font-bold text-gray-700"
+                                      >
+                                        −
+                                      </button>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        value={inventory[product.sku] || 0}
+                                        onChange={(e) => updateInventory(product.sku, parseInt(e.target.value) || 0)}
+                                        className="w-16 h-8 px-2 border border-gray-300 rounded text-center font-semibold"
+                                      />
+                                      <button
+                                        onClick={() => updateInventory(product.sku, (inventory[product.sku] || 0) + 1)}
+                                        className="w-8 h-8 rounded border border-gray-300 hover:bg-gray-100 font-bold text-gray-700"
+                                      >
+                                        +
+                                      </button>
+                                      <span className="text-xs text-gray-600">units</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </div>
+                          );
+                        })}
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <p className="text-xs text-gray-500 mt-4">
-                💡 You can offer products with zero inventory - they'll be available for presale
-              </p>
-            </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
 
@@ -771,12 +771,10 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
                     Please verify your inventory before continuing
                   </p>
                   <p className="text-xs text-yellow-800">
-                    {!samplesVerified && !productsVerified ? (
-                      <>Click "Verify as Accurate" on both sections above to confirm your product selections and inventory counts.</>
-                    ) : !samplesVerified ? (
+                    {!samplesVerified ? (
                       <>Click "Verify as Accurate" on the Available Samples section above.</>
-                    ) : !productsVerified ? (
-                      <>Click "Verify as Accurate" on the Full-Size Products section above.</>
+                    ) : Object.keys(productsByBrand).some(brandName => !brandVerified[brandName]) ? (
+                      <>Click "Verify as Accurate" on each brand's product section above.</>
                     ) : (
                       <>Please select at least one sample and one product to offer.</>
                     )}

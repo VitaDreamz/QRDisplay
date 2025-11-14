@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export default async function AdminDashboardPage() {
   try {
     // Parallel data fetching for performance
-    const [displays, stores, customers, organizations, promoRedemptions] = await Promise.all([
+    const [displays, stores, customers, organizations, promoRedemptions, orders] = await Promise.all([
       prisma.display.findMany({
         include: { 
           organization: true, 
@@ -45,7 +45,25 @@ export default async function AdminDashboardPage() {
           id: true,  // CUID for foreign key references
           orgId: true, 
           name: true,
-          type: true
+          type: true,
+          logoUrl: true,
+          supportEmail: true,
+          supportPhone: true,
+          websiteUrl: true,
+          customerServiceEmail: true,
+          customerServicePhone: true,
+          commissionRate: true,
+          brandTier: true,
+          brandStatus: true,
+          maxStoresPerMonth: true,
+          maxSampleProducts: true,
+          maxFullSizeProducts: true,
+          storesAddedThisMonth: true,
+          currentActiveStores: true,
+          transactionFeePercent: true,
+          monthlyPlatformFee: true,
+          approvalStatus: true,
+          createdAt: true
         },
         where: {
           type: 'client' // Only show client brands, not platform
@@ -58,22 +76,52 @@ export default async function AdminDashboardPage() {
           store: true
         },
         orderBy: { createdAt: 'desc' }
+      }),
+      prisma.order.findMany({
+        select: {
+          id: true,
+          totalPrice: true,
+          status: true,
+          createdAt: true
+        }
       })
     ]);
 
     // Calculate stats
+    const totalSales = orders
+      .filter(o => o.status === 'completed' || o.status === 'paid')
+      .reduce((sum, order) => sum + Number(order.totalPrice), 0);
+    
+    const pendingSales = orders
+      .filter(o => o.status === 'pending')
+      .reduce((sum, order) => sum + Number(order.totalPrice), 0);
+
+    // Calculate return purchases (customers with multiple purchase intents that were actually purchased)
+    const customerPurchaseCounts = new Map<string, number>();
+    customers.forEach(customer => {
+      if (customer.purchased) {
+        const count = customerPurchaseCounts.get(customer.memberId) || 0;
+        customerPurchaseCounts.set(customer.memberId, count + 1);
+      }
+    });
+    const returnPurchases = Array.from(customerPurchaseCounts.values()).filter(count => count > 1).reduce((sum, count) => sum + (count - 1), 0);
+
     const stats = {
-    activeDisplays: displays.filter(d => d.status === 'active').length,
-    activeStores: stores.filter(s => s.status === 'active').length,
-    totalSamples: customers.length,
-    redeemed: customers.filter(c => c.redeemed).length,
-    redemptionRate: customers.length > 0 
-      ? Math.round((customers.filter(c => c.redeemed).length / customers.length) * 100)
-      : 0,
-    promoRedeemed: promoRedemptions.filter(p => p.redeemedAt !== null).length,
-    promoConversionRate: customers.filter(c => c.redeemed).length > 0
-      ? Math.round((promoRedemptions.filter(p => p.redeemedAt !== null).length / customers.filter(c => c.redeemed).length) * 100)
-      : 0
+      activeDisplays: displays.filter(d => d.status === 'active').length,
+      activeStores: stores.filter(s => s.status === 'active').length,
+      totalCustomers: customers.length,
+      totalSamples: customers.length,
+      redeemed: customers.filter(c => c.redeemed).length,
+      redemptionRate: customers.length > 0 
+        ? Math.round((customers.filter(c => c.redeemed).length / customers.length) * 100)
+        : 0,
+      promoRedeemed: promoRedemptions.filter(p => p.redeemedAt !== null).length,
+      returnPurchases,
+      promoConversionRate: customers.filter(c => c.redeemed).length > 0
+        ? Math.round((promoRedemptions.filter(p => p.redeemedAt !== null).length / customers.filter(c => c.redeemed).length) * 100)
+        : 0,
+      totalSales,
+      pendingSales
     };
 
     // Build activity feed (last 10 events)
@@ -140,11 +188,19 @@ export default async function AdminDashboardPage() {
     activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
     const recentActivities = activities.slice(0, 10);
 
+    // Serialize Decimal fields to numbers for Client Component
+    const serializedStores = stores.map(store => ({
+      ...store,
+      storeCredit: store.storeCredit ? Number(store.storeCredit) : 0,
+      commissionRate: store.commissionRate ? Number(store.commissionRate) : 0,
+      promoReimbursementRate: store.promoReimbursementRate ? Number(store.promoReimbursementRate) : 0,
+    }));
+
     return (
       <DashboardClient
         data={{
           displays,
-          stores,
+          stores: serializedStores,
           customers,
           organizations,
           promoRedemptions,
@@ -163,12 +219,12 @@ export default async function AdminDashboardPage() {
           <p className="text-gray-600 mb-6">
             {error instanceof Error ? error.message : 'An unexpected error occurred'}
           </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors"
+          <a
+            href="/admin/dashboard"
+            className="inline-block px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors"
           >
             Refresh Page
-          </button>
+          </a>
         </div>
       </div>
     );

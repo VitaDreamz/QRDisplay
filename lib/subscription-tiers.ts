@@ -5,7 +5,7 @@
  * Stores pay their organization quarterly via Recharge
  */
 
-export type SubscriptionTier = 'test' | 'free' | 'basic' | 'dreamer' | 'mega';
+export type SubscriptionTier = 'tester' | 'free' | 'basic' | 'dreamer' | 'mega';
 
 export interface TierConfig {
   id: SubscriptionTier;
@@ -25,18 +25,18 @@ export interface TierConfig {
 }
 
 export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, TierConfig> = {
-  test: {
-    id: 'test',
-    name: 'Test Partner',
+  tester: {
+    id: 'tester',
+    name: 'Tester',
     price: 0,
-    description: 'Early adopter - Grandfathered test stores',
+    description: 'Free trial tier with full Dreamer benefits for testing',
     features: {
       samplesPerQuarter: 40,
       wholesaleBoxAccess: true,
-      wholesaleBoxTypes: ['4ct', '20ct', '30ct'],
-      newCustomersPerBilling: 100,
+      wholesaleBoxTypes: ['4ct', '20ct', '30ct'], // Same as Dreamer
+      newCustomersPerBilling: 100, // Same as Dreamer
       commissionRate: 20.0,
-      promoReimbursementRate: 50.0, // Same as Dreamer tier - Thank you for testing!
+      promoReimbursementRate: 50.0,
     },
   },
   

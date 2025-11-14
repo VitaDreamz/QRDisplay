@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { InventoryTab } from './InventoryTab';
+import { BrandsTab } from './BrandsTab';
 
 type Activity = {
-  type: 'sample' | 'store' | 'redemption' | 'promo' | 'returning-promo';
+  type: 'sample' | 'store' | 'redemption' | 'promo';
   timestamp: Date;
   data: any;
 };
@@ -18,17 +19,21 @@ type DashboardData = {
   stats: {
     activeDisplays: number;
     activeStores: number;
+    totalCustomers: number;
     totalSamples: number;
     redeemed: number;
     redemptionRate: number;
     promoRedeemed: number;
+    returnPurchases: number;
     promoConversionRate: number;
+    totalSales: number;
+    pendingSales: number;
   };
   activities: Activity[];
 };
 
 export function DashboardClient({ data }: { data: DashboardData }) {
-  const [activeTab, setActiveTab] = useState<'displays' | 'stores' | 'customers' | 'inventory' | 'settings'>('displays');
+  const [activeTab, setActiveTab] = useState<'displays' | 'stores' | 'customers' | 'brands' | 'inventory' | 'settings'>('displays');
   const [searchQuery, setSearchQuery] = useState('');
   const [displayFilters, setDisplayFilters] = useState({ status: 'all', brand: 'all' });
   const [storeFilters, setStoreFilters] = useState({ status: 'all', brand: 'all' });
@@ -145,7 +150,6 @@ export function DashboardClient({ data }: { data: DashboardData }) {
       followupDays: store.followupDays || [4, 12],
       status: store.status || 'active',
       displayId: store.displays?.[0]?.displayId || '',
-      subscriptionTier: store.subscriptionTier || 'free',
       // IMPORTANT: Preserve availableSamples so they don't reset
       availableSamples: store.availableSamples || []
     });
@@ -374,14 +378,59 @@ export function DashboardClient({ data }: { data: DashboardData }) {
 
       {/* Stats Cards */}
       <div className="px-4 md:px-6 py-6">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        {/* Global System Stats */}
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">System-Wide Metrics</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Total Customers */}
+            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+              <div className="flex items-start justify-between">
+                <div className="text-4xl">👥</div>
+              </div>
+              <div className="mt-4">
+                <div className="text-4xl font-bold text-white">{data.stats.totalCustomers.toLocaleString()}</div>
+                <div className="text-sm text-purple-100 mt-1 font-medium">Total Customers</div>
+                <div className="text-xs text-purple-200 mt-1">Across all stores</div>
+              </div>
+            </div>
+
+            {/* Pending Sales */}
+            <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+              <div className="flex items-start justify-between">
+                <div className="text-4xl">⏳</div>
+              </div>
+              <div className="mt-4">
+                <div className="text-4xl font-bold text-white">${data.stats.pendingSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                <div className="text-sm text-orange-100 mt-1 font-medium">Pending Sales</div>
+                <div className="text-xs text-orange-200 mt-1">Orders in progress</div>
+              </div>
+            </div>
+
+            {/* Total Sales */}
+            <div className="bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+              <div className="flex items-start justify-between">
+                <div className="text-4xl">💰</div>
+              </div>
+              <div className="mt-4">
+                <div className="text-4xl font-bold text-white">${data.stats.totalSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                <div className="text-sm text-green-100 mt-1 font-medium">Total Sales</div>
+                <div className="text-xs text-green-200 mt-1">All completed orders</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Operational Metrics */}
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">Operational Metrics</h2>
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
           {/* Card 1: Active Displays */}
           <div className="bg-white rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between">
               <div className="text-3xl">📦</div>
             </div>
             <div className="mt-3">
-              <div className="text-3xl font-bold text-[#6f42c1]">{data.stats.activeDisplays}</div>
+              <div className="text-3xl font-bold text-purple-600">{data.stats.activeDisplays}</div>
               <div className="text-sm text-gray-600 mt-1">Active Displays</div>
             </div>
           </div>
@@ -392,7 +441,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
               <div className="text-3xl">🏪</div>
             </div>
             <div className="mt-3">
-              <div className="text-3xl font-bold text-[#3b82f6]">{data.stats.activeStores}</div>
+              <div className="text-3xl font-bold text-purple-600">{data.stats.activeStores}</div>
               <div className="text-sm text-gray-600 mt-1">Active Stores</div>
             </div>
           </div>
@@ -403,7 +452,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
               <div className="text-3xl">👥</div>
             </div>
             <div className="mt-3">
-              <div className="text-3xl font-bold text-[#10b981]">{data.stats.totalSamples}</div>
+              <div className="text-3xl font-bold text-purple-600">{data.stats.totalSamples}</div>
               <div className="text-sm text-gray-600 mt-1">Sample Requests</div>
             </div>
           </div>
@@ -414,23 +463,36 @@ export function DashboardClient({ data }: { data: DashboardData }) {
               <div className="text-3xl">✅</div>
             </div>
             <div className="mt-3">
-              <div className="text-3xl font-bold text-[#059669]">{data.stats.redeemed}</div>
+              <div className="text-3xl font-bold text-purple-600">{data.stats.redeemed}</div>
               <div className="text-sm text-gray-600 mt-1">Redeemed</div>
               <div className="text-xs text-gray-500 mt-1">{data.stats.redemptionRate}% conversion</div>
             </div>
           </div>
 
-          {/* Card 5: Promo Redemptions */}
+          {/* Card 5: First Purchases */}
           <div className="bg-white rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between">
               <div className="text-3xl">💰</div>
             </div>
             <div className="mt-3">
-              <div className="text-3xl font-bold text-[#8b5cf6]">{data.stats.promoRedeemed}</div>
-              <div className="text-sm text-gray-600 mt-1">First Purchases</div>
+              <div className="text-3xl font-bold text-purple-600">{data.stats.promoRedeemed}</div>
+              <div className="text-sm text-gray-600 mt-1">1st Purchases</div>
               <div className="text-xs text-gray-500 mt-1">{data.stats.promoConversionRate}% conversion</div>
             </div>
           </div>
+
+          {/* Card 6: Return Purchases */}
+          <div className="bg-white rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-start justify-between">
+              <div className="text-3xl">🔄</div>
+            </div>
+            <div className="mt-3">
+              <div className="text-3xl font-bold text-purple-600">{data.stats.returnPurchases}</div>
+              <div className="text-sm text-gray-600 mt-1">Return Purchases</div>
+              <div className="text-xs text-gray-500 mt-1">Repeat customers</div>
+            </div>
+          </div>
+        </div>
         </div>
       </div>
 
@@ -477,6 +539,16 @@ export function DashboardClient({ data }: { data: DashboardData }) {
             }`}
           >
             👥 Customers
+          </button>
+          <button
+            onClick={() => setActiveTab('brands')}
+            className={`px-6 py-3 text-base font-medium transition-colors ${
+              activeTab === 'brands'
+                ? 'text-purple-600 border-b-2 border-purple-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            🏷️ Brands
           </button>
           <button
             onClick={() => setActiveTab('inventory')}
@@ -651,28 +723,18 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         {/* Stores Tab */}
         {activeTab === 'stores' && (
           <div>
-            {/* Quick Add Section */}
-            <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg p-6 mb-4 shadow-lg">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-white mb-1">Quick Add New Store</h3>
-                  <p className="text-sm text-purple-100">Add a new store to a brand with inventory</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {data.organizations.map((org) => (
-                    <a
-                      key={org.orgId}
-                      href={`/admin/brands/${org.orgId}/stores/quick-add`}
-                      className="inline-flex items-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-purple-700 shadow-md hover:bg-purple-50 transition-colors"
-                    >
-                      <span className="mr-2">+</span>
-                      {org.name}
-                    </a>
-                  ))}
-                </div>
-              </div>
+            {/* Header with Add Button */}
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold text-gray-900">Stores</h2>
+              <a
+                href="/admin/stores/add"
+                className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center gap-2"
+              >
+                <span className="text-lg">+</span>
+                Add New Store
+              </a>
             </div>
-
+            
             {/* Filters */}
             <div className="bg-white rounded-lg p-4 mb-4 space-y-3 md:flex md:space-y-0 md:space-x-4">
               <select
@@ -1008,6 +1070,11 @@ export function DashboardClient({ data }: { data: DashboardData }) {
           </div>
         )}
 
+        {/* Brands Tab */}
+        {activeTab === 'brands' && (
+          <BrandsTab organizations={data.organizations} />
+        )}
+
         {/* Inventory Tab */}
         {activeTab === 'inventory' && (
           <InventoryTab displays={data.displays} organizations={data.organizations} />
@@ -1067,7 +1134,6 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                   {activity.type === 'store' && '🏪'}
                   {activity.type === 'redemption' && '✅'}
                   {activity.type === 'promo' && '💰'}
-                  {activity.type === 'returning-promo' && '🔄'}
                 </div>
                 <div className="flex-1">
                   <div className="text-xs text-gray-500 mb-1">
@@ -1094,13 +1160,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                     {activity.type === 'promo' && (
                       <>
                         <span className="font-semibold">{activity.data.customerName}</span> redeemed{' '}
-                        {activity.data.promoOffer} (First Purchase)
-                      </>
-                    )}
-                    {activity.type === 'returning-promo' && (
-                      <>
-                        <span className="font-semibold">{activity.data.customerName}</span> redeemed{' '}
-                        {activity.data.promoOffer} (Returning Customer)
+                        {activity.data.promoOffer}
                       </>
                     )}
                   </div>
@@ -1116,7 +1176,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
 
       {/* Mobile Bottom Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-area-inset-bottom">
-        <div className="grid grid-cols-5">
+        <div className="grid grid-cols-6">
           <button
             onClick={() => setActiveTab('displays')}
             className={`flex flex-col items-center justify-center h-14 space-y-1 ${
@@ -1143,6 +1203,15 @@ export function DashboardClient({ data }: { data: DashboardData }) {
           >
             <span className="text-xl">👥</span>
             <span className="text-xs font-medium">Samples</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('brands')}
+            className={`flex flex-col items-center justify-center h-14 space-y-1 ${
+              activeTab === 'brands' ? 'bg-purple-600 text-white' : 'text-gray-600'
+            }`}
+          >
+            <span className="text-xl">🏷️</span>
+            <span className="text-xs font-medium">Brands</span>
           </button>
           <button
             onClick={() => setActiveTab('inventory')}
@@ -1194,7 +1263,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                 >
                   <option value="">Unassigned</option>
                   {data.organizations.map(org => (
-                    <option key={org.id} value={org.id}>{org.name}</option>
+                    <option key={org.orgId} value={org.orgId}>{org.name}</option>
                   ))}
                 </select>
               </div>
@@ -1394,20 +1463,6 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                   onChange={(e) => setStoreForm({ ...storeForm, promoOffer: e.target.value })}
                   className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Subscription Tier</label>
-                <select
-                  value={storeForm.subscriptionTier}
-                  onChange={(e) => setStoreForm({ ...storeForm, subscriptionTier: e.target.value })}
-                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value="test">Test - $0/mo (50% Match) - Early Adopters</option>
-                  <option value="free">Free - $0/mo (10% Match)</option>
-                  <option value="basic">Basic - $150/mo (25% Match)</option>
-                  <option value="dreamer">Dreamer - $249/mo (50% Match)</option>
-                  <option value="mega">Mega - $499/mo (100% Match)</option>
-                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Status</label>

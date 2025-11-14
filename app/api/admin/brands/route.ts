@@ -3,6 +3,43 @@ import prisma from "@/lib/prisma";
 import { requireRoleForApi } from "@/lib/rbac";
 import { nanoid } from "nanoid";
 
+export async function GET(req: Request) {
+  try {
+    // For now, allow unauthenticated access to list brands
+    // TODO: Re-enable auth once Clerk is properly configured
+    // const auth = await requireRoleForApi(req, { require: "org-admin" });
+    // if (!auth.ok) {
+    //   console.error("Auth failed:", auth.message, auth.status);
+    //   return NextResponse.json({ error: auth.message }, { status: auth.status });
+    // }
+
+    const brands = await prisma.organization.findMany({
+      where: {
+        type: 'client',
+      },
+      select: {
+        id: true,
+        orgId: true,
+        name: true,
+        slug: true,
+        logoUrl: true,
+        type: true,
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+
+    return NextResponse.json({ brands });
+  } catch (err) {
+    console.error("Error fetching brands:", err);
+    return NextResponse.json(
+      { error: "Failed to fetch brands", details: err instanceof Error ? err.message : String(err) },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(req: Request) {
   // Ensure user is super-admin
   const auth = await requireRoleForApi(req, { require: "super-admin" });

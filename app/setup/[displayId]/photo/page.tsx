@@ -119,18 +119,18 @@ export default function PhotoPage({ params }: { params: Promise<{ displayId: str
       
       {/* Photo Incentive */}
       {!photoUploaded ? (
-        <div className="bg-gradient-to-br from-green-400 to-emerald-500 text-white rounded-lg p-6 mb-6">
+        <div className="bg-gradient-to-br from-yellow-400 to-amber-500 text-white rounded-lg p-6 mb-6">
           <div className="text-center mb-4">
             <div className="text-5xl mb-3">📸</div>
             <h2 className="text-2xl font-bold mb-2">
               Show Us Your Setup!
             </h2>
-            <p className="text-green-50 text-sm mb-4">
+            <p className="text-yellow-50 text-sm mb-4">
               Upload a photo of your assembled display and earn:
             </p>
             <div className="bg-white/20 backdrop-blur rounded-lg p-4 inline-block">
               <div className="text-4xl font-bold">$10</div>
-              <div className="text-sm">Credit Applied</div>
+              <div className="text-sm">Credit Pending</div>
             </div>
           </div>
           

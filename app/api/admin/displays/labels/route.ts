@@ -129,6 +129,20 @@ export async function POST(request: NextRequest) {
       labelIndex++;
     }
     
+    // Save print history
+    const sheets = Math.ceil(displays.length / LABELS_PER_PAGE);
+    const batchId = `BATCH-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-${String(await prisma.labelPrintHistory.count() + 1).padStart(3, '0')}`;
+    
+    await prisma.labelPrintHistory.create({
+      data: {
+        batchId,
+        displayIds: displays.map(d => d.displayId),
+        quantity: displays.length,
+        sheets,
+        printedAt: new Date(),
+      }
+    });
+    
     // Return PDF as arraybuffer
     const pdfBlob = doc.output('arraybuffer');
     

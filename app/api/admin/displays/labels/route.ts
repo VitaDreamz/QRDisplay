@@ -70,12 +70,22 @@ const CORNER_RADIUS = 0.79375;// 0.03125" = 0.79375mm
 
 // QR Code sizing - OPTIMIZED FOR 1.5" × 1.5" LABELS
 const QR_SIZE = 26;           // 26mm QR code (leaves 6mm margins on each side)
-const QR_TOP_PADDING = 2;     // 2mm from top of label to QR
+const QR_TOP_PADDING = 2.5;   // 2.5mm from top of label to QR
+const QR_BOTTOM_PADDING = 2;  // 2mm minimum space at bottom (text stays within label)
 const QR_SIDE_PADDING = 6.05; // Center horizontally: (38.1 - 26) / 2 = 6.05mm
 
+// Text sizing
+const URL_FONT_SIZE = 6.5;    // 6.5pt for URL (smaller to fit)
+const ID_FONT_SIZE = 8;       // 8pt for Display ID (was 9pt)
+
 // Text spacing (all relative to QR code bottom)
-const URL_OFFSET = 1.5;       // Space between QR bottom and URL text
-const ID_OFFSET = 2.5;        // Space between URL and ID text
+const URL_OFFSET = 1.2;       // Space between QR bottom and URL text
+const ID_OFFSET = 2.2;        // Space between URL and ID text
+
+// Calculate max text height to ensure it fits
+// Total available space below QR: 38.1 - (2.5 + 26) = 9.6mm
+// Need to fit: URL (6.5pt ≈ 2.3mm) + spacing (1.2mm) + ID (8pt ≈ 2.8mm) + spacing (2.2mm) + bottom padding (2mm) = 10.5mm
+// Note: If text overflows, reduce font sizes or increase QR_TOP_PADDING
 
 export async function POST(request: NextRequest) {
   try {
@@ -125,8 +135,8 @@ export async function POST(request: NextRequest) {
       
       doc.addImage(display.qrPngUrl, 'PNG', qrX, qrY, QR_SIZE, QR_SIZE);
       
-      // Short URL (7pt, gray, centered below QR)
-      doc.setFontSize(7);
+      // Short URL (6.5pt, gray, centered below QR)
+      doc.setFontSize(URL_FONT_SIZE);
       doc.setTextColor(100, 100, 100);
       doc.text(
         'qrdisplay.com/d/',
@@ -135,8 +145,8 @@ export async function POST(request: NextRequest) {
         { align: 'center' }
       );
       
-      // Display ID (9pt, bold, black, centered below short URL)
-      doc.setFontSize(9);
+      // Display ID (8pt, bold, black, centered below short URL)
+      doc.setFontSize(ID_FONT_SIZE);
       doc.setTextColor(0, 0, 0);
       doc.setFont('helvetica', 'bold');
       doc.text(

@@ -4,10 +4,10 @@ import prisma from '@/lib/prisma';
 // GET - Load order for verification
 export async function GET(
   req: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
   try {
-    const { token } = params;
+    const { token } = await params;
 
     const order = await prisma.wholesaleOrder.findUnique({
       where: { verificationToken: token },
@@ -41,10 +41,10 @@ export async function GET(
 // POST - Submit verification
 export async function POST(
   req: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
   try {
-    const { token } = params;
+    const { token } = await params;
     const { receivedQuantities, notes } = await req.json();
 
     const order = await prisma.wholesaleOrder.findUnique({

@@ -99,7 +99,7 @@ export default async function AdminDashboardPage() {
     // Calculate return purchases (customers with multiple purchase intents that were actually purchased)
     const customerPurchaseCounts = new Map<string, number>();
     customers.forEach(customer => {
-      if (customer.purchased) {
+      if (customer.currentStage === 'purchased' || customer.currentStage === 'repeat') {
         const count = customerPurchaseCounts.get(customer.memberId) || 0;
         customerPurchaseCounts.set(customer.memberId, count + 1);
       }

@@ -434,14 +434,14 @@ export default function QuickAddStorePage() {
                       onChange={(e) => setSubscriptionTier(e.target.value as SubscriptionTier)}
                       className="w-full border-2 border-white/30 bg-white/5 backdrop-blur-sm rounded-lg px-4 py-2 text-white focus:border-purple-400 focus:outline-none"
                     >
-                      <option value="test" className="bg-gray-800">Test Tier - $0/mo (50% Discount Match) - For Early Adopters</option>
+                      <option value="tester" className="bg-gray-800">Tester Tier - $0/mo (50% Discount Match) - For Early Adopters</option>
                       <option value="free" className="bg-gray-800">Free Tier - $0/mo (10% Discount Match)</option>
                       <option value="basic" className="bg-gray-800">Basic Tier - $150/mo (25% Discount Match)</option>
                       <option value="dreamer" className="bg-gray-800">Dreamer Tier - $249/mo (50% Discount Match)</option>
                       <option value="mega" className="bg-gray-800">Mega Tier - $499/mo (100% Discount Match)</option>
                     </select>
                     <p className="text-xs text-purple-300 mt-2">
-                      {subscriptionTier === 'test' && '🎁 Test tier: Same benefits as Dreamer but free for early adopters'}
+                      {subscriptionTier === 'tester' && '🎁 Tester tier: Same benefits as Dreamer but free for early adopters'}
                       {subscriptionTier === 'free' && 'Limited features, 10% discount match on customer purchases'}
                       {subscriptionTier === 'basic' && '25% discount match, good for small stores'}
                       {subscriptionTier === 'dreamer' && '50% discount match, perfect for growing stores'}

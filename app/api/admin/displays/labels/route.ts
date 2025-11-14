@@ -3,58 +3,78 @@ import { jsPDF } from 'jspdf';
 import prisma from '@/lib/prisma';
 
 /**
- * LABEL ADJUSTMENT GUIDE:
+ * QR LABEL GENERATOR - OnlineLabels.com OL2681WI Template
  * 
+ * EXACT SPECIFICATIONS (as of 2025-11-14):
+ * - 24 labels per sheet (4 columns × 6 rows)
+ * - Label size: 1.5" × 1.5" (38.1mm × 38.1mm)
+ * - Top/Bottom margins: 0.5" (12.7mm)
+ * - Left/Right margins: 0.7812" (19.84375mm)
+ * - Horizontal spacing: 0.3125" (7.9375mm)
+ * - Vertical spacing: 0.2" (5.08mm)
+ * - Horizontal pitch: 1.8125" (46.04375mm)
+ * - Vertical pitch: 1.7" (43.18mm)
+ * - Corner radius: 0.03125" (0.79375mm)
+ * 
+ * TROUBLESHOOTING:
  * If labels are misaligned on physical sheet:
  * 
- * 1. QR TOO BIG/SMALL:
- *    - Adjust: QR_SIZE (currently 24mm)
+ * 1. LABELS TOO FAR LEFT/RIGHT:
+ *    - Adjust: LEFT_MARGIN (currently 19.84375mm)
+ *    - Or adjust: COL_PITCH (currently 46.04375mm)
  * 
- * 2. LABELS TOO FAR LEFT/RIGHT:
- *    - Adjust: LEFT_MARGIN (currently 19.84mm)
- *    - Or adjust: COL_PITCH (currently 46.04mm)
- * 
- * 3. LABELS TOO HIGH/LOW:
+ * 2. LABELS TOO HIGH/LOW:
  *    - Adjust: TOP_MARGIN (currently 12.7mm)
  *    - Or adjust: ROW_PITCH (currently 43.18mm)
  * 
- * 4. QR CODE POSITION WITHIN LABEL:
- *    - Move QR up/down: QR_TOP_PADDING (currently 3mm)
- *    - Move QR left/right: QR_SIDE_PADDING (currently 7.05mm)
+ * 3. QR CODE POSITION WITHIN LABEL:
+ *    - Move QR up/down: QR_TOP_PADDING (currently 2mm)
+ *    - Move QR left/right: QR_SIDE_PADDING (currently 6.05mm)
+ *    - Resize QR: QR_SIZE (currently 26mm)
  * 
- * 5. TEXT POSITION:
- *    - URL closer/farther from QR: URL_OFFSET (currently 2mm)
+ * 4. TEXT POSITION:
+ *    - URL closer/farther from QR: URL_OFFSET (currently 1.5mm)
  *    - ID closer/farther from URL: ID_OFFSET (currently 2.5mm)
  * 
- * All measurements in millimeters (mm)
+ * All measurements in millimeters (mm). 1 inch = 25.4mm
  */
 
-// OL2681 specifications (4 columns × 6 rows)
-const PAGE_WIDTH = 215.9;     // 8.5"
-const PAGE_HEIGHT = 279.4;    // 11"
+// OL2681WI EXACT SPECIFICATIONS (OnlineLabels.com)
+// 4 columns × 6 rows = 24 labels per sheet
+const PAGE_WIDTH = 215.9;     // 8.5" standard letter
+const PAGE_HEIGHT = 279.4;    // 11" standard letter
 const COLS = 4;               // 4 columns (across)
 const ROWS = 6;               // 6 rows (down)
 const LABELS_PER_PAGE = 24;   // 4 × 6 = 24
 
-// Label dimensions (inches to mm)
-const LABEL_WIDTH = 38.1;     // 1.5"
-const LABEL_HEIGHT = 38.1;    // 1.5"
+// Label dimensions - EXACT from OnlineLabels spec
+const LABEL_WIDTH = 38.1;     // 1.5" = 38.1mm
+const LABEL_HEIGHT = 38.1;    // 1.5" = 38.1mm
 
-// Margins (inches to mm)
-const LEFT_MARGIN = 19.84;    // 0.7812"
-const TOP_MARGIN = 12.7;      // 0.5"
+// Margins - EXACT from OnlineLabels spec
+const LEFT_MARGIN = 19.84375; // 0.7812" = 19.84375mm
+const RIGHT_MARGIN = 19.84375;// 0.7812" = 19.84375mm
+const TOP_MARGIN = 12.7;      // 0.5" = 12.7mm
+const BOTTOM_MARGIN = 12.7;   // 0.5" = 12.7mm
 
-// Pitch (center-to-center spacing, inches to mm)
-const COL_PITCH = 46.04;      // 1.8125"
-const ROW_PITCH = 43.18;      // 1.7"
+// Spacing - EXACT from OnlineLabels spec
+const HORIZONTAL_SPACING = 7.9375; // 0.3125" = 7.9375mm
+const VERTICAL_SPACING = 5.08;     // 0.2" = 5.08mm
 
-// QR Code sizing - ADJUSTED TO FIT BETTER
-const QR_SIZE = 24;           // Reduced to 24mm (4mm less than original 28mm)
-const QR_TOP_PADDING = 3;     // Space from top of label to QR
-const QR_SIDE_PADDING = 7.05; // Center horizontally: (38.1 - 24) / 2 = 7.05mm
+// Pitch (center-to-center) - EXACT from OnlineLabels spec
+const COL_PITCH = 46.04375;   // 1.8125" = 46.04375mm (Horizontal Pitch)
+const ROW_PITCH = 43.18;      // 1.7" = 43.18mm (Vertical Pitch)
+
+// Corner radius
+const CORNER_RADIUS = 0.79375;// 0.03125" = 0.79375mm
+
+// QR Code sizing - OPTIMIZED FOR 1.5" × 1.5" LABELS
+const QR_SIZE = 26;           // 26mm QR code (leaves 6mm margins on each side)
+const QR_TOP_PADDING = 2;     // 2mm from top of label to QR
+const QR_SIDE_PADDING = 6.05; // Center horizontally: (38.1 - 26) / 2 = 6.05mm
 
 // Text spacing (all relative to QR code bottom)
-const URL_OFFSET = 2;         // Space between QR bottom and URL text
+const URL_OFFSET = 1.5;       // Space between QR bottom and URL text
 const ID_OFFSET = 2.5;        // Space between URL and ID text
 
 export async function POST(request: NextRequest) {

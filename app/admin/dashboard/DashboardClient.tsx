@@ -5,7 +5,7 @@ import { InventoryTab } from './InventoryTab';
 import { BrandsTab } from './BrandsTab';
 
 type Activity = {
-  type: 'sample' | 'store' | 'redemption' | 'promo';
+  type: 'sample' | 'store' | 'redemption' | 'promo' | 'returning-promo';
   timestamp: Date;
   data: any;
 };

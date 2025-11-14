@@ -29,6 +29,9 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
   const [bulkAction, setBulkAction] = useState<{ type: 'status' | 'organization' | 'reset' | 'delete'; value: string } | null>(null);
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
   const [bulkUpdating, setBulkUpdating] = useState(false);
+  const [printHistory, setPrintHistory] = useState<any[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>, rows: Display[]) => {
     if (e.target.checked) {
@@ -57,6 +60,10 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
 
       const data = await res.json();
 
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to create batch');
+      }
+
       if (data.success) {
         // Auto-print labels after creation
         const displayIds = data.displays.map((d: any) => d.displayId);
@@ -67,7 +74,7 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
       }
     } catch (error) {
       console.error('Batch creation failed:', error);
-      alert('Failed to create batch');
+      alert(`Failed to create batch: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setCreating(false);
     }
@@ -94,6 +101,27 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
       console.error('Label print failed:', error);
       alert('Failed to generate labels');
     }
+  };
+
+  const loadPrintHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const res = await fetch('/api/admin/labels/history');
+      const data = await res.json();
+      if (data.success) {
+        setPrintHistory(data.history);
+        setShowHistory(true);
+      }
+    } catch (error) {
+      console.error('Failed to load history:', error);
+      alert('Failed to load print history');
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const reprintBatch = async (batchDisplayIds: string[]) => {
+    await printLabels(batchDisplayIds);
   };
 
   const displayCount = displays.length;
@@ -256,6 +284,85 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
             • Test one sheet before printing bulk
           </div>
         </details>
+      </div>
+
+      {/* Print History */}
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold">Label Print History</h2>
+          <button
+            onClick={loadPrintHistory}
+            disabled={loadingHistory}
+            className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 disabled:bg-gray-400 text-sm"
+          >
+            {loadingHistory ? 'Loading...' : showHistory ? 'Refresh History' : 'View History'}
+          </button>
+        </div>
+
+        {showHistory && (
+          <div className="overflow-x-auto">
+            {printHistory.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">No print history yet. Create your first batch above!</p>
+            ) : (
+              <table className="min-w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Batch ID</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Labels</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sheets</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Display IDs</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {printHistory.map((batch) => (
+                    <tr key={batch.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-mono text-sm">{batch.batchId}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        {new Date(batch.printedAt).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                          {batch.quantity}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-medium">
+                          {batch.sheets}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm font-mono text-gray-600">
+                        <details className="cursor-pointer">
+                          <summary className="hover:text-purple-600">
+                            {batch.displayIds[0]} ... {batch.displayIds[batch.displayIds.length - 1]}
+                          </summary>
+                          <div className="mt-2 p-2 bg-gray-50 rounded text-xs max-h-40 overflow-y-auto">
+                            {batch.displayIds.join(', ')}
+                          </div>
+                        </details>
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => reprintBatch(batch.displayIds)}
+                          className="text-purple-600 hover:text-purple-700 text-sm font-medium underline"
+                        >
+                          Reprint PDF
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Bulk Actions (selection) */}
@@ -421,7 +528,14 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">
                     {display.targetUrl ? (
-                      <span className="font-mono text-xs">{display.targetUrl.replace('https://', '')}</span>
+                      <a 
+                        href={display.targetUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="font-mono text-xs text-purple-600 hover:text-purple-800 hover:underline"
+                      >
+                        {display.targetUrl.replace('https://', '')}
+                      </a>
                     ) : '—'}
                   </td>
                   <td className="px-4 py-3">

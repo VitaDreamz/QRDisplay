@@ -12,11 +12,13 @@ async function generateMemberId(): Promise<string> {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { displayId, firstName, lastName, phone, productSku } = body || {};
+    const { displayId, firstName, lastName, phone, productSku, brandOrgId } = body || {};
 
     if (!displayId || !firstName || !lastName || !phone || !productSku) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
+
+    // Multi-brand: brandOrgId is optional for backwards compatibility
 
     // Lookup display with relations
     const display = await prisma.display.findUnique({
@@ -37,9 +39,41 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Store is not active' }, { status: 400 });
     }
 
-    // Verify product is available at this store
-    if (!display.store.availableProducts || !display.store.availableProducts.includes(productSku)) {
-      return NextResponse.json({ error: 'This product is not offered at this store' }, { status: 400 });
+    // Multi-brand: Determine which brand org we're working with
+    const targetBrandOrgId = brandOrgId || (display.assignedOrgId || display.organization!.orgId);
+    
+    // Multi-brand: Get brand organization
+    const brandOrg = await prisma.organization.findUnique({
+      where: { orgId: targetBrandOrgId },
+    });
+    
+    if (!brandOrg) {
+      return NextResponse.json({ error: 'Brand not found' }, { status: 404 });
+    }
+
+    // Multi-brand: Validate brand partnership (if brandOrgId was provided)
+    if (brandOrgId) {
+      const partnership = await prisma.storeBrandPartnership.findFirst({
+        where: {
+          storeId: display.store.id,
+          brandId: brandOrg.id,
+          active: true,
+        },
+      });
+      
+      if (!partnership) {
+        return NextResponse.json({ error: 'This brand is not available at this store' }, { status: 400 });
+      }
+      
+      // Validate that the product SKU is in the partnership's available products
+      if (!partnership.availableProducts || !partnership.availableProducts.includes(productSku)) {
+        return NextResponse.json({ error: 'This product is not offered by this brand at this store' }, { status: 400 });
+      }
+    } else {
+      // Legacy single-brand validation
+      if (!display.store.availableProducts || !display.store.availableProducts.includes(productSku)) {
+        return NextResponse.json({ error: 'This product is not offered at this store' }, { status: 400 });
+      }
     }
 
     // Get product details
@@ -73,7 +107,7 @@ export async function POST(req: NextRequest) {
     const customer = await prisma.customer.create({
       data: {
         memberId,
-        orgId: display.assignedOrgId || display.organization!.id,
+        orgId: brandOrg.id, // Use brand org, not display org
         storeId: display.store.storeId,
         firstName: String(firstName).trim(),
         lastName: String(lastName).trim(),

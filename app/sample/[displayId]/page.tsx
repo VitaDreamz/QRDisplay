@@ -6,16 +6,24 @@ import { formatPhoneDisplay } from '@/lib/phone';
 import { SAMPLE_OPTIONS } from '@/lib/constants';
 
 type BrandInfo = {
-  name: string;
+  brandId: string;
+  brandOrgId: string;
+  brandName: string;
+  brandSlug: string;
   logoUrl?: string | null;
-  supportEmail?: string | null;
-  supportPhone?: string | null;
-  storeName?: string | null;
-  availableSamples?: any[]; // Now includes inventory info
+  description?: string | null;
+  commissionRate?: number;
+  availableSamples?: any[];
   availableProducts?: any[];
   hasSamplesInStock?: boolean;
   hasProductsInStock?: boolean;
-  promoOffer?: string;
+};
+
+type StoreInfo = {
+  storeId: string;
+  storeName: string;
+  promoOffer: string;
+  brands: BrandInfo[];
 };
 
 type FlowMode = 'choice' | 'sample' | 'purchase';
@@ -23,9 +31,10 @@ type FlowMode = 'choice' | 'sample' | 'purchase';
 export default function SampleRequestPage({ params }: { params: Promise<{ displayId: string }> }) {
   const router = useRouter();
   const [displayId, setDisplayId] = useState<string>('');
-  const [brand, setBrand] = useState<BrandInfo | null>(null);
+  const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [flowMode, setFlowMode] = useState<FlowMode>('sample'); // Default to sample flow
+  const [flowMode, setFlowMode] = useState<FlowMode>('sample');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Form state
   const [firstName, setFirstName] = useState('');
@@ -44,29 +53,22 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
       try {
         const res = await fetch(`/api/displays/${p.displayId}/brand`, { cache: 'no-store' });
         const data = await res.json();
-        setBrand(data);
+        setStoreInfo(data);
         
-        console.log('📊 Brand data received:', data);
-        console.log('🎁 Has samples in stock:', data.hasSamplesInStock);
-        console.log('🛍️ Has products in stock:', data.hasProductsInStock);
+        // Check if ANY brand has samples or products in stock
+        const hasSamplesInStock = data.brands?.some((b: any) => b.hasSamplesInStock);
+        const hasProductsInStock = data.brands?.some((b: any) => b.hasProductsInStock);
         
-        // Determine initial flow mode based on inventory
-        // Option 1: Samples in stock but NO products → Sample flow only
-        // Option 2: Samples AND products in stock → Show choice
-        // Option 3: NO samples but products in stock → Purchase flow only
-        
-        if (data.hasSamplesInStock && data.hasProductsInStock) {
-          console.log('✅ Flow: CHOICE (both available)');
-          setFlowMode('choice'); // Show choice between sample and purchase
-        } else if (data.hasProductsInStock && !data.hasSamplesInStock) {
-          console.log('✅ Flow: PURCHASE ONLY (no samples in stock)');
-          setFlowMode('purchase'); // Only products available
+        // Determine flow mode based on inventory across all brands
+        if (hasSamplesInStock && hasProductsInStock) {
+          setFlowMode('choice');
+        } else if (hasProductsInStock && !hasSamplesInStock) {
+          setFlowMode('purchase');
         } else {
-          console.log('✅ Flow: SAMPLE ONLY (default/no products in stock)');
-          setFlowMode('sample'); // Only samples available (or legacy)
+          setFlowMode('sample');
         }
       } catch (e) {
-        console.error('Failed to fetch brand info', e);
+        console.error('Failed to fetch store info', e);
       } finally {
         setLoading(false);
       }
@@ -74,28 +76,63 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
   }, [params]);
 
   const headerTitle = useMemo(() => {
-    if (!brand) return '';
-    const left = brand.name || 'Brand';
-    const right = brand.storeName || 'Your Store';
-    return `${left} × ${right}`;
-  }, [brand]);
-
-  // Filter samples based on what the store has available and in stock
-  const availableOptions = useMemo(() => {
-    if (!brand?.availableSamples || brand.availableSamples.length === 0) {
-      // Fallback to constants if API doesn't return samples
-      return SAMPLE_OPTIONS;
+    if (!storeInfo) return '';
+    const brandCount = storeInfo.brands?.length || 0;
+    if (brandCount === 1) {
+      return `${storeInfo.brands[0].brandName} × ${storeInfo.storeName}`;
     }
-    // API now returns samples with inventory info
-    return brand.availableSamples;
-  }, [brand]);
+    return storeInfo.storeName;
+  }, [storeInfo]);
+
+  // Aggregate ALL samples from ALL brands
+  const availableOptions = useMemo(() => {
+    if (!storeInfo?.brands) return SAMPLE_OPTIONS;
+    
+    const allSamples: any[] = [];
+    storeInfo.brands.forEach((brand) => {
+      if (brand.availableSamples && brand.availableSamples.length > 0) {
+        brand.availableSamples.forEach((sample) => {
+          allSamples.push({
+            ...sample,
+            brandName: brand.brandName,
+            brandId: brand.brandId,
+            brandOrgId: brand.brandOrgId,
+          });
+        });
+      }
+    });
+    
+    return allSamples.length > 0 ? allSamples : SAMPLE_OPTIONS;
+  }, [storeInfo]);
+
+  // Aggregate ALL products from ALL brands
+  const availableProducts = useMemo(() => {
+    if (!storeInfo?.brands) return [];
+    
+    const allProducts: any[] = [];
+    storeInfo.brands.forEach((brand) => {
+      if (brand.availableProducts && brand.availableProducts.length > 0) {
+        brand.availableProducts.forEach((product) => {
+          allProducts.push({
+            ...product,
+            brandName: brand.brandName,
+            brandId: brand.brandId,
+            brandOrgId: brand.brandOrgId,
+            logoUrl: brand.logoUrl,
+          });
+        });
+      }
+    });
+    
+    return allProducts;
+  }, [storeInfo]);
 
   // Calculate discount percentage from promo offer
   const promoPercentage = useMemo(() => {
-    if (!brand?.promoOffer) return '20';
-    const match = brand.promoOffer.match(/(\d+)%/);
+    if (!storeInfo?.promoOffer) return '20';
+    const match = storeInfo.promoOffer.match(/(\d+)%/);
     return match ? match[1] : '20';
-  }, [brand]);
+  }, [storeInfo]);
 
   function validateSample(): boolean {
     const errs: { [k: string]: string } = {};
@@ -135,10 +172,22 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
 
     try {
       setSubmitting(true);
+      
+      // Find the selected sample to get brand info
+      const selectedSample = availableOptions.find((opt: any) => opt.sku === sampleChoice);
+      
       const resp = await fetch('/api/samples/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayId, firstName, lastName, phone, sampleChoice }),
+        body: JSON.stringify({ 
+          displayId, 
+          firstName, 
+          lastName, 
+          phone, 
+          sampleChoice,
+          brandId: selectedSample?.brandId,
+          brandOrgId: selectedSample?.brandOrgId,
+        }),
       });
       const json = await resp.json();
       if (!resp.ok) {
@@ -148,7 +197,7 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
       }
 
       const params = new URLSearchParams({
-        storeName: brand?.storeName || '',
+        storeName: storeInfo?.storeName || '',
         sample: sampleChoice,
         memberId: json.memberId || '',
       });
@@ -172,10 +221,22 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
 
     try {
       setSubmitting(true);
+      
+      // Find the selected product to get brand info
+      const selectedProduct = availableProducts.find((p: any) => p.sku === productChoice);
+      
       const resp = await fetch('/api/purchase-intent-direct', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayId, firstName, lastName, phone, productSku: productChoice }),
+        body: JSON.stringify({ 
+          displayId, 
+          firstName, 
+          lastName, 
+          phone, 
+          productSku: productChoice,
+          brandId: selectedProduct?.brandId,
+          brandOrgId: selectedProduct?.brandOrgId,
+        }),
       });
       const json = await resp.json();
       if (!resp.ok) {
@@ -186,8 +247,8 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
 
       // Redirect to success page
       const params = new URLSearchParams({
-        storeName: brand?.storeName || '',
-        product: brand?.availableProducts?.find(p => p.sku === productChoice)?.name || productChoice,
+        storeName: storeInfo?.storeName || '',
+        product: selectedProduct?.name || productChoice,
         promoSlug: json.promoSlug || '',
       });
       router.push(`/sample/${displayId}/purchase-success?${params.toString()}`);
@@ -213,9 +274,6 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
         <div className="max-w-2xl mx-auto px-5 py-8">
           {/* Header */}
           <div className="text-center mb-8">
-            {brand?.logoUrl && (
-              <img src={brand.logoUrl} alt={brand?.name || 'Brand'} className="w-20 h-20 rounded-xl mx-auto mb-4 bg-white p-3 shadow-lg" />
-            )}
             <h1 className="text-3xl font-bold leading-tight mb-2">{headerTitle}</h1>
             <p className="text-xl font-semibold text-pink-200">Choose Your Offer</p>
           </div>
@@ -245,7 +303,7 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
                 Get <span className="font-bold text-2xl">{promoPercentage}% OFF</span> your purchase today!
               </p>
               <p className="text-white/75">
-                {brand?.promoOffer || 'Special offer'}
+                {storeInfo?.promoOffer || 'Special offer'}
               </p>
             </button>
           </div>
@@ -261,9 +319,6 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
         <div className="max-w-md mx-auto px-5 py-6">
           {/* Header */}
           <div className="text-center mb-6">
-            {brand?.logoUrl && (
-              <img src={brand.logoUrl} alt={brand?.name || 'Brand'} className="w-16 h-16 rounded-lg mx-auto mb-3 bg-white p-2" />
-            )}
             <h1 className="text-2xl font-bold leading-tight">{headerTitle}</h1>
             <p className="text-lg font-semibold mt-2 text-pink-200">Free Sample Program</p>
           </div>
@@ -271,7 +326,7 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
           {/* Card */}
           <div className="bg-white/10 backdrop-blur-sm border-2 border-white/20 rounded-2xl p-5">
             <p className="text-base mb-5 text-white/90 leading-relaxed">
-              Takes less than 30 seconds to claim a <span className="font-semibold text-pink-200">Free Sample</span> and a <span className="font-semibold text-pink-200">{brand?.promoOffer || '$5'}</span> Deal!
+              Takes less than 30 seconds to claim a <span className="font-semibold text-pink-200">Free Sample</span> and a <span className="font-semibold text-pink-200">{storeInfo?.promoOffer || '$5'}</span> Deal!
             </p>
 
             {/* Form */}
@@ -413,7 +468,7 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
               </button>
 
               <p className="text-xs text-white/60 text-center leading-relaxed">
-                By claiming your free sample you agree to receive SMS notifications from {brand?.name || 'VitaDreamz'} regarding your sample and future promo offers. Opt-out any time! Standard message rates may apply.
+                By claiming your free sample you agree to receive SMS notifications regarding your sample and future promo offers. Opt-out any time! Standard message rates may apply.
               </p>
             </form>
           </div>
@@ -429,9 +484,6 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
         <div className="max-w-md mx-auto px-5 py-6">
           {/* Header */}
           <div className="text-center mb-6">
-            {brand?.logoUrl && (
-              <img src={brand.logoUrl} alt={brand?.name || 'Brand'} className="w-16 h-16 rounded-lg mx-auto mb-3 bg-white p-2" />
-            )}
             <h1 className="text-2xl font-bold leading-tight">{headerTitle}</h1>
             <p className="text-lg font-semibold mt-2 text-pink-200">
               {promoPercentage}% OFF Your Purchase
@@ -506,7 +558,7 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
                   Select Your Product <span className="text-pink-300">*</span>
                 </label>
                 <div className="grid grid-cols-1 gap-3">
-                  {brand?.availableProducts?.map((product) => {
+                  {availableProducts.map((product: any) => {
                     const isSelected = productChoice === product.sku;
                     const price = Number(product.msrp || product.price);
                     const discountedPrice = price * (1 - parseInt(promoPercentage) / 100);
@@ -584,7 +636,7 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
               </button>
 
               <p className="text-xs text-white/60 text-center leading-relaxed">
-                By redeeming this offer you agree to receive SMS notifications from {brand?.name || 'VitaDreamz'}. Opt-out any time! Standard message rates may apply.
+                By redeeming this offer you agree to receive SMS notifications. Opt-out any time! Standard message rates may apply.
               </p>
             </form>
           </div>

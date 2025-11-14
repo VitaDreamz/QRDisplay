@@ -586,3 +586,131 @@ export async function addStoreCredit(
   }
 }
 
+/**
+ * Create a Draft Order in Shopify for wholesale orders
+ */
+export async function createShopifyDraftOrder(
+  shopifyDomain: string,
+  accessToken: string,
+  draftOrderData: {
+    line_items: Array<{
+      variant_id?: string | null;
+      title: string;
+      quantity: number;
+      price: string;
+    }>;
+    customer?: {
+      id?: string;
+      email?: string;
+      first_name?: string;
+      last_name?: string;
+    };
+    note?: string;
+    tags?: string;
+    applied_discount?: {
+      description: string;
+      value_type: 'fixed_amount' | 'percentage';
+      value: string;
+      amount: string;
+    };
+    email?: {
+      to: string;
+      bcc?: string[]; // CC emails (Shopify uses BCC for draft order emails)
+      subject?: string;
+      custom_message?: string;
+    };
+  }
+) {
+  try {
+    const url = `https://${shopifyDomain}/admin/api/2024-10/draft_orders.json`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': accessToken,
+      },
+      body: JSON.stringify({ draft_order: draftOrderData }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Shopify Draft Order Error:', errorText);
+      throw new Error(`Failed to create draft order: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    const draftOrder = result.draft_order;
+
+    // Send invoice email if email config provided
+    if (draftOrderData.email) {
+      await sendDraftOrderInvoice(
+        shopifyDomain,
+        accessToken,
+        draftOrder.id,
+        draftOrderData.email
+      );
+    }
+
+    return draftOrder;
+  } catch (error) {
+    console.error('Error creating Shopify draft order:', error);
+    throw error;
+  }
+}
+
+/**
+ * Send draft order invoice email with optional BCC recipients
+ */
+export async function sendDraftOrderInvoice(
+  shopifyDomain: string,
+  accessToken: string,
+  draftOrderId: string,
+  emailConfig: {
+    to?: string;
+    bcc?: string[];
+    subject?: string;
+    custom_message?: string;
+  }
+) {
+  try {
+    const url = `https://${shopifyDomain}/admin/api/2024-10/draft_orders/${draftOrderId}/send_invoice.json`;
+    
+    const emailData: any = {};
+    
+    if (emailConfig.to) {
+      emailData.to = emailConfig.to;
+    }
+    if (emailConfig.bcc && emailConfig.bcc.length > 0) {
+      emailData.bcc = emailConfig.bcc;
+    }
+    if (emailConfig.subject) {
+      emailData.subject = emailConfig.subject;
+    }
+    if (emailConfig.custom_message) {
+      emailData.custom_message = emailConfig.custom_message;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': accessToken,
+      },
+      body: JSON.stringify({ draft_order_invoice: emailData }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Shopify Send Invoice Error:', errorText);
+      throw new Error(`Failed to send draft order invoice: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    return result.draft_order_invoice;
+  } catch (error) {
+    console.error('Error sending draft order invoice:', error);
+    throw error;
+  }
+}
+

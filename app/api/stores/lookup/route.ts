@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Mode 1: Search for wholesale customers
+    // Mode 1: Search for stores in database
     if (!query || query.trim().length < 2) {
       return NextResponse.json(
         { error: 'Search query must be at least 2 characters' },
@@ -90,23 +90,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get the display to find its organization
+    // Verify display exists (no organization check needed for multi-brand)
     const display = await prisma.display.findUnique({
       where: { displayId },
-      include: { organization: true },
     });
 
-    if (!display?.organization) {
+    if (!display) {
       return NextResponse.json(
-        { error: 'Display not found or not assigned to an organization' },
+        { error: 'Display not found' },
         { status: 404 }
       );
     }
-
-    const org = display.organization;
-
-    let shopifyCustomers: any[] = [];
-    let existingStores = [];
 
     // Search our database for stores matching the query
     // Check store name, city, storeId, email, and phone (partial match)
@@ -116,6 +110,8 @@ export async function GET(request: NextRequest) {
           { storeId: { contains: query, mode: 'insensitive' } },
           { storeName: { contains: query, mode: 'insensitive' } },
           { city: { contains: query, mode: 'insensitive' } },
+          { ownerEmail: { contains: query, mode: 'insensitive' } },
+          { ownerPhone: { contains: query, mode: 'insensitive' } },
           { adminEmail: { contains: query, mode: 'insensitive' } },
           { adminPhone: { contains: query, mode: 'insensitive' } },
         ],
@@ -125,7 +121,6 @@ export async function GET(request: NextRequest) {
         storeName: true,
         city: true,
         state: true,
-        shopifyCustomerId: true,
       },
       take: 50,
       orderBy: [
@@ -133,23 +128,24 @@ export async function GET(request: NextRequest) {
       ],
     });
 
-    existingStores = stores.map(s => ({
+    const existingStores = stores.map(s => ({
       storeId: s.storeId,
       storeName: s.storeName,
       city: s.city,
       state: s.state,
     }));
 
-    // Only return existing stores - no Shopify search needed
-    // Stores are created during onboarding, so they should already exist
+    // Return existing stores from database
     return NextResponse.json({
       shopifyCustomers: [], // No longer searching Shopify in this step
       existingStores,
     });
   } catch (error) {
     console.error('Store lookup error:', error);
+    console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+    console.error('Stack:', error instanceof Error ? error.stack : '');
     return NextResponse.json(
-      { error: 'Failed to lookup store' },
+      { error: 'Failed to lookup store', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

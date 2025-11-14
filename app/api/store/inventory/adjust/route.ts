@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Store not found' }, { status: 404 });
     }
 
-    const { productSku, quantity, type = 'manual_adjustment' } = await request.json();
+    const { productSku, quantity, type = 'manual_decrease', notes } = await request.json();
 
     if (!productSku || quantity === undefined) {
       return NextResponse.json(
@@ -31,9 +31,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (quantity < 0) {
+    // Only allow decreases from store side (quantity must be negative)
+    if (quantity >= 0) {
       return NextResponse.json(
-        { error: 'Quantity cannot be negative' },
+        { error: 'Only inventory decreases are allowed. Use Wholesale Order to add inventory.' },
         { status: 400 }
       );
     }
@@ -48,9 +49,27 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    if (existing) {
-      // Update existing inventory
-      const updated = await prisma.storeInventory.update({
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'Product not found in inventory' },
+        { status: 404 }
+      );
+    }
+
+    // Calculate new quantity (quantity is negative for decrease)
+    const newQuantity = existing.quantityOnHand + quantity;
+
+    if (newQuantity < 0) {
+      return NextResponse.json(
+        { error: `Insufficient inventory. Current: ${existing.quantityOnHand}, Attempting to decrease by: ${Math.abs(quantity)}` },
+        { status: 400 }
+      );
+    }
+
+    // Update inventory and create transaction in a database transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Update inventory
+      const updated = await tx.storeInventory.update({
         where: {
           storeId_productSku: {
             storeId: store.id,
@@ -58,63 +77,37 @@ export async function POST(request: NextRequest) {
           }
         },
         data: {
-          quantityOnHand: quantity,
-          quantityAvailable: quantity - existing.quantityReserved,
+          quantityOnHand: newQuantity,
           updatedAt: new Date()
         }
       });
 
-      // Create transaction record
-      await prisma.inventoryTransaction.create({
+      // Create transaction record for audit trail
+      const transaction = await tx.inventoryTransaction.create({
         data: {
           storeId: store.id,
           productSku,
           type,
-          quantity: quantity - existing.quantityOnHand, // Change amount
-          balanceAfter: quantity,
-          notes: `Manual adjustment by ${role}`
+          quantity, // Negative value
+          balanceAfter: newQuantity,
+          notes: notes || `Manual decrease by ${role}`
         }
       });
 
-      return NextResponse.json({ 
-        success: true,
-        inventory: {
-          quantityOnHand: updated.quantityOnHand,
-          quantityAvailable: updated.quantityAvailable
-        }
-      });
-    } else {
-      // Create new inventory record
-      const created = await prisma.storeInventory.create({
-        data: {
-          storeId: store.id,
-          productSku,
-          quantityOnHand: quantity,
-          quantityReserved: 0,
-          quantityAvailable: quantity
-        }
-      });
+      return { updated, transaction };
+    });
 
-      // Create transaction record
-      await prisma.inventoryTransaction.create({
-        data: {
-          storeId: store.id,
-          productSku,
-          type: 'initial_stock',
-          quantity,
-          balanceAfter: quantity,
-          notes: `Initial inventory set by ${role}`
-        }
-      });
-
-      return NextResponse.json({
-        success: true,
-        inventory: {
-          quantityOnHand: created.quantityOnHand,
-          quantityAvailable: created.quantityAvailable
-        }
-      });
-    }
+    return NextResponse.json({ 
+      success: true,
+      newQuantity: result.updated.quantityOnHand,
+      transaction: {
+        id: result.transaction.id,
+        type: result.transaction.type,
+        quantity: result.transaction.quantity,
+        balanceAfter: result.transaction.balanceAfter,
+        createdAt: result.transaction.createdAt,
+      }
+    });
   } catch (error) {
     console.error('[Inventory Adjust] Error:', error);
     return NextResponse.json(

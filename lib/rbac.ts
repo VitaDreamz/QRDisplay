@@ -1,48 +1,24 @@
 import prisma from "./prisma";
 type DbUser = any;
 
-import { getAuth, clerkClient } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 // Clerk server helpers - import from server entrypoint
 // These functions may run in several environments (API route, server component,
 // or middleware). We'll try multiple Clerk helpers to obtain the logged-in user id.
 async function getClerkUserIdFromClerk(): Promise<string | null> {
   try {
-    // currentUser() works in server components and route handlers
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { currentUser } = require("@clerk/nextjs/server");
-    if (typeof currentUser === "function") {
-      const u = await currentUser();
-      return u?.id ?? null;
-    }
+    // auth() works in server components and route handlers (App Router)
+    const { userId } = await auth();
+    return userId ?? null;
   } catch (e) {
-    // ignore
-  }
-  return null;
-}
-
-async function getClerkUserIdFromGetAuth(req?: Request): Promise<string | null> {
-  try {
-    if (!req) return null;
-
-    // Use Clerk's getAuth to read session from cookies (App Router)
-    const auth = getAuth(req as any);
-    return auth?.userId ?? null;
-  } catch (e) {
-    console.error("Auth error:", e);
+    console.error("Clerk auth error:", e);
     return null;
   }
 }
 
 export async function getClerkUserId(req?: Request): Promise<string | null> {
-  // 1) try getAuth(req)
-  const fromReq = await getClerkUserIdFromGetAuth(req);
-  if (fromReq) return fromReq;
-
-  // 2) try currentUser()
-  const fromCurrent = await getClerkUserIdFromClerk();
-  if (fromCurrent) return fromCurrent;
-
-  return null;
+  // Use the new auth() helper
+  return await getClerkUserIdFromClerk();
 }
 
 export async function getDbUser(req?: Request): Promise<DbUser | null> {

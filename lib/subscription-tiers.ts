@@ -1,11 +1,11 @@
 /**
  * Subscription Tier Definitions
  * 
- * Freemium model with 4 tiers for store subscriptions
+ * Freemium model with 5 tiers for store subscriptions
  * Stores pay their organization quarterly via Recharge
  */
 
-export type SubscriptionTier = 'free' | 'basic' | 'dreamer' | 'mega';
+export type SubscriptionTier = 'tester' | 'free' | 'basic' | 'dreamer' | 'mega';
 
 export interface TierConfig {
   id: SubscriptionTier;
@@ -25,6 +25,21 @@ export interface TierConfig {
 }
 
 export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, TierConfig> = {
+  tester: {
+    id: 'tester',
+    name: 'Tester',
+    price: 0,
+    description: 'Free trial tier with full Dreamer benefits for testing',
+    features: {
+      samplesPerQuarter: 40,
+      wholesaleBoxAccess: true,
+      wholesaleBoxTypes: ['4ct', '20ct', '30ct'], // Same as Dreamer
+      newCustomersPerBilling: 100, // Same as Dreamer
+      commissionRate: 20.0,
+      promoReimbursementRate: 50.0,
+    },
+  },
+  
   free: {
     id: 'free',
     name: 'Free Tier',

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:webpack": "next dev --no-turbopack",
     "build": "npm run prisma:migrate:deploy && prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
@@ -16,7 +17,7 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^6.34.1",
-    "@prisma/client": "^6.19.0",
+    "@prisma/client": "^6.18.0",
     "@shadcn/ui": "^0.0.4",
     "@shopify/shopify-api": "^12.1.1",
     "@vercel/blob": "^2.0.0",

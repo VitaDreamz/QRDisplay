@@ -84,6 +84,19 @@ export default async function StoreDashboardPage() {
           product: true
         },
         orderBy: { createdAt: 'desc' }
+      },
+      // Multi-brand: Include sample history to show which brands they sampled
+      sampleHistory: {
+        include: {
+          brand: {
+            select: {
+              orgId: true,
+              name: true,
+              logoUrl: true,
+            }
+          }
+        },
+        orderBy: { sampledAt: 'desc' }
       }
     }
   });
@@ -103,6 +116,72 @@ export default async function StoreDashboardPage() {
       orgId: true,
       shopifyStoreName: true,
       shopifyAccessToken: true,
+    }
+  });
+
+  // Multi-brand: Fetch brand partnerships
+  const brandPartnerships = await prisma.storeBrandPartnership.findMany({
+    where: {
+      storeId: store.id,
+      active: true
+    },
+    include: {
+      brand: {
+        select: {
+          orgId: true,
+          name: true,
+          logoUrl: true,
+        }
+      }
+    }
+  });
+
+  // Multi-brand: Fetch inventory (which includes products from all brands)
+  // Filter to only show retail and sample products (exclude wholesale boxes for dashboard view)
+  const inventory = await prisma.storeInventory.findMany({
+    where: { 
+      storeId: store.id,
+      product: {
+        productType: {
+          not: 'wholesale-box' // Only show retail and sample products
+        }
+      }
+    },
+    include: {
+      product: {
+        select: {
+          sku: true,
+          name: true,
+          orgId: true,
+          price: true,
+          imageUrl: true,
+          productType: true,
+          description: true,
+        }
+      }
+    }
+  });
+
+  // Multi-brand: Fetch wholesale products (for wholesale modal)
+  const wholesaleInventory = await prisma.storeInventory.findMany({
+    where: { 
+      storeId: store.id,
+      product: {
+        productType: 'wholesale-box' // Only wholesale boxes
+      }
+    },
+    include: {
+      product: {
+        select: {
+          sku: true,
+          name: true,
+          orgId: true,
+          price: true,
+          imageUrl: true,
+          productType: true,
+          description: true,
+        }
+      }
     }
   });
 
@@ -157,6 +236,55 @@ export default async function StoreDashboardPage() {
       availableProducts: store.availableProducts as string[],
       storeCredit: Number(store.storeCredit || 0)
     },
+    // Multi-brand: Brand partnerships with their products
+    brandPartnerships: brandPartnerships.map((bp) => ({
+      id: bp.id,
+      status: bp.status,
+      onlineCommission: Number(bp.onlineCommission || 20),
+      subscriptionCommission: Number(bp.subscriptionCommission || 5),
+      promoCommission: Number(bp.promoCommission || 50),
+      storeCreditBalance: Number(bp.storeCreditBalance || 0),
+      active: bp.active,
+      availableSamples: bp.availableSamples,
+      availableProducts: bp.availableProducts,
+      brand: {
+        orgId: bp.brand.orgId,
+        name: bp.brand.name,
+        logoUrl: bp.brand.logoUrl,
+      }
+    })),
+    // Multi-brand: Store inventory (products from all brands)
+    inventory: inventory.map((inv) => ({
+      id: inv.id,
+      productSku: inv.productSku,
+      quantityOnHand: inv.quantityOnHand,
+      quantityAvailable: inv.quantityAvailable,
+      product: inv.product ? {
+        sku: inv.product.sku,
+        name: inv.product.name,
+        orgId: inv.product.orgId,
+        price: Number(inv.product.price),
+        imageUrl: inv.product.imageUrl,
+        productType: inv.product.productType,
+        description: inv.product.description,
+      } : null
+    })),
+    // Multi-brand: Wholesale inventory (for wholesale modal)
+    wholesaleInventory: wholesaleInventory.map((inv) => ({
+      id: inv.id,
+      productSku: inv.productSku,
+      quantityOnHand: inv.quantityOnHand,
+      quantityAvailable: inv.quantityAvailable,
+      product: inv.product ? {
+        sku: inv.product.sku,
+        name: inv.product.name,
+        orgId: inv.product.orgId,
+        price: Number(inv.product.price),
+        imageUrl: inv.product.imageUrl,
+        productType: inv.product.productType,
+        description: inv.product.description,
+      } : null
+    })),
     customers: customers.map((c: any) => ({
       id: c.id,
       memberId: c.memberId,
@@ -171,6 +299,18 @@ export default async function StoreDashboardPage() {
       promoRedeemedAt: c.promoRedeemedAt,
       currentStage: c.currentStage,
       stageChangedAt: c.stageChangedAt,
+      // Multi-brand: Include sample history with brand info
+      sampleHistory: c.sampleHistory.map((sh: any) => ({
+        id: sh.id,
+        productSku: sh.productSku,
+        productName: sh.productName,
+        sampledAt: sh.sampledAt,
+        brand: sh.brand ? {
+          orgId: sh.brand.orgId,
+          name: sh.brand.name,
+          logoUrl: sh.brand.logoUrl,
+        } : null,
+      })),
       totalPurchases: c.purchaseIntents
         .filter((pi: any) => pi.status === 'fulfilled')
         .reduce((sum: number, pi: any) => sum + Number(pi.finalPrice), 0),

@@ -93,12 +93,16 @@ export default function AssemblePage({ params }: { params: Promise<{ displayId: 
     } else {
       // Next assembly step
       setCurrentStepIndex(prev => prev + 1);
+      // Scroll to top when changing steps
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
   
   const handleBack = () => {
     if (currentStepIndex > 0) {
       setCurrentStepIndex(prev => prev - 1);
+      // Scroll to top when changing steps
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       router.back();
     }

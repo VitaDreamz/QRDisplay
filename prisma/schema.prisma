@@ -208,6 +208,7 @@ model Store {
   inventory    StoreInventory[]
   inventoryTransactions InventoryTransaction[]
   productHolds ProductHold[]
+  wholesaleOrders WholesaleOrder[]
   
   // Multi-brand relationships
   brandPartnerships StoreBrandPartnership[]
@@ -224,7 +225,11 @@ model StoreInventory {
   
   quantityOnHand  Int      @default(0)  // Physical inventory in store
   quantityReserved Int     @default(0)  // Reserved for customer holds (2hr)
+  quantityIncoming Int     @default(0)  // On order, not yet received
   quantityAvailable Int    @default(0)  // onHand - reserved (computed)
+  
+  // Incoming order tracking
+  pendingOrderId   String?  // WholesaleOrder.orderId if there's incoming inventory
   
   lastRestocked   DateTime?
   updatedAt       DateTime @updatedAt
@@ -260,6 +265,82 @@ model InventoryTransaction {
   @@index([storeId, createdAt])
   @@index([expiresAt]) // For finding expired holds
   @@map("inventory_transactions")
+}
+
+// Wholesale Orders (Store → Brand Purchase Orders)
+model WholesaleOrder {
+  id                String   @id @default(cuid())
+  orderId           String   @unique // e.g., "WO-20250114-001"
+  
+  storeId           String
+  store             Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  // Shopify Integration
+  shopifyDomain     String   // e.g., "vitadreamz.myshopify.com"
+  shopifyDraftOrderId String? // Shopify Draft Order ID
+  shopifyDraftOrderUrl String? // Link to draft order in Shopify admin
+  
+  // Financials
+  subtotal          Decimal  @db.Decimal(10, 2)
+  creditApplied     Decimal  @db.Decimal(10, 2) @default(0.00)
+  total             Decimal  @db.Decimal(10, 2)
+  
+  // Status
+  status            String   @default("pending") // pending, submitted, fulfilled, delivered, received, cancelled
+  submittedAt       DateTime?
+  fulfilledAt       DateTime?
+  deliveredAt       DateTime?
+  receivedAt        DateTime?
+  cancelledAt       DateTime?
+  
+  // Verification
+  verificationToken String?  @unique // For SMS verification link
+  verifiedBy        String?  // Staff/Owner who verified receipt
+  
+  // Shopify tracking
+  shopifyOrderId    String?  // When draft becomes a real order
+  shopifyFulfillmentId String?
+  trackingNumber    String?
+  
+  // Notes
+  notes             String?  @db.Text
+  verificationNotes String?  @db.Text // Notes from store when verifying receipt
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  items             WholesaleOrderItem[]
+  
+  @@index([storeId, createdAt])
+  @@index([shopifyDomain, status])
+  @@map("wholesale_orders")
+}
+
+model WholesaleOrderItem {
+  id                String   @id @default(cuid())
+  
+  orderId           String
+  order             WholesaleOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  productSku        String
+  product           Product  @relation(fields: [productSku], references: [sku])
+  
+  brandOrgId        String   // Which brand this product belongs to
+  
+  quantity          Int
+  unitPrice         Decimal  @db.Decimal(10, 2)
+  total             Decimal  @db.Decimal(10, 2)
+  
+  // Fulfillment tracking
+  retailUnits       Int?     // Calculated retail units (quantity * unitsPerBox)
+  retailSku         String?  // The retail SKU this converts to
+  receivedQuantity  Int?     // Actual quantity received (may differ if short/damaged)
+  verified          Boolean  @default(false) // Has store verified receipt?
+  
+  createdAt         DateTime @default(now())
+  
+  @@index([orderId])
+  @@map("wholesale_order_items")
 }
 
 // Product Holds (2-hour pickup reservations)
@@ -571,6 +652,7 @@ model Product {
   
   purchaseIntents PurchaseIntent[]
   storeInventory  StoreInventory[]
+  wholesaleOrderItems WholesaleOrderItem[]
   
   @@map("products")
 }
@@ -632,10 +714,16 @@ model StoreBrandPartnership {
   
   // Partnership-specific settings
   commissionRate      Float    @default(10.0) // Percentage (e.g., 10.0 = 10%)
+  onlineCommission    Float    @default(20.0) // Online sale commission
+  subscriptionCommission Float @default(5.0)  // Subscription commission
+  promoCommission     Float    @default(50.0) // Promo redemption commission
+  storeCreditBalance  Decimal  @db.Decimal(10, 2) @default(0.00) // Credit with this brand
+  
   availableSamples    String[] @default([])   // SKUs this store offers as samples for this brand
   availableProducts   String[] @default([])   // SKUs this store can sell for this brand
   
   // Partnership status
+  status              String   @default("active") // active, pending, suspended, ended
   active              Boolean  @default(true)
   partnerSince        DateTime @default(now())
   partnershipEndedAt  DateTime?
@@ -850,6 +938,19 @@ model StaffPointTransaction {
   @@index([quarter])
   @@index([type])
   @@map("staff_point_transactions")
+}
+
+// Label Print History
+model LabelPrintHistory {
+  id          String   @id @default(cuid())
+  batchId     String   @unique
+  displayIds  String[] // Array of display IDs printed
+  quantity    Int?     // Number of labels printed
+  sheets      Int?     // Number of sheets printed
+  printedBy   String?  // User who initiated the print
+  printedAt   DateTime @default(now())
+  
+  @@map("label_print_history")
 }
 
 // Magic Links for Store Auth

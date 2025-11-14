@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { InventoryTab } from './InventoryTab';
+import { BrandsTab } from './BrandsTab';
 
 type Activity = {
   type: 'sample' | 'store' | 'redemption' | 'promo';
@@ -18,17 +19,21 @@ type DashboardData = {
   stats: {
     activeDisplays: number;
     activeStores: number;
+    totalCustomers: number;
     totalSamples: number;
     redeemed: number;
     redemptionRate: number;
     promoRedeemed: number;
+    returnPurchases: number;
     promoConversionRate: number;
+    totalSales: number;
+    pendingSales: number;
   };
   activities: Activity[];
 };
 
 export function DashboardClient({ data }: { data: DashboardData }) {
-  const [activeTab, setActiveTab] = useState<'displays' | 'stores' | 'customers' | 'inventory' | 'settings'>('displays');
+  const [activeTab, setActiveTab] = useState<'displays' | 'stores' | 'customers' | 'brands' | 'inventory' | 'settings'>('displays');
   const [searchQuery, setSearchQuery] = useState('');
   const [displayFilters, setDisplayFilters] = useState({ status: 'all', brand: 'all' });
   const [storeFilters, setStoreFilters] = useState({ status: 'all', brand: 'all' });
@@ -373,14 +378,59 @@ export function DashboardClient({ data }: { data: DashboardData }) {
 
       {/* Stats Cards */}
       <div className="px-4 md:px-6 py-6">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        {/* Global System Stats */}
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">System-Wide Metrics</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Total Customers */}
+            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+              <div className="flex items-start justify-between">
+                <div className="text-4xl">👥</div>
+              </div>
+              <div className="mt-4">
+                <div className="text-4xl font-bold text-white">{data.stats.totalCustomers.toLocaleString()}</div>
+                <div className="text-sm text-purple-100 mt-1 font-medium">Total Customers</div>
+                <div className="text-xs text-purple-200 mt-1">Across all stores</div>
+              </div>
+            </div>
+
+            {/* Pending Sales */}
+            <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+              <div className="flex items-start justify-between">
+                <div className="text-4xl">⏳</div>
+              </div>
+              <div className="mt-4">
+                <div className="text-4xl font-bold text-white">${data.stats.pendingSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                <div className="text-sm text-orange-100 mt-1 font-medium">Pending Sales</div>
+                <div className="text-xs text-orange-200 mt-1">Orders in progress</div>
+              </div>
+            </div>
+
+            {/* Total Sales */}
+            <div className="bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow">
+              <div className="flex items-start justify-between">
+                <div className="text-4xl">💰</div>
+              </div>
+              <div className="mt-4">
+                <div className="text-4xl font-bold text-white">${data.stats.totalSales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                <div className="text-sm text-green-100 mt-1 font-medium">Total Sales</div>
+                <div className="text-xs text-green-200 mt-1">All completed orders</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Operational Metrics */}
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">Operational Metrics</h2>
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
           {/* Card 1: Active Displays */}
           <div className="bg-white rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between">
               <div className="text-3xl">📦</div>
             </div>
             <div className="mt-3">
-              <div className="text-3xl font-bold text-[#6f42c1]">{data.stats.activeDisplays}</div>
+              <div className="text-3xl font-bold text-purple-600">{data.stats.activeDisplays}</div>
               <div className="text-sm text-gray-600 mt-1">Active Displays</div>
             </div>
           </div>
@@ -391,7 +441,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
               <div className="text-3xl">🏪</div>
             </div>
             <div className="mt-3">
-              <div className="text-3xl font-bold text-[#3b82f6]">{data.stats.activeStores}</div>
+              <div className="text-3xl font-bold text-purple-600">{data.stats.activeStores}</div>
               <div className="text-sm text-gray-600 mt-1">Active Stores</div>
             </div>
           </div>
@@ -402,7 +452,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
               <div className="text-3xl">👥</div>
             </div>
             <div className="mt-3">
-              <div className="text-3xl font-bold text-[#10b981]">{data.stats.totalSamples}</div>
+              <div className="text-3xl font-bold text-purple-600">{data.stats.totalSamples}</div>
               <div className="text-sm text-gray-600 mt-1">Sample Requests</div>
             </div>
           </div>
@@ -413,23 +463,36 @@ export function DashboardClient({ data }: { data: DashboardData }) {
               <div className="text-3xl">✅</div>
             </div>
             <div className="mt-3">
-              <div className="text-3xl font-bold text-[#059669]">{data.stats.redeemed}</div>
+              <div className="text-3xl font-bold text-purple-600">{data.stats.redeemed}</div>
               <div className="text-sm text-gray-600 mt-1">Redeemed</div>
               <div className="text-xs text-gray-500 mt-1">{data.stats.redemptionRate}% conversion</div>
             </div>
           </div>
 
-          {/* Card 5: Promo Redemptions */}
+          {/* Card 5: First Purchases */}
           <div className="bg-white rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between">
               <div className="text-3xl">💰</div>
             </div>
             <div className="mt-3">
-              <div className="text-3xl font-bold text-[#8b5cf6]">{data.stats.promoRedeemed}</div>
-              <div className="text-sm text-gray-600 mt-1">First Purchases</div>
+              <div className="text-3xl font-bold text-purple-600">{data.stats.promoRedeemed}</div>
+              <div className="text-sm text-gray-600 mt-1">1st Purchases</div>
               <div className="text-xs text-gray-500 mt-1">{data.stats.promoConversionRate}% conversion</div>
             </div>
           </div>
+
+          {/* Card 6: Return Purchases */}
+          <div className="bg-white rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-start justify-between">
+              <div className="text-3xl">🔄</div>
+            </div>
+            <div className="mt-3">
+              <div className="text-3xl font-bold text-purple-600">{data.stats.returnPurchases}</div>
+              <div className="text-sm text-gray-600 mt-1">Return Purchases</div>
+              <div className="text-xs text-gray-500 mt-1">Repeat customers</div>
+            </div>
+          </div>
+        </div>
         </div>
       </div>
 
@@ -476,6 +539,16 @@ export function DashboardClient({ data }: { data: DashboardData }) {
             }`}
           >
             👥 Customers
+          </button>
+          <button
+            onClick={() => setActiveTab('brands')}
+            className={`px-6 py-3 text-base font-medium transition-colors ${
+              activeTab === 'brands'
+                ? 'text-purple-600 border-b-2 border-purple-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            🏷️ Brands
           </button>
           <button
             onClick={() => setActiveTab('inventory')}
@@ -650,6 +723,18 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         {/* Stores Tab */}
         {activeTab === 'stores' && (
           <div>
+            {/* Header with Add Button */}
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold text-gray-900">Stores</h2>
+              <a
+                href="/admin/stores/add"
+                className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center gap-2"
+              >
+                <span className="text-lg">+</span>
+                Add New Store
+              </a>
+            </div>
+            
             {/* Filters */}
             <div className="bg-white rounded-lg p-4 mb-4 space-y-3 md:flex md:space-y-0 md:space-x-4">
               <select
@@ -985,6 +1070,11 @@ export function DashboardClient({ data }: { data: DashboardData }) {
           </div>
         )}
 
+        {/* Brands Tab */}
+        {activeTab === 'brands' && (
+          <BrandsTab organizations={data.organizations} />
+        )}
+
         {/* Inventory Tab */}
         {activeTab === 'inventory' && (
           <InventoryTab displays={data.displays} organizations={data.organizations} />
@@ -1086,7 +1176,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
 
       {/* Mobile Bottom Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-area-inset-bottom">
-        <div className="grid grid-cols-5">
+        <div className="grid grid-cols-6">
           <button
             onClick={() => setActiveTab('displays')}
             className={`flex flex-col items-center justify-center h-14 space-y-1 ${
@@ -1113,6 +1203,15 @@ export function DashboardClient({ data }: { data: DashboardData }) {
           >
             <span className="text-xl">👥</span>
             <span className="text-xs font-medium">Samples</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('brands')}
+            className={`flex flex-col items-center justify-center h-14 space-y-1 ${
+              activeTab === 'brands' ? 'bg-purple-600 text-white' : 'text-gray-600'
+            }`}
+          >
+            <span className="text-xl">🏷️</span>
+            <span className="text-xs font-medium">Brands</span>
           </button>
           <button
             onClick={() => setActiveTab('inventory')}

@@ -622,7 +622,9 @@ export default function ActivatePage({ params }: { params: Promise<{ displayId: 
                 onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
                 required
                 maxLength={4}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 text-2xl font-mono text-center"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 text-2xl font-mono text-center transition-colors ${
+                  pin ? 'text-gray-900' : 'text-gray-400'
+                }`}
                 placeholder="1234"
               />
               <p className="text-xs text-gray-500 mt-1">

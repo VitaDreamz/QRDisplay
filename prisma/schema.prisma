@@ -508,6 +508,9 @@ model Customer {
   promoRedeemed    Boolean   @default(false)
   promoRedeemedAt  DateTime?
   
+  // Retention/Returning Customer Promo
+  returningPromoSlug String?  // Unique promo slug for returning customer offers
+  
   // Lifecycle stage tracking
   currentStage     String    @default("pending") // pending, redeemed, purchased, repeat
   stageChangedAt   DateTime  @default(now())

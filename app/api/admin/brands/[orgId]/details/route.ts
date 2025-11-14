@@ -12,7 +12,7 @@ export async function GET(
     const brand = await prisma.organization.findUnique({
       where: { orgId },
       include: {
-        partnerships: {
+        brandPartnerships: {
           include: {
             store: {
               select: {

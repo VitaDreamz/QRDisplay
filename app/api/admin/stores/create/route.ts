@@ -74,9 +74,9 @@ export async function POST(req: NextRequest) {
       platformOrg = await prisma.organization.create({
         data: {
           orgId: 'ORG-QRDISPLAY',
+          slug: 'qrdisplay',
           name: 'QRDisplay',
           type: 'platform',
-          status: 'active',
         },
       });
       console.log('Created QRDisplay platform organization:', platformOrg.id);

@@ -197,7 +197,6 @@ async function updateShopifyCustomer(
     await client.put({
       path: `customers/${customerId}`,
       data: updateData,
-      type: 'application/json',
     });
 
     console.log(`✅ Updated Shopify customer for ${store.storeName} in ${brand.name}`);

@@ -269,12 +269,15 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
   // Save inventory and selections to wizard progress
   useEffect(() => {
     if (displayId) {
+      // Check if all brands are verified
+      const allBrandsVerified = Object.keys(productsByBrand).every(brandName => brandVerified[brandName]);
+      
       saveProgress({ 
         productInventory: inventory,
         selectedSamples,
         selectedProducts,
         samplesVerified,
-        productsVerified: brandVerified, // Save verification state
+        productsVerified: allBrandsVerified, // All brands must be verified
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

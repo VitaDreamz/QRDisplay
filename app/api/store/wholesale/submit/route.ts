@@ -295,11 +295,11 @@ export async function POST(request: NextRequest) {
               await prisma.storeCreditTransaction.create({
                 data: {
                   storeId: store.id,
-                  type: 'wholesale_order',
+                  type: 'redeemed',
+                  reason: `Applied to wholesale order ${orderId}`,
                   amount: -creditToDeduct,
-                  balanceAfter: partnership.storeCreditBalance - creditToDeduct,
-                  description: `Applied to wholesale order ${orderId}`,
-                  relatedOrderId: orderId,
+                  balance: Number(partnership.storeCreditBalance) - creditToDeduct,
+                  orderId: orderId,
                 },
               });
             }

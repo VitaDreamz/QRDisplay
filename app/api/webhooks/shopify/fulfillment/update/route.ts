@@ -56,8 +56,8 @@ export async function POST(req: NextRequest) {
           select: {
             id: true,
             storeId: true,
-            name: true,
-            contactPhone: true,
+            storeName: true,
+            purchasingPhone: true,
           },
         },
       },

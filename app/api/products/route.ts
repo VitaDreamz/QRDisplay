@@ -36,14 +36,6 @@ export async function GET(request: NextRequest) {
           storeInventory: {
             where: {
               storeId: storeId
-            },
-            include: {
-              incomingOrders: {
-                where: {
-                  status: { notIn: ['received', 'cancelled'] }
-                },
-                orderBy: { createdAt: 'desc' }
-              }
             }
           }
         }

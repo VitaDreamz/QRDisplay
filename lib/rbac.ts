@@ -1,7 +1,7 @@
 import prisma from "./prisma";
 type DbUser = any;
 
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 // Clerk server helpers - import from server entrypoint
 // These functions may run in several environments (API route, server component,
 // or middleware). We'll try multiple Clerk helpers to obtain the logged-in user id.

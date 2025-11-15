@@ -214,7 +214,7 @@ export async function POST(request: NextRequest) {
           bccEmails.push(wholesaleOrder.store.adminEmail);
         }
 
-        const draftOrderData = {
+        const draftOrderData: any = {
           line_items: orderData.items.map(item => ({
             variant_id: item.product.shopifyVariantId,
             quantity: item.quantity,

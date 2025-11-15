@@ -274,7 +274,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
         selectedSamples,
         selectedProducts,
         samplesVerified,
-        brandVerified, // Save per-brand verification state
+        productsVerified: brandVerified, // Save verification state
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

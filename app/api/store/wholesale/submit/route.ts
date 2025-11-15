@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
             );
             
             if (!syncResult.skipped) {
-              shopifyCustomerId = syncResult.shopifyCustomerId;
+              shopifyCustomerId = syncResult.shopifyCustomerId || null;
             }
           } catch (error) {
             console.error('Failed to sync store to Shopify (continuing with order):', error);

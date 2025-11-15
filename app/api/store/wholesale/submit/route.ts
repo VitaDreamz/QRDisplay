@@ -278,7 +278,7 @@ export async function POST(request: NextRequest) {
             );
             if (partnership) {
               const creditToDeduct = Math.min(
-                partnership.storeCreditBalance,
+                Number(partnership.storeCreditBalance),
                 (creditApplied / orderData.items.length) // Distribute credit evenly
               );
               

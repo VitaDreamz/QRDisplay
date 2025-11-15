@@ -110,7 +110,6 @@ async function createShopifyCustomer(
     const response = await client.post({
       path: 'customers',
       data: customerData,
-      type: 'application/json',
     });
 
     console.log(`✅ Created Shopify customer for ${store.storeName} in ${brand.name}`);

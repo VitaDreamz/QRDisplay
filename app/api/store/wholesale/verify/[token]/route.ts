@@ -21,7 +21,7 @@ export async function GET(
           select: {
             id: true,
             storeId: true,
-            name: true,
+            storeName: true,
           },
         },
       },

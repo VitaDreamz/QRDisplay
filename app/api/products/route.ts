@@ -73,7 +73,6 @@ export async function GET(request: NextRequest) {
         inventoryIncoming: inventory?.quantityIncoming || 0,
         inventoryReserved: inventory?.quantityReserved || 0,
         lowStockThreshold: inventory?.lowStockThreshold || 10,
-        incomingOrders: inventory?.incomingOrders || [],
         storeInventory: undefined // Remove the array to keep response clean
       };
     });

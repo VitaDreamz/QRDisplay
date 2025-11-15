@@ -62,13 +62,7 @@ export async function GET(req: NextRequest) {
         }
       },
       include: {
-        product: true,
-        incomingOrders: {
-          where: {
-            status: { notIn: ['received', 'cancelled'] }
-          },
-          orderBy: { createdAt: 'desc' }
-        }
+        product: true
       }
     });
 

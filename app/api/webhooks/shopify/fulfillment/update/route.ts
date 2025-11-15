@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Send SMS notification to store
-    if (wholesaleOrder.store.contactPhone) {
+    if (wholesaleOrder.store.purchasingPhone) {
       const itemCount = wholesaleOrder.items.reduce((sum, item) => sum + (item.retailUnits || 0), 0);
       
       const message = `📦 Your wholesale order #${wholesaleOrder.orderId} has been delivered! 
@@ -94,8 +94,8 @@ Please verify you received everything: ${verificationUrl}
 
 -QRDisplay`;
 
-      await sendSMS(wholesaleOrder.store.contactPhone, message);
-      console.log(`✅ Sent verification SMS to ${wholesaleOrder.store.contactPhone}`);
+      await sendSMS(wholesaleOrder.store.purchasingPhone, message);
+      console.log(`✅ Sent verification SMS to ${wholesaleOrder.store.purchasingPhone}`);
     }
 
     return NextResponse.json({ success: true, orderId: wholesaleOrder.orderId });

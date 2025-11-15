@@ -557,8 +557,7 @@ async function handleWholesaleOrder(orgId: string, order: ShopifyOrder, topic: s
               quantityOnHand: 0,
               quantityIncoming: unitsOrdered,
               quantityReserved: 0,
-              quantityAvailable: 0,
-              lowStockThreshold: 10
+              quantityAvailable: 0
             }
           });
         } else {
@@ -572,22 +571,11 @@ async function handleWholesaleOrder(orgId: string, order: ShopifyOrder, topic: s
           });
         }
 
-        // Create incoming order tracking
-        const incomingOrder = await prisma.incomingInventoryOrder.create({
-          data: {
-            storeInventoryId: inventory.id,
-            storeId: store.id,
-            productSku: retailSku,
-            shopifyOrderId: order.id.toString(),
-            shopifyOrderNumber: order.order_number?.toString() || order.id.toString(),
-            quantityOrdered: unitsOrdered,
-            status: 'paid',
-            orderedAt: new Date(order.created_at),
-            paidAt: new Date()
-          }
-        });
-
-        console.log(`✅ Created incoming order: ${incomingOrder.shopifyOrderNumber}`);
+        // NOTE: Old wholesale tracking code - now handled by proper WholesaleOrder system
+        // The wholesale flow now uses /api/store/wholesale/submit which creates proper WholesaleOrders
+        // This webhook still tracks retail conversions and commissions
+        
+        console.log(`✅ Updated inventory for ${retailSku}`);
 
         // Create transaction log
         await prisma.inventoryTransaction.create({
@@ -657,44 +645,13 @@ async function handleWholesaleFulfilled(orgId: string, order: ShopifyOrder, topi
 
         const retailSku = item.sku.replace(/-BX$/, '');
 
-        // Update incoming order status
-        const updated = await prisma.incomingInventoryOrder.updateMany({
-          where: {
-            storeId: store.id,
-            productSku: retailSku,
-            shopifyOrderId: order.id.toString(),
-            status: { in: ['ordered', 'paid'] }
-          },
-          data: {
-            status: 'shipped',
-            shippedAt: new Date(),
-            trackingNumber: fulfillment?.tracking_number,
-            carrier: fulfillment?.tracking_company,
-            trackingUrl: fulfillment?.tracking_url,
-            estimatedDelivery: fulfillment?.estimated_delivery_at 
-              ? new Date(fulfillment.estimated_delivery_at)
-              : null
-          }
-        });
-
-        if (updated.count > 0) {
-          console.log(`✅ Updated ${updated.count} incoming order(s) for ${retailSku} to shipped`);
-
-          // Create transaction log
-          await prisma.inventoryTransaction.create({
-            data: {
-              storeId: store.id,
-              productSku: retailSku,
-              type: 'wholesale_shipped',
-              quantity: 0, // No balance change yet
-              balanceAfter: 0, // Will be updated when received
-              notes: `Order shipped - Tracking: ${fulfillment?.tracking_number || 'N/A'}`
-            }
-          });
-        }
+        // NOTE: Old wholesale tracking code - now handled by WholesaleOrder fulfillment webhooks
+        // See /api/webhooks/shopify/fulfillment/create and /update for proper wholesale tracking
+        
+        console.log(`Wholesale item fulfilled: ${retailSku}`);
 
       } catch (itemError) {
-        console.error(`❌ Error updating fulfilled item ${item.sku}:`, itemError);
+        console.error(`❌ Error updating fulfilled item:`, itemError);
       }
     }
 

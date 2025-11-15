@@ -15,7 +15,15 @@ export default async function AdminDashboardPage() {
         orderBy: { createdAt: 'desc' }
       }),
       prisma.store.findMany({
-        include: { 
+        select: {
+          id: true,
+          storeId: true,
+          orgId: true,
+          // platformId: true, // TODO: Add this column to production DB
+          status: true,
+          storeName: true,
+          activatedAt: true,
+          createdAt: true,
           organization: true,
           displays: true,
           _count: { 
@@ -53,15 +61,15 @@ export default async function AdminDashboardPage() {
           customerServiceEmail: true,
           customerServicePhone: true,
           commissionRate: true,
-          brandTier: true,
-          brandStatus: true,
-          maxStoresPerMonth: true,
-          maxSampleProducts: true,
-          maxFullSizeProducts: true,
-          storesAddedThisMonth: true,
-          currentActiveStores: true,
-          transactionFeePercent: true,
-          monthlyPlatformFee: true,
+          // brandTier: true, // TODO: Add this column to production DB
+          // brandStatus: true, // TODO: Add this column to production DB
+          // maxStoresPerMonth: true, // TODO: Add this column to production DB
+          // maxSampleProducts: true, // TODO: Add this column to production DB
+          // maxFullSizeProducts: true, // TODO: Add this column to production DB
+          // storesAddedThisMonth: true, // TODO: Add this column to production DB
+          // currentActiveStores: true, // TODO: Add this column to production DB
+          // transactionFeePercent: true, // TODO: Add this column to production DB
+          // monthlyPlatformFee: true, // TODO: Add this column to production DB
           approvalStatus: true,
           createdAt: true
         },

@@ -209,11 +209,11 @@ export async function POST(req: NextRequest) {
         console.log(`✅ Synced to ${successful}/${brandPartnerships.length} brand Shopify accounts`);
         
         syncResults.forEach(result => {
-          if (result.success && !result.skipped) {
-            console.log(`  ✓ ${result.brandOrgId}: Customer ${result.shopifyCustomerId} (${result.isNew ? 'created' : 'updated'})`);
-          } else if (result.skipped) {
+          if ('skipped' in result && result.skipped) {
             console.log(`  ⊘ ${result.brandOrgId}: ${result.reason}`);
-          } else {
+          } else if (result.success && 'shopifyCustomerId' in result) {
+            console.log(`  ✓ ${result.brandOrgId}: Customer ${result.shopifyCustomerId} (${result.isNew ? 'created' : 'updated'})`);
+          } else if (!result.success) {
             console.log(`  ✗ ${result.brandOrgId}: ${result.error}`);
           }
         });

@@ -202,10 +202,10 @@ export async function POST(req: NextRequest) {
       try {
         const syncResults = await syncStoreToMultipleBrands(
           store.storeId,
-          brandPartnerships.map(bp => bp.brandId)
+          brandPartnerships.map((bp: { brandId: string }) => bp.brandId)
         );
         
-        const successful = syncResults.filter(r => r.success).length;
+        const successful = syncResults.filter((r: { success: boolean }) => r.success).length;
         console.log(`✅ Synced to ${successful}/${brandPartnerships.length} brand Shopify accounts`);
         
         syncResults.forEach(result => {

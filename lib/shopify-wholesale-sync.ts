@@ -77,7 +77,7 @@ export async function syncStoreToShopifyWholesale(
       const storeNote = `QRDisplay Store: ${store.storeId} - ${store.storeName}\nLocation: ${store.city}, ${store.state}\nContact: ${contactName} | ${contactEmail}`;
       const existingNote = shopifyCustomer.note || '';
       const updatedNote = existingNote.includes('QRDisplay Store:') 
-        ? existingNote.replace(/QRDisplay Store:.*?(?=\n\n|$)/s, storeNote)
+        ? existingNote.replace(/QRDisplay Store:[\s\S]*?(?=\n\n|$)/, storeNote)
         : `${existingNote}\n\n${storeNote}`.trim();
 
       await restClient.put({

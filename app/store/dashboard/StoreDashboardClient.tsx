@@ -25,6 +25,7 @@ type Store = {
   purchasingPhone?: string | null;
   purchasingEmail?: string | null;
   availableSamples?: string[];
+  availableProducts?: string[];
 };
 
 type Customer = {

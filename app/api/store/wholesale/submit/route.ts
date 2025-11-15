@@ -130,9 +130,9 @@ export async function POST(request: NextRequest) {
         product,
         quantity,
         brandOrgId: product.orgId,
-        storeCreditBalance: partnership.storeCreditBalance,
+        storeCreditBalance: Number(partnership.storeCreditBalance),
       });
-      ordersByShopify[shopifyDomain].totalCredit += partnership.storeCreditBalance;
+      ordersByShopify[shopifyDomain].totalCredit += Number(partnership.storeCreditBalance);
       ordersByShopify[shopifyDomain].subtotal += Number(product.price) * quantity;
     }
 

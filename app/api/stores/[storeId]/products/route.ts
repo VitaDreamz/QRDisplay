@@ -102,6 +102,35 @@ export async function GET(
       };
     });
 
+    // Auto-add all products to availableProducts/availableSamples if not already there
+    const currentSamples = store.availableSamples || [];
+    const currentProducts = store.availableProducts || [];
+    
+    const allSampleSkus = products
+      .filter(p => p.productType === 'sample')
+      .map(p => p.sku);
+    const allRetailSkus = products
+      .filter(p => p.productType === 'retail')
+      .map(p => p.sku);
+    
+    const newSamples = [...new Set([...currentSamples, ...allSampleSkus])];
+    const newProducts = [...new Set([...currentProducts, ...allRetailSkus])];
+    
+    // Only update if there are new products to add
+    const samplesChanged = newSamples.length > currentSamples.length;
+    const productsChanged = newProducts.length > currentProducts.length;
+    
+    if (samplesChanged || productsChanged) {
+      await prisma.store.update({
+        where: { id: store.id },
+        data: {
+          ...(samplesChanged && { availableSamples: newSamples }),
+          ...(productsChanged && { availableProducts: newProducts }),
+        },
+      });
+      console.log(`✅ Auto-added products for ${store.storeName}: ${newSamples.length - currentSamples.length} samples, ${newProducts.length - currentProducts.length} retail products`);
+    }
+
     return NextResponse.json({ products: productsWithInventory });
   } catch (error) {
     console.error('Store products API error:', error);

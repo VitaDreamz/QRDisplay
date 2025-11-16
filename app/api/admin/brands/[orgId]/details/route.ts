@@ -8,7 +8,7 @@ export async function GET(
   try {
     const { orgId } = await params;
 
-    // Fetch full brand details with partnerships
+    // Fetch full brand details with partnerships and products
     const brand = await prisma.organization.findUnique({
       where: { orgId },
       include: {
@@ -34,7 +34,24 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ success: true, brand });
+    // Fetch products for this organization
+    const products = await prisma.product.findMany({
+      where: { orgId },
+      select: {
+        sku: true,
+        name: true,
+        category: true,
+      }
+    });
+
+    // Rename brandPartnerships to partnerships for the frontend
+    const brandWithDetails = {
+      ...brand,
+      partnerships: brand.brandPartnerships,
+      products,
+    };
+
+    return NextResponse.json({ success: true, brand: brandWithDetails });
   } catch (error) {
     console.error('Error fetching brand details:', error);
     return NextResponse.json(

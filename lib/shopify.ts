@@ -13,8 +13,18 @@ import prisma from './prisma';
  * Initialize Shopify API client for a specific organization
  */
 export function getShopifyClient(org: Organization) {
-  // Decrypt credentials
-  const accessToken = decryptSafe(org.shopifyAccessToken);
+  // Handle access token - check if it's already plain text or needs decryption
+  let accessToken: string | null = null;
+  if (org.shopifyAccessToken) {
+    if (org.shopifyAccessToken.startsWith('shpat_') || org.shopifyAccessToken.startsWith('shpca_')) {
+      // Plain text token
+      accessToken = org.shopifyAccessToken;
+    } else {
+      // Encrypted token - decrypt it
+      accessToken = decryptSafe(org.shopifyAccessToken);
+    }
+  }
+  
   const apiKey = decryptSafe(org.shopifyApiKey);
   const apiSecret = decryptSafe(org.shopifyApiSecret);
 

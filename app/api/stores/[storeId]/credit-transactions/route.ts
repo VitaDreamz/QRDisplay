@@ -68,13 +68,6 @@ export async function GET(
                 firstName: true,
                 lastName: true
               }
-            },
-            redeemedByStaff: {
-              select: {
-                staffId: true,
-                firstName: true,
-                lastName: true
-              }
             }
           },
           orderBy: {
@@ -86,8 +79,19 @@ export async function GET(
           if (promoRedemption.customer) {
             customerName = `${promoRedemption.customer.firstName} ${promoRedemption.customer.lastName} (${promoRedemption.customer.memberId})`;
           }
-          if (promoRedemption.redeemedByStaff) {
-            staffName = `${promoRedemption.redeemedByStaff.firstName} ${promoRedemption.redeemedByStaff.lastName} (${promoRedemption.redeemedByStaff.staffId})`;
+          // Look up staff separately
+          if (promoRedemption.redeemedByStaffId) {
+            const staff = await prisma.staff.findUnique({
+              where: { id: promoRedemption.redeemedByStaffId },
+              select: {
+                staffId: true,
+                firstName: true,
+                lastName: true
+              }
+            });
+            if (staff) {
+              staffName = `${staff.firstName} ${staff.lastName} (${staff.staffId})`;
+            }
           }
         }
         

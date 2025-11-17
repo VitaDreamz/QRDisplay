@@ -173,49 +173,32 @@ export async function POST(request: NextRequest) {
             }
           });
           
-          // Award points for in-store sale (2 points per dollar)
+          // Award points for in-store sale (10x points per dollar)
           if (finalPurchaseAmount && finalPurchaseAmount > 0) {
             try {
               console.log(`💰 Processing points for $${finalPurchaseAmount} sale by staff ${staffMember.staffId}`);
               
-              // First, get the purchase intent to link in transaction
-              const purchaseIntent = await prisma.purchaseIntent.findFirst({
-                where: {
-                  customerId: customer.id,
-                  storeId: store.id,
-                },
-                orderBy: {
-                  createdAt: 'desc'
-                }
+              // Get the brand org to use correct orgId for points
+              const brandOrg = await prisma.organization.findUnique({
+                where: { id: customer.orgId },
+                select: { orgId: true, name: true }
               });
               
-              if (!purchaseIntent) {
-                console.warn('⚠️ No PurchaseIntent found for customer - points will still be awarded');
-              } else {
-                console.log(`📦 Found PurchaseIntent ${purchaseIntent.id} (status: ${purchaseIntent.status})`);
-                
-                // Mark the PurchaseIntent as fulfilled (for both direct and regular flow)
-                await prisma.purchaseIntent.update({
-                  where: { id: purchaseIntent.id },
-                  data: {
-                    status: 'fulfilled',
-                    fulfilledAt: new Date(),
-                    fulfilledByStaffId: staffMember.id,
-                  }
-                });
-                console.log(`✅ PurchaseIntent ${purchaseIntent.id} marked as fulfilled`);
+              if (!brandOrg) {
+                console.error(`❌ Brand org not found for customer orgId: ${customer.orgId}`);
+                throw new Error('Brand organization not found');
               }
               
-              console.log(`🎯 Awarding points to staff ${staffMember.id} in store ${store.id} (org: ${store.orgId})`);
+              console.log(`🎯 Awarding points to staff ${staffMember.staffId} for ${brandOrg.name} sale`);
               
               await awardInStoreSalePoints({
                 staffId: staffMember.id,
                 storeId: store.id,
-                orgId: store.orgId,
+                orgId: brandOrg.orgId, // Use brand's orgId, not store's
                 saleAmount: finalPurchaseAmount,
                 customerId: customer.id,
                 customerName: `${customer.firstName} ${customer.lastName}`,
-                purchaseIntentId: purchaseIntent?.id || '',
+                purchaseIntentId: '', // Promo redemptions don't need purchase intent
               });
               console.log(`✅ In-store points awarded: ${Math.floor(finalPurchaseAmount * 10)} points (10x)`);
             } catch (pointsErr) {
@@ -223,7 +206,7 @@ export async function POST(request: NextRequest) {
               console.error('Error details:', {
                 staffId: staffMember.id,
                 storeId: store.id,
-                orgId: store.orgId,
+                customerOrgId: customer.orgId,
                 saleAmount: finalPurchaseAmount,
                 error: pointsErr instanceof Error ? pointsErr.message : String(pointsErr)
               });
@@ -236,6 +219,41 @@ export async function POST(request: NextRequest) {
       } catch (invErr) {
         console.error('❌ Inventory/staff tracking failed:', invErr);
         // Continue anyway - the sale is complete
+      }
+    }
+
+    // 7.5. Award store credit to the brand partnership
+    if (finalDiscountAmount && finalDiscountAmount > 0) {
+      try {
+        // Get the brand partnership to find the promoCommission rate
+        const partnership = await prisma.storeBrandPartnership.findFirst({
+          where: {
+            storeId: store.id,
+            brandId: customer.orgId, // customer.orgId is the brand's internal ID
+            active: true,
+          },
+        });
+
+        if (partnership) {
+          const creditAmount = (finalDiscountAmount * partnership.promoCommission) / 100;
+          
+          // Update the partnership's store credit balance
+          await prisma.storeBrandPartnership.update({
+            where: { id: partnership.id },
+            data: {
+              storeCreditBalance: {
+                increment: creditAmount,
+              },
+            },
+          });
+
+          console.log(`💰 Store credit awarded: $${creditAmount.toFixed(2)} (${partnership.promoCommission}% of $${finalDiscountAmount.toFixed(2)} discount)`);
+        } else {
+          console.warn(`⚠️  No active brand partnership found for store ${store.storeId} and brand ${customer.orgId}`);
+        }
+      } catch (creditErr) {
+        console.error('❌ Store credit calculation failed:', creditErr);
+        // Continue anyway - don't fail the redemption
       }
     }
 

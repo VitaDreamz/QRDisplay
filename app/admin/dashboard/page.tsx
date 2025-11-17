@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export default async function AdminDashboardPage() {
   try {
     // Parallel data fetching for performance
-    const [displays, stores, customers, organizations, promoRedemptions, orders] = await Promise.all([
+    const [displays, stores, customers, organizations, promoRedemptions, purchaseIntents] = await Promise.all([
       prisma.display.findMany({
         include: { 
           organization: true, 
@@ -71,30 +71,62 @@ export default async function AdminDashboardPage() {
         orderBy: { name: 'asc' }
       }),
       prisma.promoRedemption.findMany({
-        include: {
-          customer: true,
-          store: true
+        select: {
+          id: true,
+          redeemedAt: true,
+          purchaseAmount: true,
+          discountAmount: true,
+          promoOffer: true,
+          promoSlug: true,
+          createdAt: true,
+          customer: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              memberId: true,
+              returningPromoSlug: true
+            }
+          },
+          store: {
+            select: {
+              id: true,
+              storeName: true,
+              storeId: true
+            }
+          }
         },
         orderBy: { createdAt: 'desc' }
       }),
-      prisma.order.findMany({
+      prisma.purchaseIntent.findMany({
         select: {
           id: true,
-          totalPrice: true,
+          finalPrice: true,
           status: true,
-          createdAt: true
+          createdAt: true,
+          fulfilledAt: true
         }
       })
     ]);
 
-    // Calculate stats
-    const totalSales = orders
-      .filter(o => o.status === 'completed' || o.status === 'paid')
-      .reduce((sum, order) => sum + Number(order.totalPrice), 0);
+    // Calculate stats from PurchaseIntents (actual sales tracking)
+    // Direct purchases (fulfilled PurchaseIntents)
+    const directSales = purchaseIntents
+      .filter(pi => pi.status === 'fulfilled')
+      .reduce((sum, pi) => sum + Number(pi.finalPrice), 0);
     
-    const pendingSales = orders
-      .filter(o => o.status === 'pending')
-      .reduce((sum, order) => sum + Number(order.totalPrice), 0);
+    // Promo redemptions (completed sales)
+    const promoSales = promoRedemptions
+      .filter(pr => pr.redeemedAt !== null && pr.purchaseAmount)
+      .reduce((sum, pr) => sum + Number(pr.purchaseAmount), 0);
+    
+    // Total completed sales across all channels
+    const totalSales = directSales + promoSales;
+    
+    // Pending sales (purchase intents not yet fulfilled)
+    const pendingSales = purchaseIntents
+      .filter(pi => pi.status === 'pending')
+      .reduce((sum, pi) => sum + Number(pi.finalPrice), 0);
 
     // Calculate return purchases (customers with multiple purchase intents that were actually purchased)
     const customerPurchaseCounts = new Map<string, number>();

@@ -125,15 +125,24 @@ export async function POST(request: NextRequest) {
         const pointsEarned = Math.floor(Number(intent.finalPrice) * 10);
         
         if (pointsEarned > 0) {
+          const customer = await prisma.customer.findUnique({ 
+            where: { id: intent.customerId }, 
+            select: { orgId: true } 
+          });
+          
+          const currentQuarter = `${new Date().getFullYear()}-Q${Math.ceil((new Date().getMonth() + 1) / 3)}`;
+          
           await prisma.staffPointTransaction.create({
             data: {
               staffId: staff.id,
               storeId: intent.storeId,
-              orgId: (await prisma.customer.findUnique({ where: { id: intent.customerId }, select: { orgId: true } }))?.orgId || '',
-              type: 'sale',
+              orgId: customer?.orgId || '',
+              type: 'instore_sale',
               points: pointsEarned,
-              description: `Direct purchase: ${intent.productSku}`,
+              reason: `Direct purchase: ${intent.productSku}`,
               customerId: intent.customerId,
+              purchaseIntentId: intent.id,
+              quarter: currentQuarter,
             },
           });
           

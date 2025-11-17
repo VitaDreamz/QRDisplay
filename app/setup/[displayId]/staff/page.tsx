@@ -8,14 +8,29 @@ import { useWizardProgress } from '@/hooks/useWizardProgress';
 const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const ROLES = ['Sales', 'Cashier', 'Manager', 'Marketing', 'Other'];
 
+interface StaffMember {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  type: string;
+  status: string;
+  onCallDays: string[];
+  onCallHoursStart: string | null;
+  onCallHoursStop: string | null;
+}
+
 export default function AddStaffPage({ params }: { params: Promise<{ displayId: string }> }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [displayId, setDisplayId] = useState<string>('');
   const [storeId, setStoreId] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [loadingStaff, setLoadingStaff] = useState(true);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState(false);
+  const [existingStaff, setExistingStaff] = useState<StaffMember[]>([]);
   const { saveProgress } = useWizardProgress(displayId);
 
   // Form state
@@ -37,6 +52,45 @@ export default function AddStaffPage({ params }: { params: Promise<{ displayId: 
       setStoreId(storeIdParam);
     }
   }, [params, searchParams]);
+
+  // Load existing staff when we have displayId
+  useEffect(() => {
+    if (!displayId) return;
+
+    (async () => {
+      try {
+        // Get the display info to find the storeId
+        const displayRes = await fetch(`/api/displays/${displayId}/info`);
+        if (!displayRes.ok) {
+          console.error('Could not fetch display info');
+          setLoadingStaff(false);
+          return;
+        }
+        const displayData = await displayRes.json();
+        const currentStoreId = displayData.storeId;
+
+        if (!currentStoreId) {
+          console.log('Display not yet activated, no staff to load');
+          setLoadingStaff(false);
+          return;
+        }
+
+        setStoreId(currentStoreId);
+
+        // Fetch existing staff for this store
+        const staffRes = await fetch(`/api/stores/${currentStoreId}/staff`);
+        if (staffRes.ok) {
+          const staffData = await staffRes.json();
+          setExistingStaff(staffData.staff || []);
+          console.log('Loaded existing staff:', staffData.staff?.length || 0);
+        }
+      } catch (err) {
+        console.error('Error loading existing staff:', err);
+      } finally {
+        setLoadingStaff(false);
+      }
+    })();
+  }, [displayId]);
 
   const toggleDay = (day: string) => {
     if (onCallDays.includes(day)) {
@@ -147,12 +201,66 @@ export default function AddStaffPage({ params }: { params: Promise<{ displayId: 
         <div className="text-center mb-6">
           <div className="text-5xl mb-3">👥</div>
           <h1 className="text-2xl font-bold text-white mb-2">
-            Add Your First Staff Member
+            {existingStaff.length > 0 ? 'Manage Staff Members' : 'Add Your First Staff Member'}
           </h1>
           <p className="text-pink-200">
-            They'll receive SMS verification
+            {existingStaff.length > 0 
+              ? 'Review existing staff and add more if needed'
+              : "They'll receive SMS verification"}
           </p>
         </div>
+
+        {/* Existing Staff Section */}
+        {loadingStaff ? (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 mb-6 text-center">
+            <div className="text-gray-500">Loading existing staff...</div>
+          </div>
+        ) : existingStaff.length > 0 ? (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mb-6">
+            <h2 className="font-semibold text-lg mb-4 flex items-center justify-between">
+              <span>Existing Staff ({existingStaff.length})</span>
+              <span className="text-sm text-green-600">✓ Already Added</span>
+            </h2>
+            <div className="space-y-3">
+              {existingStaff.map((staff) => (
+                <div
+                  key={staff.id}
+                  className="p-4 bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-lg"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="font-medium text-lg">
+                        {staff.firstName} {staff.lastName}
+                      </div>
+                      <div className="text-sm text-gray-600 mt-1">
+                        {staff.phone && `📱 ${staff.phone.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3')}`}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {staff.email && `✉️ ${staff.email}`}
+                      </div>
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="inline-block bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded font-medium">
+                          {staff.type}
+                        </span>
+                        {staff.verifiedAt && (
+                          <span className="inline-block bg-green-100 text-green-700 text-xs px-2 py-1 rounded font-medium">
+                            ✓ Verified
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {/* Add New Staff Section */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mb-6">
+          <h2 className="font-semibold text-lg mb-4">
+            {existingStaff.length > 0 ? '+ Add Another Staff Member' : 'Add Staff Member'}
+          </h2>
 
         {success && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
@@ -171,7 +279,7 @@ export default function AddStaffPage({ params }: { params: Promise<{ displayId: 
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Info */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+          <div>
             <h2 className="font-semibold text-lg mb-4">Staff Information</h2>
             
             <div className="space-y-4">
@@ -325,6 +433,18 @@ export default function AddStaffPage({ params }: { params: Promise<{ displayId: 
                     setRole('Sales');
                     setStartTime('09:00');
                     setEndTime('17:00');
+                    // Reload staff list
+                    (async () => {
+                      try {
+                        const staffRes = await fetch(`/api/stores/${storeId}/staff`);
+                        if (staffRes.ok) {
+                          const staffData = await staffRes.json();
+                          setExistingStaff(staffData.staff || []);
+                        }
+                      } catch (err) {
+                        console.error('Error reloading staff:', err);
+                      }
+                    })();
                   }}
                   className="w-full py-4 rounded-lg font-bold text-lg bg-gradient-to-r from-purple-600 to-purple-700 text-white hover:from-purple-700 hover:to-purple-800 shadow-lg transition-all"
                 >
@@ -344,6 +464,22 @@ export default function AddStaffPage({ params }: { params: Promise<{ displayId: 
             )}
           </div>
         </form>
+
+        {/* Skip/Continue Button for when there's existing staff */}
+        {existingStaff.length > 0 && !success && (
+          <div className="mt-6">
+            <button
+              type="button"
+              onClick={() => {
+                saveProgress({ staffAdded: true, currentStep: 10 });
+                router.push(`/setup/${displayId}/success${storeId ? `?storeId=${storeId}` : ''}`);
+              }}
+              className="w-full py-4 border-2 border-white text-white rounded-lg font-bold text-lg hover:bg-white/10 transition-colors"
+            >
+              Continue with Existing Staff →
+            </button>
+          </div>
+        )}
       </div>
     </WizardLayout>
   );

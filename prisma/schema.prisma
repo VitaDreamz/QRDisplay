@@ -87,6 +87,7 @@ model Organization {
   promoRedemptions PromoRedemption[]
   conversions Conversion[]
   webhookLogs ShopifyWebhookLog[]
+  products  Product[]
   
   // Multi-brand relationships
   brandPartnerships   StoreBrandPartnership[] @relation("BrandPartnerships")
@@ -624,6 +625,7 @@ model Product {
   id          String   @id @default(cuid())
   sku         String   @unique
   orgId       String   // Which brand owns this product
+  brand       Organization @relation(fields: [orgId], references: [orgId])
   
   name        String
   description String?

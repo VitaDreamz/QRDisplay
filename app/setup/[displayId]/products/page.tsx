@@ -102,6 +102,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
           
           console.log('[ProductsStep] Loaded products from store partnerships:', filtered.length);
           setProducts(filtered);
+          setError(''); // Clear any previous errors
           initializeDefaultInventory(filtered);
           return; // SUCCESS - don't run fallback
         }

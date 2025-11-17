@@ -579,13 +579,16 @@ export async function POST(req: NextRequest) {
       // Don't fail activation if email fails
     }
 
-    // Get brand owner details for notification
-    const brandOwner = (await prisma.user.findFirst({
-      where: {
-        orgId: display.assignedOrgId,
-        role: 'org-admin',
-      },
-    })) as any;
+    // Get brand owner details for notification (only if display has an assigned org)
+    let brandOwner = null;
+    if (display.assignedOrgId) {
+      brandOwner = (await prisma.user.findFirst({
+        where: {
+          orgId: display.assignedOrgId,
+          role: 'org-admin',
+        },
+      })) as any;
+    }
 
     // Send activation SMS notifications
     try {

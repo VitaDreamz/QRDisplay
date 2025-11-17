@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { WizardLayout } from '@/components/wizard/WizardLayout';
 import { useWizardProgress } from '@/hooks/useWizardProgress';
 import { toStateAbbreviation } from '@/lib/states';
 
 export default function ProductsStep({ params }: { params: Promise<{ displayId: string }> }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [displayId, setDisplayId] = useState<string>('');
   const { progress, saveProgress } = useWizardProgress(displayId);
 
@@ -73,11 +74,15 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
     (async () => {
 
       try {
-        // If we have an existing store, fetch products from its brand partnerships
-        if (progress?.existingStoreId) {
-          console.log('[ProductsStep] Fetching products for existing store:', progress.existingStoreId);
+        // Get storeId from URL params or wizard progress
+        const urlStoreId = searchParams.get('storeId');
+        const storeId = progress?.existingStoreId || urlStoreId;
+        
+        // If we have a store ID (from progress or URL), fetch products from its brand partnerships
+        if (storeId) {
+          console.log('[ProductsStep] Fetching products for store:', storeId);
           
-          const storeRes = await fetch(`/api/stores/${progress.existingStoreId}/products`);
+          const storeRes = await fetch(`/api/stores/${storeId}/products`);
           if (!storeRes.ok) {
             console.error('[ProductsStep] Failed to fetch store products', storeRes.status);
             setError('Failed to load store products');
@@ -88,10 +93,10 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
           const storeData = await storeRes.json();
           const allProducts = Array.isArray(storeData.products) ? storeData.products : [];
           
-          // Filter to only active retail products
+          // Filter to only active retail and sample products (exclude wholesale-box)
           const filtered = allProducts.filter((p: any) => {
             if (p && p.active === false) return false;
-            if (typeof p?.productType === 'string' && p.productType !== 'retail') return false;
+            if (typeof p?.productType === 'string' && p.productType === 'wholesale-box') return false;
             return true;
           });
           
@@ -111,7 +116,7 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
         setProductsLoaded(false); // Allow retry
       }
     })();
-  }, [displayId, progress?.existingStoreId]); // Re-run when we get the store ID
+  }, [displayId, progress?.existingStoreId, searchParams]); // Re-run when we get the store ID or URL changes
   
   // Load inventory once products and progress are both available
   useEffect(() => {
@@ -120,11 +125,14 @@ export default function ProductsStep({ params }: { params: Promise<{ displayId: 
     console.log('[ProductsStep] Loading inventory with progress:', progress);
     setInventoryLoaded(true); // Mark as loaded immediately to prevent re-runs
     
-    if (progress.existingStoreId) {
-      console.log('📦 Fetching existing inventory for store:', progress.existingStoreId);
+    const urlStoreId = searchParams.get('storeId');
+    const storeId = progress.existingStoreId || urlStoreId;
+    
+    if (storeId) {
+      console.log('📦 Fetching existing inventory for store:', storeId);
       (async () => {
         try {
-          const invRes = await fetch(`/api/store/inventory?storeId=${progress.existingStoreId}`);
+          const invRes = await fetch(`/api/store/inventory?storeId=${storeId}`);
           if (invRes.ok) {
             const invData = await invRes.json();
             console.log('✅ Loaded existing inventory:', invData);

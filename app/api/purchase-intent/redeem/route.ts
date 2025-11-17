@@ -119,51 +119,88 @@ export async function POST(request: NextRequest) {
       console.warn('Failed to update customer status to purchased:', e);
     }
 
-    // Increment staff sales counter (for leaderboard) - only if it's a staff member
+    // Award staff points for the sale - 10x points per dollar
     if (staff) {
       try {
-        await prisma.staff.update({
-          where: { id: staff.id },
-          data: { salesGenerated: { increment: 1 } }
-        });
-      } catch (e) {
-        console.warn('Failed to increment staff salesGenerated:', e);
+        const pointsEarned = Math.floor(Number(intent.finalPrice) * 10);
+        
+        if (pointsEarned > 0) {
+          await prisma.staffPointTransaction.create({
+            data: {
+              staffId: staff.id,
+              storeId: intent.storeId,
+              orgId: (await prisma.customer.findUnique({ where: { id: intent.customerId }, select: { orgId: true } }))?.orgId || '',
+              type: 'sale',
+              points: pointsEarned,
+              description: `Direct purchase: ${intent.productSku}`,
+              customerId: intent.customerId,
+            },
+          });
+          
+          console.log(`🎯 Awarded ${pointsEarned} points to staff ${staff.id} for direct purchase`);
+        }
+      } catch (pointsErr) {
+        console.error('❌ Failed to award staff points:', pointsErr);
+        // Continue anyway
       }
     }
 
-    // Apply discount match based on store's subscription tier
-    try {
-      const store = await prisma.store.findUnique({
-        where: { id: intent.storeId },
-        select: { 
-          storeId: true,
-          storeName: true,
-          promoReimbursementRate: true,
-          subscriptionTier: true
+    // Award store credit to the brand partnership
+    if (intent.discountPercent > 0) {
+      try {
+        const customer = await prisma.customer.findUnique({
+          where: { id: intent.customerId },
+          select: { orgId: true }
+        });
+        
+        if (!customer) {
+          throw new Error('Customer not found');
         }
-      });
 
-      if (store && intent.discountPercent > 0) {
-        // Calculate the discount amount given to customer
-        const discountAmount = Number(intent.originalPrice) - Number(intent.finalPrice);
-        
-        // Calculate reimbursement based on subscription tier
-        const reimbursementAmount = discountAmount * (store.promoReimbursementRate / 100);
-        
-        if (reimbursementAmount > 0) {
-          await addStoreCredit(
-            store.storeId,
-            reimbursementAmount,
-            `${store.promoReimbursementRate}% Discount Match - Purchase Reimbursement`,
-            `purchase-${intent.id}` // Reference for tracking
-          );
+        // Get the brand partnership to find the promoCommission rate
+        const partnership = await prisma.storeBrandPartnership.findFirst({
+          where: {
+            storeId: intent.storeId,
+            brandId: customer.orgId,
+            active: true,
+          },
+        });
+
+        if (partnership) {
+          const discountAmount = Number(intent.originalPrice) - Number(intent.finalPrice);
+          const creditAmount = (discountAmount * partnership.promoCommission) / 100;
+          const newBalance = Number(partnership.storeCreditBalance) + creditAmount;
           
-          console.log(`✅ Added $${reimbursementAmount.toFixed(2)} discount match to store ${store.storeId} (${store.promoReimbursementRate}% of $${discountAmount.toFixed(2)} discount)`);
+          // Update the partnership's store credit balance
+          await prisma.storeBrandPartnership.update({
+            where: { id: partnership.id },
+            data: {
+              storeCreditBalance: {
+                increment: creditAmount,
+              },
+            },
+          });
+
+          // Create transaction record for history
+          await prisma.storeCreditTransaction.create({
+            data: {
+              storeId: intent.storeId,
+              brandPartnershipId: partnership.id,
+              type: 'earned',
+              reason: `${partnership.promoCommission}% Discount Match - Direct Purchase Reimbursement`,
+              amount: creditAmount,
+              balance: newBalance,
+            },
+          });
+
+          console.log(`💰 Store credit awarded: $${creditAmount.toFixed(2)} (${partnership.promoCommission}% of $${discountAmount.toFixed(2)} discount)`);
+        } else {
+          console.warn(`⚠️  No active brand partnership found for store ${intent.storeId} and brand ${customer.orgId}`);
         }
+      } catch (creditErr) {
+        console.error('❌ Store credit calculation failed:', creditErr);
+        // Continue anyway - don't fail the redemption
       }
-    } catch (creditErr) {
-      console.error('❌ Failed to apply discount match:', creditErr);
-      // Don't fail the purchase if discount match fails
     }
 
     return NextResponse.json({ 

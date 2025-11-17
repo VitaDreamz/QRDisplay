@@ -164,6 +164,32 @@ export async function POST(req: NextRequest) {
 
     console.log(`✅ SampleHistory created: ${sampleHistory.id} for ${customer.memberId} (${brandOrg.name})`);
 
+    // Deduct sample from store inventory
+    try {
+      const inventoryItem = await prisma.storeInventory.findFirst({
+        where: {
+          storeId: display.store.id,
+          productSku: sampleChoice,
+        },
+      });
+
+      if (inventoryItem && inventoryItem.quantityOnHand > 0) {
+        await prisma.storeInventory.update({
+          where: { id: inventoryItem.id },
+          data: {
+            quantityOnHand: { decrement: 1 },
+            updatedAt: new Date(),
+          },
+        });
+        console.log(`📦 Decremented inventory for ${sampleChoice}: ${inventoryItem.quantityOnHand} -> ${inventoryItem.quantityOnHand - 1}`);
+      } else {
+        console.warn(`⚠️  No inventory found for ${sampleChoice} at store ${display.store.storeId}`);
+      }
+    } catch (invError) {
+      console.error('❌ Failed to update inventory:', invError);
+      // Don't fail the request if inventory update fails
+    }
+
     // Generate shortlink slugs
     const slugActivate = generateSlug(); // customer activation (requires PIN)
     const slugRedeem = generateSlug();   // store redemption (no PIN)

@@ -299,10 +299,11 @@ export async function POST(request: NextRequest) {
             where: { id: purchaseIntent.id },
             data: {
               status: 'fulfilled',
-              fulfilledAt: new Date()
+              fulfilledAt: new Date(),
+              fulfilledByStaffId: staffMember?.id || null
             }
           });
-          console.log(`✅ PurchaseIntent marked as fulfilled for customer ${customer.memberId}`);
+          console.log(`✅ PurchaseIntent marked as fulfilled for customer ${customer.memberId}${staffMember ? ` by staff ${staffMember.staffId}` : ''}`);
         }
       } catch (piErr) {
         console.error('❌ Failed to update PurchaseIntent:', piErr);

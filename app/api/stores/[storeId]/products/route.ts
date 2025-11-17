@@ -37,6 +37,15 @@ export async function GET(
         orgId: { in: brandOrgIds },
         active: true,
       },
+      include: {
+        brand: {
+          select: {
+            orgId: true,
+            name: true,
+            logoUrl: true,
+          },
+        },
+      },
       orderBy: [
         { featured: 'desc' },
         { name: 'asc' },

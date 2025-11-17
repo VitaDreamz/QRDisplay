@@ -69,17 +69,17 @@ const ROW_PITCH = 43.18;      // 1.7" = 43.18mm (Vertical Pitch)
 const CORNER_RADIUS = 0.79375;// 0.03125" = 0.79375mm
 
 // QR Code sizing - OPTIMIZED FOR 1.5" × 1.5" LABELS
-const QR_SIZE = 26;           // 26mm QR code (leaves 6mm margins on each side)
-const QR_TOP_PADDING = 2.5;   // 2.5mm from top of label to QR
-const QR_BOTTOM_PADDING = 2;  // 2mm minimum space at bottom (text stays within label)
-const QR_SIDE_PADDING = 6.05; // Center horizontally: (38.1 - 26) / 2 = 6.05mm
+const QR_SIZE = 28;           // 28mm QR code (slightly larger for better scanning)
+const QR_TOP_PADDING = 2.5;   // 2.5mm from top of label to QR (looks good, keeping as-is)
+const QR_BOTTOM_PADDING = 2.5;// 2.5mm space at bottom (match top for balance)
+const QR_SIDE_PADDING = 5.05; // Center horizontally: (38.1 - 28) / 2 = 5.05mm
 
 // Text sizing
 const URL_FONT_SIZE = 6.5;    // 6.5pt for URL (smaller to fit)
-const ID_FONT_SIZE = 8;       // 8pt for Display ID (was 9pt)
+const ID_FONT_SIZE = 8;       // 8pt for Display ID
 
 // Text spacing (all relative to QR code bottom)
-const URL_OFFSET = 1.2;       // Space between QR bottom and URL text
+const URL_OFFSET = 2.5;       // Space between QR bottom and URL text (more breathing room)
 const ID_OFFSET = 2.2;        // Space between URL and ID text
 
 // Calculate max text height to ensure it fits

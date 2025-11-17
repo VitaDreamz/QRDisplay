@@ -2936,49 +2936,51 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                       return (
                         <div
                           key={product.id}
-                          className={`flex items-center justify-between p-4 border-2 rounded-lg transition-all ${
+                          className={`p-3 sm:p-4 border-2 rounded-lg transition-all ${
                             isOffered 
                               ? 'border-purple-500 bg-purple-50' 
                               : 'border-gray-200 hover:border-gray-300'
                           }`}
                         >
-                          <div className="flex items-center gap-4 flex-1">
+                          {/* Mobile-first layout: Image on left, content stacked on right */}
+                          <div className="flex gap-3 mb-3">
                             {product.imageUrl ? (
                               <img
                                 src={product.imageUrl}
                                 alt={product.name}
-                                className="w-12 h-12 rounded object-cover"
+                                className="w-20 h-20 sm:w-24 sm:h-24 rounded object-cover flex-shrink-0"
                               />
                             ) : (
-                              <span className="text-2xl">🍬</span>
+                              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
+                                <span className="text-3xl">🍬</span>
+                              </div>
                             )}
-                            <div className="flex-1">
-                              <div className="font-medium">{product.name}</div>
-                              <div className="text-sm text-gray-500">{product.sku}</div>
-                              {brand && (
-                                <span className={`inline-block ${getBrandColor(brand.brand.name).bg} ${getBrandColor(brand.brand.name).text} text-xs px-2 py-1 rounded font-medium mt-1`}>
-                                  {brand.brand.name}
-                                </span>
-                              )}
-                              {product.description && (
-                                <div className="text-xs text-gray-500 mt-1">{product.description}</div>
-                              )}
-                            </div>
-                            <div className="text-right mr-4">
-                              <div className="text-lg font-bold text-green-600">
-                                FREE
+                            <div className="flex-1 min-w-0 flex flex-col justify-between">
+                              {/* Product info */}
+                              <div>
+                                <div className="font-medium text-sm sm:text-base leading-tight">{product.name}</div>
+                                <div className="text-xs text-gray-500 mt-0.5">{product.sku}</div>
+                                {brand && (
+                                  <span className={`inline-block ${getBrandColor(brand.brand.name).bg} ${getBrandColor(brand.brand.name).text} text-xs px-2 py-0.5 rounded font-medium mt-1`}>
+                                    {brand.brand.name}
+                                  </span>
+                                )}
                               </div>
-                              <div className="text-sm text-gray-400 line-through">
-                                ${Number(product.price).toFixed(2)}
-                              </div>
-                              <div className={`text-sm font-medium ${
-                                (product.inventoryQuantity || 0) > 20 
-                                  ? 'text-green-600' 
-                                  : (product.inventoryQuantity || 0) > 5 
-                                  ? 'text-yellow-600' 
-                                  : 'text-red-600'
-                              }`}>
-                                {product.inventoryQuantity || 0} in stock
+                              {/* Price and stock on mobile */}
+                              <div className="flex items-baseline gap-2 mt-1">
+                                <div className="text-lg sm:text-xl font-bold text-green-600">FREE</div>
+                                <div className="text-xs text-gray-400 line-through">
+                                  ${Number(product.price).toFixed(2)}
+                                </div>
+                                <div className={`text-xs sm:text-sm font-medium ml-auto ${
+                                  (product.inventoryQuantity || 0) > 20 
+                                    ? 'text-green-600' 
+                                    : (product.inventoryQuantity || 0) > 5 
+                                    ? 'text-yellow-600' 
+                                    : 'text-red-600'
+                                }`}>
+                                  {product.inventoryQuantity || 0} in stock
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -3011,7 +3013,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                 console.error('Error updating samples:', err);
                               }
                             }}
-                            className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                            className={`w-full px-3 py-2 sm:px-4 rounded-lg text-sm sm:text-base font-medium transition-colors ${
                               isOffered
                                 ? 'bg-purple-600 text-white hover:bg-purple-700'
                                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -3092,43 +3094,45 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                             return (
                               <div
                                 key={product.id}
-                                className={`p-4 border-2 rounded-lg transition-all ${
+                                className={`p-3 sm:p-4 border-2 rounded-lg transition-all ${
                                   isOffered 
                                     ? 'border-purple-500 bg-purple-50' 
                                     : 'border-gray-200 hover:border-gray-300'
                                 }`}
                               >
-                                <div className="flex items-center gap-4 mb-3">
+                                {/* Mobile-first layout */}
+                                <div className="flex gap-3 mb-3">
                                   {product.imageUrl ? (
                                     <img
                                       src={product.imageUrl}
                                       alt={product.name}
-                                      className="w-16 h-16 rounded object-cover flex-shrink-0"
+                                      className="w-20 h-20 sm:w-24 sm:h-24 rounded object-cover flex-shrink-0"
                                     />
                                   ) : (
-                                    <div className="w-16 h-16 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
-                                      <span className="text-2xl">📦</span>
+                                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
+                                      <span className="text-3xl">📦</span>
                                     </div>
                                   )}
-                                  <div className="flex-1 min-w-0">
-                                    <div className="font-medium">{product.name}</div>
-                                    <div className="text-sm text-gray-500">{product.sku}</div>
-                                    {product.description && (
-                                      <div className="text-xs text-gray-500 mt-1">{product.description}</div>
-                                    )}
-                                  </div>
-                                  <div className="text-right">
-                                    <div className="text-lg font-bold text-purple-600">
-                                      ${Number(product.price).toFixed(2)}
+                                  <div className="flex-1 min-w-0 flex flex-col justify-between">
+                                    {/* Product info */}
+                                    <div>
+                                      <div className="font-medium text-sm sm:text-base leading-tight">{product.name}</div>
+                                      <div className="text-xs text-gray-500 mt-0.5">{product.sku}</div>
                                     </div>
-                                    <div className={`text-sm font-medium ${
-                                      (product.inventoryQuantity || 0) > 20 
-                                        ? 'text-green-600' 
-                                        : (product.inventoryQuantity || 0) > 5 
-                                        ? 'text-yellow-600' 
-                                        : 'text-red-600'
-                                    }`}>
-                                      {product.inventoryQuantity || 0} in stock
+                                    {/* Price and stock */}
+                                    <div className="flex items-baseline gap-2 mt-1">
+                                      <div className="text-lg sm:text-xl font-bold text-purple-600">
+                                        ${Number(product.price).toFixed(2)}
+                                      </div>
+                                      <div className={`text-xs sm:text-sm font-medium ml-auto ${
+                                        (product.inventoryQuantity || 0) > 20 
+                                          ? 'text-green-600' 
+                                          : (product.inventoryQuantity || 0) > 5 
+                                          ? 'text-yellow-600' 
+                                          : 'text-red-600'
+                                      }`}>
+                                        {product.inventoryQuantity || 0} in stock
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
@@ -3161,7 +3165,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                       console.error('Failed to update products:', err);
                                     }
                                   }}
-                                  className={`w-full px-4 py-2 rounded-lg font-semibold transition-colors ${
+                                  className={`w-full px-3 py-2 sm:px-4 rounded-lg text-sm sm:text-base font-semibold transition-colors ${
                                     isOffered
                                       ? 'bg-purple-600 text-white hover:bg-purple-700'
                                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'

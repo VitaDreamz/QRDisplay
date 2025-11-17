@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
         customerId: customer.id,
         brandId: brandOrg.id,
         storeId: display.store.id,
-        displayId: display.id,
+        displayId: display.displayId,
         productSku: sampleChoice,
         productName: sampleLabel,
         sampledAt: new Date(),

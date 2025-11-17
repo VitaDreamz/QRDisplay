@@ -113,7 +113,7 @@ export default async function AdminDashboardPage() {
       totalSamples: customers.length,
       redeemed: customers.filter(c => c.redeemed).length,
       redemptionRate: customers.length > 0 
-  1589e747      ? Math.round((customers.filter(c => c.redeemed).length / customers.length) * 100)
+        ? Math.round((customers.filter(c => c.redeemed).length / customers.length) * 100)
         : 0,
       promoRedeemed: promoRedemptions.filter(p => p.redeemedAt !== null).length,
       returnPurchases,

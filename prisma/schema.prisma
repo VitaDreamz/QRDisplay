@@ -685,9 +685,6 @@ model PurchaseIntent {
   // Status tracking
   status      String   @default("pending") // pending, fulfilled, cancelled
   
-  // Link back to the original promo shortlink (for sample-first flow)
-  promoSlug   String?
-  
   // Verify link for in-store redemption
   verifySlug  String   @unique
   

@@ -92,6 +92,34 @@ export async function POST(request: NextRequest) {
     // 6. Create or Update PromoRedemption record
     const finalPurchaseAmount = isDirect ? parseFloat(finalPrice.toString()) : (purchaseAmount ? parseFloat(purchaseAmount) : null);
     
+    // For sample-first flow, get product info from PurchaseIntent if not provided
+    let actualProductSku = productSku;
+    let actualFinalPrice = finalPrice;
+    let actualDiscountPercent = discountPercent;
+    
+    if (!isDirect && !productSku) {
+      // Look up the PurchaseIntent for this customer
+      const purchaseIntent = await prisma.purchaseIntent.findFirst({
+        where: {
+          customerId: customer.id,
+          storeId: store.id,
+          status: 'pending'
+        },
+        orderBy: {
+          requestedAt: 'desc'
+        }
+      });
+      
+      if (purchaseIntent) {
+        actualProductSku = purchaseIntent.productSku;
+        actualFinalPrice = purchaseIntent.finalPrice;
+        actualDiscountPercent = purchaseIntent.discountPercent;
+        console.log(`📦 Found PurchaseIntent: ${actualProductSku} at $${actualFinalPrice} (${actualDiscountPercent}% off)`);
+      } else {
+        console.warn(`⚠️  No PurchaseIntent found for customer ${customer.memberId}`);
+      }
+    }
+    
     // Calculate discount amount if not provided
     let finalDiscountAmount: number | null = null;
     if (isDirect) {
@@ -100,6 +128,11 @@ export async function POST(request: NextRequest) {
     } else if (discountAmount) {
       // Regular promo: use provided discountAmount
       finalDiscountAmount = parseFloat(discountAmount);
+    } else if (actualFinalPrice && actualDiscountPercent) {
+      // Calculate from PurchaseIntent data
+      const originalPrice = Number(actualFinalPrice) / (1 - actualDiscountPercent / 100);
+      finalDiscountAmount = originalPrice - Number(actualFinalPrice);
+      console.log(`💰 Calculated discount: $${finalDiscountAmount.toFixed(2)} (${actualDiscountPercent}% of $${originalPrice.toFixed(2)})`);
     } else if (purchaseAmount && store.promoOffer) {
       // Regular promo: calculate from purchaseAmount and store's promoOffer
       const discountMatch = store.promoOffer.match(/(\d+)%/);
@@ -112,6 +145,9 @@ export async function POST(request: NextRequest) {
       console.log(`💰 Calculated discount: $${finalDiscountAmount.toFixed(2)} (${discountPercentFromOffer}% of $${originalPrice.toFixed(2)})`);
     }
     
+    // Use actual purchase amount from PurchaseIntent if available
+    const finalPurchaseAmountToUse = actualFinalPrice ? Number(actualFinalPrice) : finalPurchaseAmount;
+    
     // For direct purchases, the PromoRedemption already exists - just update it
     if (isDirect) {
       await prisma.promoRedemption.update({
@@ -119,7 +155,7 @@ export async function POST(request: NextRequest) {
         data: {
           redeemedAt: new Date(),
           redeemedBy: staffMember ? `staff-${staffMember.staffId}` : 'admin',
-          purchaseAmount: finalPurchaseAmount,
+          purchaseAmount: finalPurchaseAmountToUse,
           discountAmount: finalDiscountAmount,
           // Track which staff member redeemed (if applicable)
           ...(staffMember ? { redeemedByStaffId: staffMember.id } as any : {})
@@ -136,7 +172,7 @@ export async function POST(request: NextRequest) {
           promoSlug: slug,
           redeemedAt: new Date(),
           redeemedBy: staffMember ? `staff-${staffMember.staffId}` : 'admin',
-          purchaseAmount: finalPurchaseAmount,
+          purchaseAmount: finalPurchaseAmountToUse,
           discountAmount: finalDiscountAmount,
           // Track which staff member redeemed (if applicable)
           ...(staffMember ? { redeemedByStaffId: staffMember.id } as any : {})
@@ -145,14 +181,14 @@ export async function POST(request: NextRequest) {
     }
 
     // 7. Decrement inventory for ALL promo redemptions (both direct and regular)
-    if (productSku) {
+    if (actualProductSku) {
       try {
         // Decrement inventory
         const inventoryItem = await prisma.storeInventory.findUnique({
           where: {
             storeId_productSku: {
               storeId: store.id,
-              productSku: productSku
+              productSku: actualProductSku
             }
           }
         });
@@ -162,7 +198,7 @@ export async function POST(request: NextRequest) {
             where: {
               storeId_productSku: {
                 storeId: store.id,
-                productSku: productSku
+                productSku: actualProductSku
               }
             },
             data: {
@@ -174,16 +210,16 @@ export async function POST(request: NextRequest) {
           await prisma.inventoryTransaction.create({
             data: {
               storeId: store.id,
-              productSku: productSku,
+              productSku: actualProductSku,
               quantity: -1,
               type: 'sale',
               balanceAfter: inventoryItem.quantityOnHand - 1,
               notes: `${isDirect ? 'Direct purchase' : 'Promo redemption'} by ${customer.firstName} ${customer.lastName} (${customer.memberId})`
             }
           });
-          console.log(`📦 Inventory decremented for ${productSku}: ${inventoryItem.quantityOnHand} -> ${inventoryItem.quantityOnHand - 1}`);
+          console.log(`📦 Inventory decremented for ${actualProductSku}: ${inventoryItem.quantityOnHand} -> ${inventoryItem.quantityOnHand - 1}`);
         } else {
-          console.warn(`⚠️  No inventory or out of stock for ${productSku}`);
+          console.warn(`⚠️  No inventory or out of stock for ${actualProductSku}`);
         }
       } catch (invErr) {
         console.error('❌ Inventory update failed:', invErr);
@@ -192,7 +228,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 7.5. Track staff sales and award points (for ALL sales with staff member)
-    if (staffMember && finalPurchaseAmount && finalPurchaseAmount > 0) {
+    if (staffMember && finalPurchaseAmountToUse && finalPurchaseAmountToUse > 0) {
       try {
         await prisma.staff.update({
           where: { id: staffMember.id },
@@ -201,7 +237,7 @@ export async function POST(request: NextRequest) {
           }
         });
         
-        console.log(`💰 Processing points for $${finalPurchaseAmount} sale by staff ${staffMember.staffId} (${isDirect ? 'direct purchase' : 'promo redemption'})`);
+        console.log(`💰 Processing points for $${finalPurchaseAmountToUse} sale by staff ${staffMember.staffId} (${isDirect ? 'direct purchase' : 'promo redemption'})`);
         
         // Get the brand org to use correct orgId for points
         const brandOrg = await prisma.organization.findUnique({
@@ -220,7 +256,7 @@ export async function POST(request: NextRequest) {
           staffId: staffMember.id,
           storeId: store.id,
           orgId: brandOrg.orgId, // Use brand's orgId, not store's
-          saleAmount: finalPurchaseAmount,
+          saleAmount: finalPurchaseAmountToUse,
           customerId: customer.id,
           customerName: `${customer.firstName} ${customer.lastName}`,
           purchaseIntentId: '', // Promo redemptions don't need purchase intent

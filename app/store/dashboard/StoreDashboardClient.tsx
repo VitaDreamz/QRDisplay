@@ -3092,28 +3092,32 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                             return (
                               <div
                                 key={product.id}
-                                className={`flex items-center justify-between p-4 border-2 rounded-lg transition-all ${
+                                className={`p-4 border-2 rounded-lg transition-all ${
                                   isOffered 
                                     ? 'border-purple-500 bg-purple-50' 
                                     : 'border-gray-200 hover:border-gray-300'
                                 }`}
                               >
-                                <div className="flex items-center gap-4 flex-1">
-                                  {product.imageUrl && (
+                                <div className="flex items-center gap-4 mb-3">
+                                  {product.imageUrl ? (
                                     <img
                                       src={product.imageUrl}
                                       alt={product.name}
-                                      className="w-12 h-12 rounded object-cover"
+                                      className="w-16 h-16 rounded object-cover flex-shrink-0"
                                     />
+                                  ) : (
+                                    <div className="w-16 h-16 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
+                                      <span className="text-2xl">📦</span>
+                                    </div>
                                   )}
-                                  <div className="flex-1">
+                                  <div className="flex-1 min-w-0">
                                     <div className="font-medium">{product.name}</div>
                                     <div className="text-sm text-gray-500">{product.sku}</div>
                                     {product.description && (
                                       <div className="text-xs text-gray-500 mt-1">{product.description}</div>
                                     )}
                                   </div>
-                                  <div className="text-right mr-4">
+                                  <div className="text-right">
                                     <div className="text-lg font-bold text-purple-600">
                                       ${Number(product.price).toFixed(2)}
                                     </div>
@@ -3157,7 +3161,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                       console.error('Failed to update products:', err);
                                     }
                                   }}
-                                  className={`px-4 py-2 rounded-lg font-semibold transition-colors whitespace-nowrap ${
+                                  className={`w-full px-4 py-2 rounded-lg font-semibold transition-colors ${
                                     isOffered
                                       ? 'bg-purple-600 text-white hover:bg-purple-700'
                                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'

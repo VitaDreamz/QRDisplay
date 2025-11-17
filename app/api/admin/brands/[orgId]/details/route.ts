@@ -10,7 +10,7 @@ export async function GET(
 
     // Fetch full brand details with partnerships and products
     const brand = await prisma.organization.findUnique({
-      where: { id: orgId },
+      where: { orgId: orgId },
       include: {
         brandPartnerships: {
           include: {
@@ -36,7 +36,7 @@ export async function GET(
 
     // Fetch products for this organization
     const products = await prisma.product.findMany({
-      where: { orgId: brand.id },
+      where: { orgId: brand.orgId },
       select: {
         sku: true,
         name: true,

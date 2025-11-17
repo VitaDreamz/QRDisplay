@@ -80,7 +80,7 @@ const ID_FONT_SIZE = 8;       // 8pt for Display ID
 
 // Text spacing (all relative to QR code bottom)
 const URL_OFFSET = 2.5;       // Space between QR bottom and URL text (more breathing room)
-const ID_OFFSET = 2.2;        // Space between URL and ID text
+const ID_OFFSET = 3.7;        // Space between URL and ID text (increased for readability)
 
 // Calculate max text height to ensure it fits
 // Total available space below QR: 38.1 - (2.5 + 26) = 9.6mm

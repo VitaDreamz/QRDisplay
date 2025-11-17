@@ -27,13 +27,14 @@ export async function GET(
       where: {
         storeId: store.id
       },
-      include: {
-        brandPartnership: {
-          include: {
-            brand: true
-          }
-        }
-      },
+      // TODO: Re-enable brandPartnership include once column exists in production
+      // include: {
+      //   brandPartnership: {
+      //     include: {
+      //       brand: true
+      //     }
+      //   }
+      // },
       orderBy: {
         createdAt: 'desc'
       }

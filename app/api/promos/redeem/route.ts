@@ -125,8 +125,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 7. For direct purchases: Decrement inventory and track staff sales
-    if (isDirect && productSku) {
+    // 7. Decrement inventory for ALL promo redemptions (both direct and regular)
+    if (productSku) {
       try {
         // Decrement inventory
         const inventoryItem = await prisma.storeInventory.findUnique({
@@ -159,70 +159,61 @@ export async function POST(request: NextRequest) {
               quantity: -1,
               type: 'sale',
               balanceAfter: inventoryItem.quantityOnHand - 1,
-              notes: `Direct purchase by ${customer.firstName} ${customer.lastName} (${customer.memberId})`
+              notes: `${isDirect ? 'Direct purchase' : 'Promo redemption'} by ${customer.firstName} ${customer.lastName} (${customer.memberId})`
             }
           });
-        }
-
-        // Track staff sales
-        if (staffMember) {
-          await prisma.staff.update({
-            where: { id: staffMember.id },
-            data: {
-              salesGenerated: { increment: 1 }
-            }
-          });
-          
-          // Award points for in-store sale (10x points per dollar)
-          if (finalPurchaseAmount && finalPurchaseAmount > 0) {
-            try {
-              console.log(`💰 Processing points for $${finalPurchaseAmount} sale by staff ${staffMember.staffId}`);
-              
-              // Get the brand org to use correct orgId for points
-              const brandOrg = await prisma.organization.findUnique({
-                where: { id: customer.orgId },
-                select: { orgId: true, name: true }
-              });
-              
-              if (!brandOrg) {
-                console.error(`❌ Brand org not found for customer orgId: ${customer.orgId}`);
-                throw new Error('Brand organization not found');
-              }
-              
-              console.log(`🎯 Awarding points to staff ${staffMember.staffId} for ${brandOrg.name} sale`);
-              
-              await awardInStoreSalePoints({
-                staffId: staffMember.id,
-                storeId: store.id,
-                orgId: brandOrg.orgId, // Use brand's orgId, not store's
-                saleAmount: finalPurchaseAmount,
-                customerId: customer.id,
-                customerName: `${customer.firstName} ${customer.lastName}`,
-                purchaseIntentId: '', // Promo redemptions don't need purchase intent
-              });
-              console.log(`✅ In-store points awarded: ${Math.floor(finalPurchaseAmount * 10)} points (10x)`);
-            } catch (pointsErr) {
-              console.error('❌ Failed to award staff points:', pointsErr);
-              console.error('Error details:', {
-                staffId: staffMember.id,
-                storeId: store.id,
-                customerOrgId: customer.orgId,
-                saleAmount: finalPurchaseAmount,
-                error: pointsErr instanceof Error ? pointsErr.message : String(pointsErr)
-              });
-              // Continue anyway
-            }
-          } else {
-            console.warn(`⚠️ No purchase amount to award points for (amount: ${finalPurchaseAmount})`);
-          }
+          console.log(`📦 Inventory decremented for ${productSku}: ${inventoryItem.quantityOnHand} -> ${inventoryItem.quantityOnHand - 1}`);
+        } else {
+          console.warn(`⚠️  No inventory or out of stock for ${productSku}`);
         }
       } catch (invErr) {
-        console.error('❌ Inventory/staff tracking failed:', invErr);
-        // Continue anyway - the sale is complete
+        console.error('❌ Inventory update failed:', invErr);
+        // Continue anyway
       }
     }
 
-    // 7.5. Award store credit to the brand partnership
+    // 7.5. Track staff sales and award points (for direct purchases with staff)
+    if (isDirect && staffMember && finalPurchaseAmount && finalPurchaseAmount > 0) {
+      try {
+        await prisma.staff.update({
+          where: { id: staffMember.id },
+          data: {
+            salesGenerated: { increment: 1 }
+          }
+        });
+        
+        console.log(`💰 Processing points for $${finalPurchaseAmount} sale by staff ${staffMember.staffId}`);
+        
+        // Get the brand org to use correct orgId for points
+        const brandOrg = await prisma.organization.findUnique({
+          where: { id: customer.orgId },
+          select: { orgId: true, name: true }
+        });
+        
+        if (!brandOrg) {
+          console.error(`❌ Brand org not found for customer orgId: ${customer.orgId}`);
+          throw new Error('Brand organization not found');
+        }
+        
+        console.log(`🎯 Awarding points to staff ${staffMember.staffId} for ${brandOrg.name} sale`);
+        
+        await awardInStoreSalePoints({
+          staffId: staffMember.id,
+          storeId: store.id,
+          orgId: brandOrg.orgId, // Use brand's orgId, not store's
+          saleAmount: finalPurchaseAmount,
+          customerId: customer.id,
+          customerName: `${customer.firstName} ${customer.lastName}`,
+          purchaseIntentId: '', // Promo redemptions don't need purchase intent
+        });
+        console.log(`✅ In-store points awarded: ${Math.floor(finalPurchaseAmount * 10)} points (10x)`);
+      } catch (pointsErr) {
+        console.error('❌ Failed to award staff points:', pointsErr);
+        // Continue anyway
+      }
+    }
+
+    // 7.6. Award store credit to the brand partnership
     if (finalDiscountAmount && finalDiscountAmount > 0) {
       try {
         // Get the brand partnership to find the promoCommission rate

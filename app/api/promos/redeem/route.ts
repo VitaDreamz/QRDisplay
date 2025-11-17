@@ -270,7 +270,34 @@ export async function POST(request: NextRequest) {
     console.log(`✅ Customer ${updatedCustomer.memberId} updated to 'purchased' stage (was: ${customer.currentStage})`);
     console.log(`✅ Returning promo slug: ${returningPromoSlug}`);
 
-    // 9. Mark shortlink used
+    // 9. For direct purchases, mark the PurchaseIntent as fulfilled
+    if (isDirect) {
+      try {
+        const purchaseIntent = await prisma.purchaseIntent.findFirst({
+          where: {
+            customerId: customer.id,
+            verifySlug: slug,
+            status: 'pending'
+          }
+        });
+        
+        if (purchaseIntent) {
+          await prisma.purchaseIntent.update({
+            where: { id: purchaseIntent.id },
+            data: {
+              status: 'fulfilled',
+              fulfilledAt: new Date()
+            }
+          });
+          console.log(`✅ PurchaseIntent marked as fulfilled for customer ${customer.memberId}`);
+        }
+      } catch (piErr) {
+        console.error('❌ Failed to update PurchaseIntent:', piErr);
+        // Continue anyway - don't fail the redemption
+      }
+    }
+
+    // 10. Mark shortlink used
     await prisma.shortlink.update({
       where: { slug },
       data: {

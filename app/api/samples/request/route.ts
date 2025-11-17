@@ -109,7 +109,8 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Multi-brand: Enforce 1 sample per day limit
+    // Multi-brand: Enforce 1 sample per day limit (DISABLED FOR TESTING)
+    /*
     if (existingCustomer?.lastSampleDate) {
       const now = new Date();
       const lastSample = new Date(existingCustomer.lastSampleDate);
@@ -122,6 +123,7 @@ export async function POST(req: NextRequest) {
         }, { status: 429 });
       }
     }
+    */
 
     // Generate Member ID
     const memberId = await generateMemberId();

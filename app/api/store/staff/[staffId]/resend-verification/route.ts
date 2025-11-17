@@ -55,6 +55,9 @@ export async function POST(
     const verifyUrl = `${baseUrl}/staff/verify/${verificationToken}`;
     const loginUrl = `${baseUrl}/store/login/${store.storeId}`;
 
+    let smsSent = false;
+    let smsError = null;
+
     // SMS via Twilio (if configured)
     if (staff.phone && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER) {
       try {
@@ -69,12 +72,24 @@ export async function POST(
           from: process.env.TWILIO_PHONE_NUMBER,
           body: text
         });
-      } catch (smsErr) {
-        console.warn('Resend verification SMS failed:', smsErr);
+        smsSent = true;
+        console.log(`✅ Verification SMS sent to ${staff.phone}`);
+      } catch (smsErr: any) {
+        smsError = smsErr.message || 'Unknown SMS error';
+        console.error('❌ Resend verification SMS failed:', smsErr);
       }
+    } else {
+      console.warn('⚠️ Twilio not configured - SMS not sent');
+      smsError = 'Twilio not configured';
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ 
+      ok: true, 
+      smsSent,
+      smsError,
+      verificationUrl: verifyUrl,
+      message: smsSent ? 'Verification SMS sent' : 'Token regenerated but SMS failed - use verification URL'
+    });
   } catch (error) {
     console.error('Resend verification error:', error);
     return NextResponse.json({ error: 'Failed to resend verification' }, { status: 500 });

@@ -1058,13 +1058,30 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
   const resendVerification = async (staffId: string) => {
     try {
       const res = await fetch(`/api/store/staff/${staffId}/resend-verification`, { method: 'POST' });
+      const data = await res.json();
+      
       if (res.ok) {
-        alert('Verification link resent!');
+        if (data.smsSent) {
+          alert('✅ Verification SMS sent!');
+        } else if (data.verificationUrl) {
+          // SMS failed but we have the URL - show it to the user
+          const message = `SMS failed to send, but verification link was generated.\n\nShare this link with the staff member:\n\n${data.verificationUrl}\n\nReason: ${data.smsError || 'Unknown'}`;
+          
+          // Copy to clipboard
+          if (navigator.clipboard) {
+            await navigator.clipboard.writeText(data.verificationUrl);
+            alert(message + '\n\n✅ Link copied to clipboard!');
+          } else {
+            alert(message);
+          }
+        } else {
+          alert(data.message || 'Verification link regenerated');
+        }
       } else {
-        const error = await res.json();
-        alert('Failed to resend: ' + (error.error || 'Unknown error'));
+        alert('Failed to resend: ' + (data.error || 'Unknown error'));
       }
     } catch (e) {
+      console.error('Resend verification error:', e);
       alert('Network error. Please try again.');
     }
   };

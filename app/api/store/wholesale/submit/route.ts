@@ -100,13 +100,25 @@ export async function POST(request: NextRequest) {
       });
 
       const shopifyDomain = partnership.brand.shopifyStoreName;
-      const encryptedToken = partnership.brand.shopifyAccessToken;
-      const shopifyAccessToken = encryptedToken ? decryptSafe(encryptedToken) : null;
+      const storedToken = partnership.brand.shopifyAccessToken;
+      
+      // Handle both plain text and encrypted tokens
+      let shopifyAccessToken: string | null = null;
+      if (storedToken) {
+        if (storedToken.startsWith('shpat_')) {
+          // Plain text token
+          shopifyAccessToken = storedToken;
+        } else {
+          // Try to decrypt
+          shopifyAccessToken = decryptSafe(storedToken);
+        }
+      }
 
-      console.log(`🔑 Decrypted token for ${partnership.brand.name}:`, {
-        hasEncrypted: !!encryptedToken,
-        hasDecrypted: !!shopifyAccessToken,
-        decryptedLength: shopifyAccessToken?.length,
+      console.log(`🔑 Token for ${partnership.brand.name}:`, {
+        hasToken: !!storedToken,
+        isPlainText: storedToken?.startsWith('shpat_'),
+        hasProcessedToken: !!shopifyAccessToken,
+        tokenLength: shopifyAccessToken?.length,
       });
 
       if (!shopifyDomain || !shopifyAccessToken) {

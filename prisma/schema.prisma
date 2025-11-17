@@ -370,8 +370,9 @@ model ProductHold {
 
 // Store Credit Transactions
 model StoreCreditTransaction {
-  id        String   @id @default(cuid())
-  storeId   String
+  id                  String   @id @default(cuid())
+  storeId             String
+  brandPartnershipId  String?  // Reference to which brand partnership this credit is for
   
   amount    Decimal  @db.Decimal(10, 2) // Positive for credits, negative for redemptions
   type      String   // 'earned' (setup photo, etc) or 'redeemed' (used in order)
@@ -385,9 +386,11 @@ model StoreCreditTransaction {
   
   createdAt DateTime @default(now())
   
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  store              Store                   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  brandPartnership   StoreBrandPartnership?  @relation(fields: [brandPartnershipId], references: [id], onDelete: Cascade)
   
   @@index([storeId])
+  @@index([brandPartnershipId])
   @@index([createdAt])
   @@map("store_credit_transactions")
 }
@@ -735,6 +738,9 @@ model StoreBrandPartnership {
   
   // Notes/terms
   notes               String?
+  
+  // Relations
+  creditTransactions  StoreCreditTransaction[]
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

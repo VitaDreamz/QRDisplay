@@ -227,6 +227,7 @@ export async function POST(request: NextRequest) {
 
         if (partnership) {
           const creditAmount = (finalDiscountAmount * partnership.promoCommission) / 100;
+          const newBalance = Number(partnership.storeCreditBalance) + creditAmount;
           
           // Update the partnership's store credit balance
           await prisma.storeBrandPartnership.update({
@@ -235,6 +236,18 @@ export async function POST(request: NextRequest) {
               storeCreditBalance: {
                 increment: creditAmount,
               },
+            },
+          });
+
+          // Create transaction record for history
+          await prisma.storeCreditTransaction.create({
+            data: {
+              storeId: store.id,
+              brandPartnershipId: partnership.id,
+              type: 'earned',
+              reason: `${partnership.promoCommission}% Discount Match - Purchase Reimbursement`,
+              amount: creditAmount,
+              balance: newBalance,
             },
           });
 

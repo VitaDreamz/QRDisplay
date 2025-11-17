@@ -165,8 +165,8 @@ export async function POST(req: NextRequest) {
     
     console.log('✅ Display found:', displayId, 'Status:', display.status, 'OrgId:', display.ownerOrgId || display.assignedOrgId);
 
-    // Check if display status is 'sold' or 'inventory'
-    if (display.status !== 'sold' && display.status !== 'inventory') {
+    // Check if display status is 'sold', 'inventory', or already 'active' (allow re-activation)
+    if (display.status !== 'sold' && display.status !== 'inventory' && display.status !== 'active') {
       return NextResponse.json(
         { error: `Display cannot be activated. Current status: ${display.status}` },
         { status: 400 }

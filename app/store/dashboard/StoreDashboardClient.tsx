@@ -5506,30 +5506,30 @@ Thanks for choosing ${orgName}!`;
 
       {/* Wholesale Order Modal */}
       {showWholesaleModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50">
           <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Header */}
-            <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-6 text-white">
+            <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 sm:p-6 text-white">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold">📦 Place Wholesale Order</h2>
+                <h2 className="text-lg sm:text-2xl font-bold">📦 Place Wholesale Order</h2>
                 <button
                   onClick={() => {
                     setShowWholesaleModal(false);
                     setWholesaleCart({});
                     setExpandedWholesaleBrands({});
                   }}
-                  className="text-white/80 hover:text-white text-2xl"
+                  className="text-white/80 hover:text-white text-xl sm:text-2xl"
                 >
                   ✕
                 </button>
               </div>
-              <p className="text-purple-100 text-sm mt-2">
+              <p className="text-purple-100 text-xs sm:text-sm mt-1 sm:mt-2">
                 Select wholesale products from your brand partners
               </p>
             </div>
 
             {/* Body */}
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-6">
               {data.brandPartnerships && data.brandPartnerships.length > 0 ? (
                 <div className="space-y-4">
                   {data.brandPartnerships
@@ -5587,54 +5587,64 @@ Thanks for choosing ${orgName}!`;
 
                           {/* Brand Products - Expandable */}
                           {isExpanded && (
-                            <div className="p-4 bg-white">
-                              <div className="space-y-3">
+                            <div className="p-3 sm:p-4 bg-white">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {brandWholesale.map((product) => {
                                   const quantity = wholesaleCart[product.sku] || 0;
                                   return (
                                     <div
                                       key={product.id}
-                                      className="flex items-center gap-4 p-3 border border-gray-200 rounded-lg hover:border-purple-300 transition-colors"
+                                      className="border border-gray-200 rounded-lg hover:border-purple-300 transition-colors overflow-hidden"
                                     >
+                                      {/* Mobile-first: Image on top */}
                                       {product.imageUrl && (
-                                        <img
-                                          src={product.imageUrl}
-                                          alt={product.name}
-                                          className="w-16 h-16 rounded object-cover"
-                                        />
+                                        <div className="w-full aspect-square bg-gray-100 flex items-center justify-center p-4">
+                                          <img
+                                            src={product.imageUrl}
+                                            alt={product.name}
+                                            className="max-w-full max-h-full object-contain"
+                                          />
+                                        </div>
                                       )}
-                                      <div className="flex-1">
-                                        <h4 className="font-semibold">{product.name}</h4>
-                                        <p className="text-sm text-gray-600">{product.sku}</p>
-                                        <p className="text-lg font-bold text-purple-600 mt-1">
+                                      
+                                      {/* Content below image */}
+                                      <div className="p-3">
+                                        <h4 className="font-semibold text-sm sm:text-base leading-tight">{product.name}</h4>
+                                        <p className="text-xs text-gray-500 mt-1">{product.sku}</p>
+                                        {product.description && (
+                                          <p className="text-xs text-gray-600 mt-1">{product.description}</p>
+                                        )}
+                                        <p className="text-xl font-bold text-purple-600 mt-2">
                                           ${Number(product.price).toFixed(2)}
                                         </p>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        <button
-                                          onClick={() => {
-                                            const newQty = Math.max(0, quantity - 1);
-                                            setWholesaleCart(prev => ({
-                                              ...prev,
-                                              [product.sku]: newQty
-                                            }));
-                                          }}
-                                          className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 font-bold"
-                                        >
-                                          −
-                                        </button>
-                                        <span className="w-12 text-center font-bold">{quantity}</span>
-                                        <button
-                                          onClick={() => {
-                                            setWholesaleCart(prev => ({
-                                              ...prev,
-                                              [product.sku]: quantity + 1
-                                            }));
-                                          }}
-                                          className="w-8 h-8 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-bold"
-                                        >
-                                          +
-                                        </button>
+                                        
+                                        {/* Quantity controls */}
+                                        <div className="flex items-center gap-2 mt-3">
+                                          <button
+                                            onClick={() => {
+                                              const newQty = Math.max(0, quantity - 1);
+                                              setWholesaleCart(prev => ({
+                                                ...prev,
+                                                [product.sku]: newQty
+                                              }));
+                                            }}
+                                            className="flex-1 h-10 rounded-lg bg-gray-200 hover:bg-gray-300 font-bold text-lg"
+                                          >
+                                            −
+                                          </button>
+                                          <span className="w-12 text-center font-bold text-lg">{quantity}</span>
+                                          <button
+                                            onClick={() => {
+                                              setWholesaleCart(prev => ({
+                                                ...prev,
+                                                [product.sku]: quantity + 1
+                                              }));
+                                            }}
+                                            className="flex-1 h-10 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-lg"
+                                          >
+                                            +
+                                          </button>
+                                        </div>
                                       </div>
                                     </div>
                                   );
@@ -5654,24 +5664,24 @@ Thanks for choosing ${orgName}!`;
             </div>
 
             {/* Footer */}
-            <div className="border-t border-gray-200 p-6 bg-gray-50">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-lg font-semibold">Total Order Value:</span>
-                <span className="text-2xl font-bold text-purple-600">
+            <div className="border-t border-gray-200 p-3 sm:p-6 bg-gray-50">
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
+                <span className="text-sm sm:text-lg font-semibold">Total Order Value:</span>
+                <span className="text-xl sm:text-2xl font-bold text-purple-600">
                   ${Object.entries(wholesaleCart).reduce((sum, [sku, qty]) => {
                     const product = products.find(p => p.sku === sku);
                     return sum + (qty * Number(product?.price || 0));
                   }, 0).toFixed(2)}
                 </span>
               </div>
-              <div className="flex gap-3">
+              <div className="flex gap-2 sm:gap-3">
                 <button
                   onClick={() => {
                     setShowWholesaleModal(false);
                     setWholesaleCart({});
                     setExpandedWholesaleBrands({});
                   }}
-                  className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+                  className="flex-1 px-3 sm:px-6 py-2 sm:py-3 bg-gray-200 text-gray-700 rounded-lg text-sm sm:text-base font-semibold hover:bg-gray-300 transition-colors"
                 >
                   Cancel
                 </button>
@@ -5726,18 +5736,22 @@ Thanks for choosing ${orgName}!`;
                     }
                   }}
                   disabled={Object.values(wholesaleCart).every(qty => qty === 0) || isSubmittingWholesale}
-                  className="flex-1 px-6 py-3 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 px-3 sm:px-6 py-2 sm:py-3 bg-purple-600 text-white rounded-lg text-sm sm:text-base font-semibold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                 >
                   {isSubmittingWholesale ? (
                     <>
-                      <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <svg className="animate-spin h-4 w-4 sm:h-5 sm:w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Submitting Order...
+                      <span className="hidden sm:inline">Submitting Order...</span>
+                      <span className="sm:hidden">Submitting...</span>
                     </>
                   ) : (
-                    'Send Purchase Order'
+                    <>
+                      <span className="hidden sm:inline">Send Purchase Order</span>
+                      <span className="sm:hidden">Send PO</span>
+                    </>
                   )}
                 </button>
               </div>

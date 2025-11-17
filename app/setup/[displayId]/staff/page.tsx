@@ -19,6 +19,7 @@ interface StaffMember {
   onCallDays: string[];
   onCallHoursStart: string | null;
   onCallHoursStop: string | null;
+  verifiedAt: string | null;
 }
 
 export default function AddStaffPage({ params }: { params: Promise<{ displayId: string }> }) {
@@ -480,6 +481,7 @@ export default function AddStaffPage({ params }: { params: Promise<{ displayId: 
             </button>
           </div>
         )}
+        </div>
       </div>
     </WizardLayout>
   );

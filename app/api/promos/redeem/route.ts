@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
           status: 'pending'
         },
         orderBy: {
-          requestedAt: 'desc'
+          createdAt: 'desc'
         }
       });
       

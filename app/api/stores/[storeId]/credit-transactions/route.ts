@@ -27,27 +27,82 @@ export async function GET(
       where: {
         storeId: store.id
       },
-      // TODO: Re-enable brandPartnership include once column exists in production
-      // include: {
-      //   brandPartnership: {
-      //     include: {
-      //       brand: true
-      //     }
-      //   }
-      // },
+      include: {
+        brandPartnership: {
+          include: {
+            brand: {
+              select: {
+                name: true,
+                orgId: true
+              }
+            }
+          }
+        }
+      },
       orderBy: {
         createdAt: 'desc'
       }
     });
 
-    // Convert Decimal types to numbers for JSON serialization
-    const serializedTransactions = transactions.map(txn => ({
-      ...txn,
-      amount: Number(txn.amount),
-      balance: Number(txn.balance)
-    }));
+    // Now we need to add customer and staff info to each transaction
+    // Parse the reason field to extract customer/staff IDs
+    const enrichedTransactions = await Promise.all(
+      transactions.map(async (txn) => {
+        let customerName = null;
+        let staffName = null;
+        
+        // Try to find PromoRedemption that created this transaction
+        // Look for recent redemptions around the transaction time
+        const promoRedemption = await prisma.promoRedemption.findFirst({
+          where: {
+            storeId: store.id,
+            redeemedAt: {
+              gte: new Date(txn.createdAt.getTime() - 5000), // Within 5 seconds
+              lte: new Date(txn.createdAt.getTime() + 5000)
+            }
+          },
+          include: {
+            customer: {
+              select: {
+                memberId: true,
+                firstName: true,
+                lastName: true
+              }
+            },
+            redeemedByStaff: {
+              select: {
+                staffId: true,
+                firstName: true,
+                lastName: true
+              }
+            }
+          },
+          orderBy: {
+            redeemedAt: 'desc'
+          }
+        });
+        
+        if (promoRedemption) {
+          if (promoRedemption.customer) {
+            customerName = `${promoRedemption.customer.firstName} ${promoRedemption.customer.lastName} (${promoRedemption.customer.memberId})`;
+          }
+          if (promoRedemption.redeemedByStaff) {
+            staffName = `${promoRedemption.redeemedByStaff.firstName} ${promoRedemption.redeemedByStaff.lastName} (${promoRedemption.redeemedByStaff.staffId})`;
+          }
+        }
+        
+        return {
+          ...txn,
+          amount: Number(txn.amount),
+          balance: Number(txn.balance),
+          customerName,
+          staffName,
+          brandName: txn.brandPartnership?.brand?.name || 'Unknown Brand'
+        };
+      })
+    );
 
-    return NextResponse.json({ transactions: serializedTransactions });
+    return NextResponse.json({ transactions: enrichedTransactions });
   } catch (error) {
     console.error('Error fetching credit transactions:', error);
     return NextResponse.json(

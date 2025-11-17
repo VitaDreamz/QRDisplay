@@ -262,7 +262,7 @@ export async function POST(request: NextRequest) {
           await prisma.storeCreditTransaction.create({
             data: {
               storeId: store.id,
-              // brandPartnershipId: partnership.id, // TODO: Re-enable once Prisma types update in production
+              brandPartnershipId: partnership.id,
               type: 'earned',
               reason: `${partnership.promoCommission}% Discount Match - Purchase Reimbursement`,
               amount: creditAmount,

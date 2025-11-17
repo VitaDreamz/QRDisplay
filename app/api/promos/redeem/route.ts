@@ -172,8 +172,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 7.5. Track staff sales and award points (for direct purchases with staff)
-    if (isDirect && staffMember && finalPurchaseAmount && finalPurchaseAmount > 0) {
+    // 7.5. Track staff sales and award points (for ALL sales with staff member)
+    if (staffMember && finalPurchaseAmount && finalPurchaseAmount > 0) {
       try {
         await prisma.staff.update({
           where: { id: staffMember.id },
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
           }
         });
         
-        console.log(`💰 Processing points for $${finalPurchaseAmount} sale by staff ${staffMember.staffId}`);
+        console.log(`💰 Processing points for $${finalPurchaseAmount} sale by staff ${staffMember.staffId} (${isDirect ? 'direct purchase' : 'promo redemption'})`);
         
         // Get the brand org to use correct orgId for points
         const brandOrg = await prisma.organization.findUnique({

@@ -563,26 +563,12 @@ export async function addStoreCredit(
     const currentBalance = store.storeCredit || 0;
     const newBalance = Number(currentBalance) + amount;
 
-    // Create transaction record and update store balance in a transaction
+    // Update store balance
     // TODO: This is old single-brand system - migrate to multibrand StoreBrandPartnership
-    const [transaction] = await prisma.$transaction([
-      // Temporarily disabled until brandPartnershipId column exists in production
-      // prisma.storeCreditTransaction.create({
-      //   data: {
-      //     storeId: store.id,
-      //     amount,
-      //     type: 'earned',
-      //     reason,
-      //     displayId,
-      //     balance: newBalance,
-      //   },
-      // }),
-      Promise.resolve({ id: 'temp' }), // Placeholder
-      prisma.store.update({
-        where: { id: store.id },
-        data: { storeCredit: newBalance },
-      }),
-    ]);
+    await prisma.store.update({
+      where: { id: store.id },
+      data: { storeCredit: newBalance },
+    });
 
     console.log(`✅ Successfully added $${amount} credit to store ${storeId}. New balance: $${newBalance.toFixed(2)}`);
     
@@ -591,7 +577,6 @@ export async function addStoreCredit(
       previousBalance: Number(currentBalance),
       amountAdded: amount,
       newBalance,
-      transaction,
     };
   } catch (error) {
     console.error('Error adding store credit:', error);

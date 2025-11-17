@@ -9,6 +9,8 @@ export async function POST(request: NextRequest) {
   try {
     const { slug, pin, purchaseAmount, discountAmount, productSku, finalPrice, discountPercent } = await request.json();
 
+    console.log(`🔍 Promo redeem request:`, { slug, pin: '****', purchaseAmount, discountAmount, productSku, finalPrice, discountPercent });
+
     if (!slug || !pin) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
@@ -89,9 +91,26 @@ export async function POST(request: NextRequest) {
 
     // 6. Create or Update PromoRedemption record
     const finalPurchaseAmount = isDirect ? parseFloat(finalPrice.toString()) : (purchaseAmount ? parseFloat(purchaseAmount) : null);
-    const finalDiscountAmount = isDirect 
-      ? (parseFloat(finalPrice.toString()) / (1 - discountPercent / 100)) * (discountPercent / 100)
-      : (discountAmount ? parseFloat(discountAmount) : null);
+    
+    // Calculate discount amount if not provided
+    let finalDiscountAmount: number | null = null;
+    if (isDirect) {
+      // Direct purchase: calculate from finalPrice and discountPercent
+      finalDiscountAmount = (parseFloat(finalPrice.toString()) / (1 - discountPercent / 100)) * (discountPercent / 100);
+    } else if (discountAmount) {
+      // Regular promo: use provided discountAmount
+      finalDiscountAmount = parseFloat(discountAmount);
+    } else if (purchaseAmount && store.promoOffer) {
+      // Regular promo: calculate from purchaseAmount and store's promoOffer
+      const discountMatch = store.promoOffer.match(/(\d+)%/);
+      const discountPercentFromOffer = discountMatch ? parseInt(discountMatch[1]) : 20;
+      // purchaseAmount is the final price after discount
+      // originalPrice = purchaseAmount / (1 - discountPercent / 100)
+      // discountAmount = originalPrice - purchaseAmount
+      const originalPrice = purchaseAmount / (1 - discountPercentFromOffer / 100);
+      finalDiscountAmount = originalPrice - purchaseAmount;
+      console.log(`💰 Calculated discount: $${finalDiscountAmount.toFixed(2)} (${discountPercentFromOffer}% of $${originalPrice.toFixed(2)})`);
+    }
     
     // For direct purchases, the PromoRedemption already exists - just update it
     if (isDirect) {

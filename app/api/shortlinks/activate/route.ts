@@ -165,7 +165,6 @@ export async function POST(req: NextRequest) {
               productSku: sampleSku,
               type: 'sample',
               quantity: -1,
-              balanceBefore: inventoryItem.quantityOnHand,
               balanceAfter: inventoryItem.quantityOnHand - 1,
             },
           });

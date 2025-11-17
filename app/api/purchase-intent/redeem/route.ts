@@ -196,7 +196,6 @@ export async function POST(request: NextRequest) {
             productSku: intent.productSku,
             type: 'sale',
             quantity: -1,
-            balanceBefore: inventoryItem.quantityOnHand,
             balanceAfter: inventoryItem.quantityOnHand - 1,
           },
         });

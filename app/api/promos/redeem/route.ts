@@ -261,7 +261,7 @@ export async function POST(request: NextRequest) {
           customerName: `${customer.firstName} ${customer.lastName}`,
           purchaseIntentId: '', // Promo redemptions don't need purchase intent
         });
-        console.log(`✅ In-store points awarded: ${Math.floor(finalPurchaseAmount * 10)} points (10x)`);
+        console.log(`✅ In-store points awarded: ${Math.floor(finalPurchaseAmountToUse * 10)} points (10x)`);
       } catch (pointsErr) {
         console.error('❌ Failed to award staff points:', pointsErr);
         // Continue anyway

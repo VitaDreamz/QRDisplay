@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { addCustomerTimelineEvent, updateCustomerStage, addStoreCredit } from '@/lib/shopify';
 import { generateSlug } from '@/lib/slugs';
+import { awardInStoreSalePoints } from '@/lib/staff-points';
 
 export async function POST(request: NextRequest) {
   try {
@@ -122,36 +123,91 @@ export async function POST(request: NextRequest) {
     // Award staff points for the sale - 10x points per dollar
     if (staff) {
       try {
-        const pointsEarned = Math.floor(Number(intent.finalPrice) * 10);
+        const customer = await prisma.customer.findUnique({ 
+          where: { id: intent.customerId }, 
+          select: { orgId: true, firstName: true, lastName: true } 
+        });
         
-        if (pointsEarned > 0) {
-          const customer = await prisma.customer.findUnique({ 
-            where: { id: intent.customerId }, 
-            select: { orgId: true } 
+        if (customer) {
+          // Get the brand org to use correct orgId for points
+          const brandOrg = await prisma.organization.findUnique({
+            where: { id: customer.orgId },
+            select: { orgId: true, name: true }
           });
           
-          const currentQuarter = `${new Date().getFullYear()}-Q${Math.ceil((new Date().getMonth() + 1) / 3)}`;
-          
-          await prisma.staffPointTransaction.create({
-            data: {
+          if (brandOrg) {
+            // Update sales count
+            await prisma.staff.update({
+              where: { id: staff.id },
+              data: {
+                salesGenerated: { increment: 1 }
+              }
+            });
+            
+            await awardInStoreSalePoints({
               staffId: staff.id,
               storeId: intent.storeId,
-              orgId: customer?.orgId || '',
-              type: 'instore_sale',
-              points: pointsEarned,
-              reason: `Direct purchase: ${intent.productSku}`,
+              orgId: brandOrg.orgId,
+              saleAmount: Number(intent.finalPrice),
               customerId: intent.customerId,
+              customerName: `${customer.firstName} ${customer.lastName}`,
               purchaseIntentId: intent.id,
-              quarter: currentQuarter,
-            },
-          });
-          
-          console.log(`🎯 Awarded ${pointsEarned} points to staff ${staff.id} for direct purchase`);
+            });
+            
+            console.log(`🎯 Awarded ${Math.floor(Number(intent.finalPrice) * 10)} points to staff ${staff.id} for direct purchase`);
+          }
         }
       } catch (pointsErr) {
         console.error('❌ Failed to award staff points:', pointsErr);
         // Continue anyway
       }
+    }
+
+    // Decrement inventory
+    try {
+      const inventoryItem = await prisma.storeInventory.findUnique({
+        where: {
+          storeId_productSku: {
+            storeId: intent.storeId,
+            productSku: intent.productSku,
+          },
+        },
+      });
+
+      if (inventoryItem && inventoryItem.quantityOnHand > 0) {
+        await prisma.storeInventory.update({
+          where: {
+            storeId_productSku: {
+              storeId: intent.storeId,
+              productSku: intent.productSku,
+            },
+          },
+          data: {
+            quantityOnHand: {
+              decrement: 1,
+            },
+          },
+        });
+
+        // Create inventory transaction
+        await prisma.inventoryTransaction.create({
+          data: {
+            storeId: intent.storeId,
+            productSku: intent.productSku,
+            type: 'sale',
+            quantity: -1,
+            balanceBefore: inventoryItem.quantityOnHand,
+            balanceAfter: inventoryItem.quantityOnHand - 1,
+          },
+        });
+
+        console.log(`📦 Inventory decremented for ${intent.productSku}: ${inventoryItem.quantityOnHand} -> ${inventoryItem.quantityOnHand - 1}`);
+      } else {
+        console.warn(`⚠️  No inventory or out of stock for ${intent.productSku}`);
+      }
+    } catch (invErr) {
+      console.error('❌ Inventory update failed:', invErr);
+      // Continue anyway - don't fail the redemption
     }
 
     // Award store credit to the brand partnership

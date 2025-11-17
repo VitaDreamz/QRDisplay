@@ -128,6 +128,58 @@ export async function POST(req: NextRequest) {
       data: { usedAt: new Date(), redeemed: true, redeemedAt: new Date() },
     });
 
+    // Decrement sample inventory if tracked
+    if (customer.sampleChoice) {
+      try {
+        // Find the sample product SKU based on the sample name
+        const sampleSku = `${customer.sampleChoice}-sample`;
+        
+        const inventoryItem = await prisma.storeInventory.findUnique({
+          where: {
+            storeId_productSku: {
+              storeId: store.id,
+              productSku: sampleSku,
+            },
+          },
+        });
+
+        if (inventoryItem && inventoryItem.quantityOnHand > 0) {
+          await prisma.storeInventory.update({
+            where: {
+              storeId_productSku: {
+                storeId: store.id,
+                productSku: sampleSku,
+              },
+            },
+            data: {
+              quantityOnHand: {
+                decrement: 1,
+              },
+            },
+          });
+
+          // Create inventory transaction
+          await prisma.inventoryTransaction.create({
+            data: {
+              storeId: store.id,
+              productSku: sampleSku,
+              type: 'sample',
+              quantity: -1,
+              balanceBefore: inventoryItem.quantityOnHand,
+              balanceAfter: inventoryItem.quantityOnHand - 1,
+            },
+          });
+
+          console.log(`📦 Sample inventory decremented for ${sampleSku}: ${inventoryItem.quantityOnHand} -> ${inventoryItem.quantityOnHand - 1}`);
+        } else {
+          console.warn(`⚠️  No sample inventory tracked for ${sampleSku}`);
+        }
+      } catch (invErr) {
+        console.error('❌ Sample inventory update failed:', invErr);
+        // Continue anyway - don't fail the activation
+      }
+    }
+
     // Send IMMEDIATE customer SMS with activation link (/a/[slug])
     try {
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';

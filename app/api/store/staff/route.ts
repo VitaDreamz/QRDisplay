@@ -54,7 +54,8 @@ export async function GET(request: NextRequest) {
     // Calculate total sales $ for each staff member
     const staffWithSales = await Promise.all(
       staff.map(async (member) => {
-        const sales = await prisma.purchaseIntent.aggregate({
+        // Get sales from fulfilled PurchaseIntents (direct purchases)
+        const purchaseIntentSales = await prisma.purchaseIntent.aggregate({
           where: {
             fulfilledByStaffId: member.id,
             status: 'fulfilled'
@@ -64,9 +65,24 @@ export async function GET(request: NextRequest) {
           }
         });
 
+        // Get sales from PromoRedemptions (regular promo redemptions after sampling)
+        const promoRedemptionSales = await prisma.promoRedemption.aggregate({
+          where: {
+            redeemedByStaffId: member.id,
+            redeemedAt: { not: null }
+          },
+          _sum: {
+            purchaseAmount: true
+          }
+        });
+
+        const totalSales = 
+          Number(purchaseIntentSales._sum.finalPrice || 0) + 
+          Number(promoRedemptionSales._sum.purchaseAmount || 0);
+
         return {
           ...member,
-          totalSales: Number(sales._sum.finalPrice || 0),
+          totalSales,
           totalPoints: member.totalPoints || 0,
           quarterlyPoints: member.quarterlyPoints || 0
         };

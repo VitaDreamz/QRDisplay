@@ -63,7 +63,7 @@ export async function GET(
           const samples = await prisma.product.findMany({
             where: {
               sku: { in: partnership.availableSamples },
-              orgId: brand.id,
+              orgId: brand.orgId,
               active: true,
             },
           });
@@ -101,7 +101,7 @@ export async function GET(
           const products = await prisma.product.findMany({
             where: {
               sku: { in: partnership.availableProducts },
-              orgId: brand.id,
+              orgId: brand.orgId,
               active: true,
             },
           });

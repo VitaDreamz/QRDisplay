@@ -329,11 +329,28 @@ async function handleOrderPaid(orgId: string, order: ShopifyOrder, topic: string
     console.log(`   Store: ${customer.store?.storeName} (${customer.store?.storeId})`);
     console.log(`   Days to conversion: ${daysToConversion}`);
 
-    // Apply store credit to the store
+    // Get the brand from customer's most recent sample
+    // This determines which brand partnership gets credited
+    const recentSample = await prisma.sampleHistory.findFirst({
+      where: { customerId: customer.id },
+      orderBy: { sampledAt: 'desc' },
+      select: { brandId: true },
+    });
+
+    if (!recentSample) {
+      console.log(`⚠️  No sample history found for customer ${customer.memberId} - cannot attribute to brand`);
+      await logWebhook(orgId, customer.id, topic, order, 'success', 'No sample history for brand attribution');
+      return;
+    }
+
+    const brandId = recentSample.brandId;
+    console.log(`🎯 Attributing to brand: ${brandId}`);
+
+    // Apply store credit to the brand partnership
     const storeId = customer.attributedStoreId || customer.storeId;
     if (storeId) {
       try {
-        await applyStoreCredit(storeId, commissionAmount, conversion.id, customer.store?.storeName || 'Store');
+        await applyStoreCredit(storeId, brandId, commissionAmount, conversion.id, customer.store?.storeName || 'Store');
         
         // Mark conversion as paid
         await prisma.conversion.update({
@@ -403,47 +420,71 @@ async function handleOrderPaid(orgId: string, order: ShopifyOrder, topic: string
  */
 async function applyStoreCredit(
   storeIdString: string,
+  brandId: string,
   amount: number,
   conversionId: string,
   storeName: string
 ) {
-  console.log(`💳 Applying store credit: $${amount.toFixed(2)} to ${storeIdString}`);
+  console.log(`💳 Applying store credit: $${amount.toFixed(2)} to ${storeIdString} for brand ${brandId}`);
   
-  // Get store by storeId (string like "SID-021") to get the numeric id
+  // Get store by storeId (string like "SID-021")
   const store = await prisma.store.findUnique({
     where: { storeId: storeIdString },
-    select: { id: true, storeCredit: true },
+    select: { id: true },
   });
 
   if (!store) {
     throw new Error(`Store not found: ${storeIdString}`);
   }
 
-  const previousBalance = Number(store.storeCredit);
+  // Find the brand partnership between this store and brand
+  const partnership = await prisma.storeBrandPartnership.findUnique({
+    where: {
+      storeId_brandId: {
+        storeId: store.id,
+        brandId: brandId,
+      }
+    },
+    select: { 
+      id: true, 
+      storeCreditBalance: true,
+      brand: {
+        select: { name: true }
+      }
+    },
+  });
+
+  if (!partnership) {
+    throw new Error(`Brand partnership not found between store ${storeIdString} and brand ${brandId}`);
+  }
+
+  const previousBalance = Number(partnership.storeCreditBalance);
   const newBalance = previousBalance + amount;
 
+  console.log(`   Brand: ${partnership.brand.name}`);
   console.log(`   Previous balance: $${previousBalance.toFixed(2)}`);
   console.log(`   Commission earned: $${amount.toFixed(2)}`);
   console.log(`   New balance: $${newBalance.toFixed(2)}`);
 
-  // Update store credit balance
-  await prisma.store.update({
-    where: { id: store.id },
-    data: { storeCredit: newBalance },
+  // Update partnership credit balance
+  await prisma.storeBrandPartnership.update({
+    where: { id: partnership.id },
+    data: { storeCreditBalance: newBalance },
   });
 
-  // Create credit transaction record with numeric store.id
+  // Create credit transaction record linked to the brand partnership
   await prisma.storeCreditTransaction.create({
     data: {
-      storeId: store.id, // Use numeric id for foreign key
+      storeId: store.id,
+      brandPartnershipId: partnership.id,
       amount,
-      type: 'earned', // Use 'earned' not 'commission'
+      type: 'earned',
       reason: `Commission from Online Order #${conversionId}`,
       balance: newBalance,
     },
   });
 
-  console.log(`✅ Store credit transaction created for ${storeName}`);
+  console.log(`✅ Store credit transaction created for ${storeName} with ${partnership.brand.name}`);
 }
 
 /**

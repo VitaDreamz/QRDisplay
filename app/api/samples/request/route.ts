@@ -258,14 +258,28 @@ export async function POST(req: NextRequest) {
         body: customerMsg,
       });
 
-      // Store alert SMS (if store has admin phone)
+      // Store alert SMS - notify admin (always) and on-call staff
+      const storeMsg = `${display.organization?.name || 'VitaDreamz'} Sample Request: ${sampleLabel} for ${first} ${last}. ${customer.memberId}. Have them enter a STAFF PIN via the link on their phone to verify and give them the sample.`;
+      
+      // Always notify store admin if phone exists
       if (display.store.adminPhone) {
-  const storeMsg = `${display.organization?.name || 'VitaDreamz'} Sample Request: ${sampleLabel} for ${first} ${last}. ${customer.memberId}. Have them enter a STAFF PIN via the link on their phone to verify and give them the sample.`;
         await client.messages.create({
           to: display.store.adminPhone,
           from: process.env.TWILIO_PHONE_NUMBER,
           body: storeMsg,
         });
+      }
+      
+      // Also notify all on-call staff members
+      try {
+        const { notifyOnCallStaff } = await import('@/lib/staff-notifications');
+        await notifyOnCallStaff({
+          storeId: display.store.storeId,
+          message: storeMsg,
+        });
+      } catch (staffErr) {
+        console.warn('⚠️ Failed to notify on-call staff:', staffErr);
+        // Don't fail the request if staff notifications fail
       }
     } catch (smsErr) {
       console.error('❌ SMS send failed:', smsErr);

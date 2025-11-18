@@ -1148,27 +1148,23 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-blue-900 pb-20 md:pb-0">
       {/* Header */}
-      <div className="bg-white/10 backdrop-blur-sm border-b border-white/20 px-4 md:px-6 py-2 md:py-5">
+      <div className="bg-white/10 backdrop-blur-sm border-b border-white/20 px-4 md:px-6 py-2 md:py-3">
         <div className="flex flex-col items-center text-center">
-          <h1 className="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-200 via-purple-200 to-blue-200 mb-1.5">
+          <h1 className="text-xl md:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-200 via-purple-200 to-blue-200">
             {data.store.storeName}
           </h1>
-          {data.organization?.name && (
-            <div className="flex flex-col items-center">
-              <p className="text-sm md:text-base font-semibold text-white">
-                {data.organization.name} Samples Dashboard
-              </p>
-              <p className="text-[10px] text-pink-200 mt-0.5">
-                powered by QRDisplay
-              </p>
-            </div>
-          )}
+          <p className="text-xs md:text-sm font-medium text-white/80 mt-0.5">
+            Automated Promotions Dashboard
+          </p>
+          <p className="text-[9px] text-pink-100/40 mt-0.5 font-light tracking-wide">
+            powered by QRDisplay
+          </p>
         </div>
       </div>
 
-      {/* Stats Cards - Hidden on Settings/Customers/Products tabs (mobile), Hidden on Settings only (desktop) */}
+      {/* Stats Cards - Mobile: Home tab only, Desktop: All tabs except Settings */}
       {activeTab !== 'settings' && (
-        <div className={`px-4 md:px-6 py-2 md:py-3 ${(activeTab === 'customers' || activeTab === 'products') ? 'hidden md:block' : ''}`}>
+        <div className={`px-4 md:px-6 py-2 md:py-3 ${activeTab !== 'home' ? 'hidden md:block' : ''}`}>
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2 md:gap-4">
             <div className="bg-white rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition">
               <div className="text-xs text-gray-600 font-medium">Samples Requested</div>

@@ -162,9 +162,10 @@ export async function POST(request: NextRequest) {
 
     // Fire notifications (best-effort, non-blocking)
     try {
-      // Store admin SMS (not customer-facing, no opt-out needed)
+      // Store notifications - notify admin (always) and on-call staff
+      const storeMsg = `Purchase Request at ${store.storeName}: ${org?.name || 'VitaDreamz'} - ${product.name}\nPrice: $${parseFloat(finalPrice).toFixed(2)} (${discountPercent}% off $${parseFloat(originalPrice).toFixed(2)} MSRP)\n\nCheck stock & mark ready at qrdisplay.com/store/login/${store.storeId} in your dashboard.`;
+      
       if (
-        store.adminPhone &&
         process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER
       ) {
         try {
@@ -173,12 +174,27 @@ export async function POST(request: NextRequest) {
             process.env.TWILIO_ACCOUNT_SID,
             process.env.TWILIO_AUTH_TOKEN
           );
-          const sms = `Purchase Request at ${store.storeName}: ${org?.name || 'VitaDreamz'} - ${product.name}\nPrice: $${parseFloat(finalPrice).toFixed(2)} (${discountPercent}% off $${parseFloat(originalPrice).toFixed(2)} MSRP)\n\nCheck stock & mark ready at qrdisplay.com/store/login/${store.storeId} in your dashboard.`;
-          await client.messages.create({
-            to: store.adminPhone,
-            from: process.env.TWILIO_PHONE_NUMBER,
-            body: sms
-          });
+          
+          // Always notify store admin if phone exists
+          if (store.adminPhone) {
+            await client.messages.create({
+              to: store.adminPhone,
+              from: process.env.TWILIO_PHONE_NUMBER,
+              body: storeMsg
+            });
+          }
+          
+          // Also notify all on-call staff members
+          try {
+            const { notifyOnCallStaff } = await import('@/lib/staff-notifications');
+            await notifyOnCallStaff({
+              storeId: store.storeId,
+              message: storeMsg,
+            });
+          } catch (staffErr) {
+            console.warn('⚠️ Failed to notify on-call staff:', staffErr);
+            // Don't fail the request if staff notifications fail
+          }
         } catch (smsErr) {
           console.warn('Store admin SMS failed:', smsErr);
         }

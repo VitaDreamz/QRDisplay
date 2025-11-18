@@ -33,16 +33,10 @@ type DashboardData = {
 };
 
 export function DashboardClient({ data }: { data: DashboardData }) {
-  const [activeTab, setActiveTab] = useState<'displays' | 'stores' | 'customers' | 'brands' | 'inventory' | 'settings'>('displays');
+  const [activeTab, setActiveTab] = useState<'displays' | 'stores' | 'customers' | 'brands' | 'settings'>('displays');
   const [searchQuery, setSearchQuery] = useState('');
-  const [displayFilters, setDisplayFilters] = useState({ status: 'all', brand: 'all' });
   const [storeFilters, setStoreFilters] = useState({ status: 'all', brand: 'all' });
   const [customerFilters, setCustomerFilters] = useState({ status: 'all', store: 'all', date: 'all' });
-  const [editingDisplay, setEditingDisplay] = useState<any | null>(null);
-  const [savingDisplay, setSavingDisplay] = useState(false);
-  const [displayForm, setDisplayForm] = useState<{ status: string; assignedOrgId: string | '' }>({ status: 'inventory', assignedOrgId: '' });
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [resetting, setResetting] = useState(false);
   
   // Store management states
   const [editingStore, setEditingStore] = useState<any | null>(null);
@@ -57,13 +51,14 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     const [storeSortField, setStoreSortField] = useState<'storeId' | 'storeName' | 'city' | 'state' | 'displayId' | 'samples' | 'sales'>('storeId');
     const [storeSortDirection, setStoreSortDirection] = useState<'asc' | 'desc'>('asc');
 
-  // Displays sorting state
-  const [displaySortField, setDisplaySortField] = useState<'displayId' | 'status' | 'brand' | 'store' | 'activatedAt'>('displayId');
-  const [displaySortDirection, setDisplaySortDirection] = useState<'asc' | 'desc'>('asc');
-
   // Database reset states
   const [showResetDatabaseConfirm, setShowResetDatabaseConfirm] = useState(false);
   const [resettingDatabase, setResettingDatabase] = useState(false);
+
+  // Demo reset states
+  const [showDemoResetConfirm, setShowDemoResetConfirm] = useState(false);
+  const [demoResetStore, setDemoResetStore] = useState<any | null>(null);
+  const [resettingDemo, setResettingDemo] = useState(false);
 
   // Format relative time
   const formatRelativeTime = (date: Date) => {
@@ -78,59 +73,6 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
     if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
     return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
-
-  const openDisplayEdit = (d: any) => {
-    setEditingDisplay(d);
-    setDisplayForm({ status: d.status, assignedOrgId: d.assignedOrgId || '' });
-  };
-
-  const saveDisplayEdit = async () => {
-    if (!editingDisplay) return;
-    setSavingDisplay(true);
-    try {
-      const res = await fetch(`/api/admin/displays/${editingDisplay.displayId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status: displayForm.status,
-          assignedOrgId: displayForm.assignedOrgId || null,
-        })
-      });
-      const data = await res.json();
-      if (!res.ok || !data?.success) {
-        throw new Error(data?.error || 'Failed to update display');
-      }
-      window.location.reload();
-    } catch (e) {
-      console.error(e);
-      alert('Update failed');
-    } finally {
-      setSavingDisplay(false);
-    }
-  };
-
-  const resetDisplayActivation = async () => {
-    if (!editingDisplay) return;
-    setResetting(true);
-    try {
-      const res = await fetch(`/api/admin/displays/${editingDisplay.displayId}/reset`, {
-        method: 'POST',
-      });
-      const data = await res.json();
-      if (!res.ok || !data?.success) {
-        throw new Error(data?.error || 'Failed to reset display');
-      }
-      alert(`${editingDisplay.displayId} reset successfully`);
-      setShowResetConfirm(false);
-      setEditingDisplay(null);
-      window.location.reload();
-    } catch (e: any) {
-      console.error(e);
-      alert(e.message || 'Reset failed');
-    } finally {
-      setResetting(false);
-    }
   };
 
   // Store management functions
@@ -227,50 +169,26 @@ export function DashboardClient({ data }: { data: DashboardData }) {
     }
   };
 
-  // Filter displays
-  const filteredDisplays = data.displays.filter(d => {
-    if (displayFilters.status !== 'all' && d.status !== displayFilters.status) return false;
-    if (displayFilters.brand !== 'all' && d.organization?.orgId !== displayFilters.brand) return false;
-    if (searchQuery && !d.displayId.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-    return true;
-  }).sort((a, b) => {
-    let aVal: any;
-    let bVal: any;
-    switch (displaySortField) {
-      case 'displayId':
-        aVal = a.displayId;
-        bVal = b.displayId;
-        break;
-      case 'status':
-        aVal = a.status;
-        bVal = b.status;
-        break;
-      case 'brand':
-        aVal = a.organization?.name?.toLowerCase() || '';
-        bVal = b.organization?.name?.toLowerCase() || '';
-        break;
-      case 'store':
-        aVal = a.store?.storeName?.toLowerCase() || '';
-        bVal = b.store?.storeName?.toLowerCase() || '';
-        break;
-      case 'activatedAt':
-        aVal = a.activatedAt ? new Date(a.activatedAt).getTime() : 0;
-        bVal = b.activatedAt ? new Date(b.activatedAt).getTime() : 0;
-        break;
-      default:
-        return 0;
-    }
-    if (aVal < bVal) return displaySortDirection === 'asc' ? -1 : 1;
-    if (aVal > bVal) return displaySortDirection === 'asc' ? 1 : -1;
-    return 0;
-  });
-
-  const handleDisplaySort = (field: typeof displaySortField) => {
-    if (displaySortField === field) {
-      setDisplaySortDirection(displaySortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setDisplaySortField(field);
-      setDisplaySortDirection('asc');
+  const demoResetStoreData = async () => {
+    if (!demoResetStore) return;
+    setResettingDemo(true);
+    try {
+      const res = await fetch(`/api/admin/stores/${demoResetStore.storeId}/demo-reset`, {
+        method: 'POST',
+      });
+      const result = await res.json();
+      if (!res.ok || !result?.success) {
+        throw new Error(result?.error || 'Failed to reset store');
+      }
+      alert(`Demo reset complete for ${result.store.storeName}!\n\nDeleted:\n- ${result.deleted.customers} customers\n- ${result.deleted.staff} non-admin staff\n- ${result.deleted.promoRedemptions} promo redemptions\n- ${result.deleted.purchaseIntents} purchase intents\n\nStore setup preserved ✅`);
+      setShowDemoResetConfirm(false);
+      setDemoResetStore(null);
+      window.location.reload();
+    } catch (e: any) {
+      console.error(e);
+      alert(e.message || 'Demo reset failed');
+    } finally {
+      setResettingDemo(false);
     }
   };
 
@@ -319,8 +237,8 @@ export function DashboardClient({ data }: { data: DashboardData }) {
           bVal = b._count?.customers || 0;
           break;
         case 'sales':
-          aVal = data.customers.filter(c => c.storeId === a.storeId && c.promoRedeemed).length;
-          bVal = data.customers.filter(c => c.storeId === b.storeId && c.promoRedeemed).length;
+          aVal = data.promoRedemptions.filter((pr: any) => pr.store?.storeId === a.storeId && pr.redeemedAt !== null).length;
+          bVal = data.promoRedemptions.filter((pr: any) => pr.store?.storeId === b.storeId && pr.redeemedAt !== null).length;
           break;
         default:
           return 0;
@@ -551,16 +469,6 @@ export function DashboardClient({ data }: { data: DashboardData }) {
             🏷️ Brands
           </button>
           <button
-            onClick={() => setActiveTab('inventory')}
-            className={`px-6 py-3 text-base font-medium transition-colors ${
-              activeTab === 'inventory'
-                ? 'text-purple-600 border-b-2 border-purple-600'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            🏭 Inventory
-          </button>
-          <button
             onClick={() => setActiveTab('settings')}
             className={`px-6 py-3 text-base font-medium transition-colors ${
               activeTab === 'settings'
@@ -575,151 +483,6 @@ export function DashboardClient({ data }: { data: DashboardData }) {
 
       {/* Tab Content */}
       <div className="px-4 md:px-6 py-6">
-        {/* Displays Tab */}
-        {activeTab === 'displays' && (
-          <div>
-            {/* Filters */}
-            <div className="bg-white rounded-lg p-4 mb-4 space-y-3 md:flex md:space-y-0 md:space-x-4">
-              <select
-                value={displayFilters.status}
-                onChange={(e) => setDisplayFilters({ ...displayFilters, status: e.target.value })}
-                className="w-full md:w-auto h-11 px-4 border-2 border-gray-300 rounded-lg text-base focus:border-purple-600 focus:ring-2 focus:ring-purple-200 focus:outline-none"
-              >
-                <option value="all">All Status</option>
-                <option value="inventory">Inventory</option>
-                <option value="sold">Sold</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-              <select
-                value={displayFilters.brand}
-                onChange={(e) => setDisplayFilters({ ...displayFilters, brand: e.target.value })}
-                className="w-full md:w-auto h-11 px-4 border-2 border-gray-300 rounded-lg text-base focus:border-purple-600 focus:ring-2 focus:ring-purple-200 focus:outline-none"
-              >
-                <option value="all">All Brands</option>
-                {data.organizations.map(org => (
-                  <option key={org.orgId} value={org.orgId}>{org.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Mobile Cards */}
-            <div className="md:hidden space-y-3 max-h-[600px] overflow-y-auto">
-              {filteredDisplays.map((display) => (
-                <div key={display.id} className="bg-white rounded-lg p-4 shadow-sm">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="font-mono font-semibold text-base">{display.displayId}</span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      display.status === 'active' ? 'bg-green-100 text-green-800' :
-                      display.status === 'sold' ? 'bg-blue-100 text-blue-800' :
-                      display.status === 'inactive' ? 'bg-red-100 text-red-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {display.status === 'active' ? '✅ Active' : display.status.charAt(0).toUpperCase() + display.status.slice(1)}
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-600 space-y-1">
-                    <div><strong>Brand:</strong> {display.organization?.name || 'Unassigned'}</div>
-                    <div><strong>Store:</strong> {display.store?.storeName || 'No store assigned'}</div>
-                    {display.activatedAt && (
-                      <div className="text-xs">Activated: {new Date(display.activatedAt).toLocaleDateString()}</div>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => openDisplayEdit(display)}
-                    className="mt-2 px-3 py-1.5 text-sm rounded border border-gray-300 hover:bg-gray-100 w-full"
-                  >
-                    Edit
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            {/* Desktop Table */}
-            <div className="hidden md:block bg-white rounded-lg shadow-sm overflow-hidden">
-              <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
-                    <tr>
-                      <th
-                        onClick={() => handleDisplaySort('displayId')}
-                        className="px-4 py-3 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none"
-                      >
-                        <div className="flex items-center gap-1">
-                          Display ID {displaySortField === 'displayId' && (<span>{displaySortDirection === 'asc' ? '↑' : '↓'}</span>)}
-                        </div>
-                      </th>
-                      <th
-                        onClick={() => handleDisplaySort('status')}
-                        className="px-4 py-3 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none"
-                      >
-                        <div className="flex items-center gap-1">
-                          Status {displaySortField === 'status' && (<span>{displaySortDirection === 'asc' ? '↑' : '↓'}</span>)}
-                        </div>
-                      </th>
-                      <th
-                        onClick={() => handleDisplaySort('brand')}
-                        className="px-4 py-3 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none"
-                      >
-                        <div className="flex items-center gap-1">
-                          Brand {displaySortField === 'brand' && (<span>{displaySortDirection === 'asc' ? '↑' : '↓'}</span>)}
-                        </div>
-                      </th>
-                      <th
-                        onClick={() => handleDisplaySort('store')}
-                        className="px-4 py-3 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none"
-                      >
-                        <div className="flex items-center gap-1">
-                          Store {displaySortField === 'store' && (<span>{displaySortDirection === 'asc' ? '↑' : '↓'}</span>)}
-                        </div>
-                      </th>
-                      <th
-                        onClick={() => handleDisplaySort('activatedAt')}
-                        className="px-4 py-3 text-left text-sm font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none"
-                      >
-                        <div className="flex items-center gap-1">
-                          Activated {displaySortField === 'activatedAt' && (<span>{displaySortDirection === 'asc' ? '↑' : '↓'}</span>)}
-                        </div>
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {filteredDisplays.map((display) => (
-                      <tr key={display.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 font-mono text-sm">{display.displayId}</td>
-                        <td className="px-4 py-3">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            display.status === 'active' ? 'bg-green-100 text-green-800' :
-                            display.status === 'sold' ? 'bg-blue-100 text-blue-800' :
-                            display.status === 'inactive' ? 'bg-red-100 text-red-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {display.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm">{display.organization?.name || 'Unassigned'}</td>
-                        <td className="px-4 py-3 text-sm">{display.store?.storeName || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {display.activatedAt ? new Date(display.activatedAt).toLocaleDateString() : '—'}
-                        </td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => openDisplayEdit(display)}
-                            className="px-3 py-1.5 text-sm rounded border border-gray-300 hover:bg-gray-100"
-                          >
-                            Edit
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Stores Tab */}
         {activeTab === 'stores' && (
           <div>
@@ -763,7 +526,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
               {filteredStores.map((store) => {
                 const totalCustomers = store._count?.customers || 0;
                 const redeemedCount = store.customers?.filter((c: any) => c.redeemed).length || 0;
-                const salesCount = data.customers.filter(c => c.storeId === store.storeId && c.promoRedeemed).length;
+                const salesCount = data.promoRedemptions.filter((pr: any) => pr.store?.storeId === store.storeId && pr.redeemedAt !== null).length;
                 const displayId = store.displays?.[0]?.displayId;
                 
                 return (
@@ -790,7 +553,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                       <div className="font-medium text-gray-900">
                         {totalCustomers} ({redeemedCount} redeemed) • {salesCount} sales
                       </div>
-                      <div className="flex gap-2 mt-2">
+                      <div className="flex gap-2 mt-2 flex-wrap">
                         <a
                           href={`/api/admin/store-access/${store.storeId}`}
                           target="_blank"
@@ -804,6 +567,15 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                           className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
                         >
                           Edit
+                        </button>
+                        <button
+                          onClick={() => {
+                            setDemoResetStore(store);
+                            setShowDemoResetConfirm(true);
+                          }}
+                          className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
+                        >
+                          Demo Reset
                         </button>
                         <button
                           onClick={() => {
@@ -913,7 +685,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                     {filteredStores.map((store) => {
                       const totalCustomers = store._count?.customers || 0;
                       const redeemedCount = store.customers?.filter((c: any) => c.redeemed).length || 0;
-                      const salesCount = data.customers.filter(c => c.storeId === store.storeId && c.promoRedeemed).length;
+                      const salesCount = data.promoRedemptions.filter((pr: any) => pr.store?.storeId === store.storeId && pr.redeemedAt !== null).length;
                       const displayId = store.displays?.[0]?.displayId;
                       
                       return (
@@ -943,7 +715,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                           </td>
                           <td className="px-4 py-3 text-sm">{store.organization?.name}</td>
                           <td className="px-4 py-3">
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap">
                               <a
                                 href={`/api/admin/store-access/${store.storeId}`}
                                 target="_blank"
@@ -957,6 +729,15 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                                 className="px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
                               >
                                 Edit
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setDemoResetStore(store);
+                                  setShowDemoResetConfirm(true);
+                                }}
+                                className="px-2 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
+                              >
+                                Demo Reset
                               </button>
                               <button
                                 onClick={() => {
@@ -1075,8 +856,8 @@ export function DashboardClient({ data }: { data: DashboardData }) {
           <BrandsTab organizations={data.organizations} />
         )}
 
-        {/* Inventory Tab */}
-        {activeTab === 'inventory' && (
+        {/* Displays Tab */}
+        {activeTab === 'displays' && (
           <InventoryTab displays={data.displays} organizations={data.organizations} />
         )}
 
@@ -1176,7 +957,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
 
       {/* Mobile Bottom Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-area-inset-bottom">
-        <div className="grid grid-cols-6">
+        <div className="grid grid-cols-5">
           <button
             onClick={() => setActiveTab('displays')}
             className={`flex flex-col items-center justify-center h-14 space-y-1 ${
@@ -1214,15 +995,6 @@ export function DashboardClient({ data }: { data: DashboardData }) {
             <span className="text-xs font-medium">Brands</span>
           </button>
           <button
-            onClick={() => setActiveTab('inventory')}
-            className={`flex flex-col items-center justify-center h-14 space-y-1 ${
-              activeTab === 'inventory' ? 'bg-purple-600 text-white' : 'text-gray-600'
-            }`}
-          >
-            <span className="text-xl">🏭</span>
-            <span className="text-xs font-medium">Inventory</span>
-          </button>
-          <button
             onClick={() => setActiveTab('settings')}
             className={`flex flex-col items-center justify-center h-14 space-y-1 ${
               activeTab === 'settings' ? 'bg-purple-600 text-white' : 'text-gray-600'
@@ -1233,109 +1005,6 @@ export function DashboardClient({ data }: { data: DashboardData }) {
           </button>
         </div>
       </div>
-
-      {/* Display Edit Modal */}
-      {editingDisplay && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setEditingDisplay(null)} />
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
-            <h3 className="text-lg font-semibold mb-4">Edit {editingDisplay.displayId}</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Status</label>
-                <select
-                  value={displayForm.status}
-                  onChange={(e) => setDisplayForm({ ...displayForm, status: e.target.value })}
-                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                >
-                  <option value="inventory">inventory</option>
-                  <option value="sold">sold</option>
-                  <option value="active">active</option>
-                  <option value="inactive">inactive</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Brand (assignedOrgId)</label>
-                <select
-                  value={displayForm.assignedOrgId}
-                  onChange={(e) => setDisplayForm({ ...displayForm, assignedOrgId: e.target.value })}
-                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                >
-                  <option value="">Unassigned</option>
-                  {data.organizations.map(org => (
-                    <option key={org.orgId} value={org.orgId}>{org.name}</option>
-                  ))}
-                </select>
-              </div>
-              {editingDisplay.storeId && editingDisplay.store && (
-                <div className="text-sm text-gray-600">
-                  <span className="font-medium">Current Store:</span> {editingDisplay.store.storeName}
-                </div>
-              )}
-            </div>
-            
-            {/* Reset Activation Button */}
-            {editingDisplay.storeId && (
-              <div className="mt-6 mb-4">
-                <button
-                  onClick={() => setShowResetConfirm(true)}
-                  className="w-full px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 font-medium"
-                >
-                  Reset Activation
-                </button>
-              </div>
-            )}
-
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                onClick={() => setEditingDisplay(null)}
-                className="px-4 py-2 rounded border border-gray-300 hover:bg-gray-100"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={saveDisplayEdit}
-                disabled={savingDisplay}
-                className="px-4 py-2 rounded bg-purple-600 text-white hover:bg-purple-700 disabled:bg-gray-400"
-              >
-                {savingDisplay ? 'Saving...' : 'Save Changes'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Reset Confirmation Dialog */}
-      {showResetConfirm && editingDisplay && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setShowResetConfirm(false)} />
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
-            <h3 className="text-lg font-semibold mb-3">Reset Activation?</h3>
-            <p className="text-gray-700 mb-4">
-              Reset activation for <strong>{editingDisplay.displayId}</strong>? 
-              This will clear <strong>{editingDisplay.store?.storeName}</strong> but keep 
-              the display assigned to <strong>{editingDisplay.organization?.name || 'the organization'}</strong>. 
-              The QR code can be reactivated at a different location.
-            </p>
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowResetConfirm(false)}
-                disabled={resetting}
-                className="px-4 py-2 rounded border border-gray-300 hover:bg-gray-100"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={resetDisplayActivation}
-                disabled={resetting}
-                className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 disabled:bg-gray-400"
-              >
-                {resetting ? 'Resetting...' : 'Reset Activation'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Store Edit Modal */}
       {editingStore && (
@@ -1541,6 +1210,50 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                 className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700"
               >
                 Delete Store
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Demo Reset Confirmation Dialog */}
+      {showDemoResetConfirm && demoResetStore && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowDemoResetConfirm(false)} />
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+            <h3 className="text-lg font-semibold mb-3 text-yellow-600">Demo Reset Store?</h3>
+            <p className="text-gray-700 mb-4">
+              Reset <strong>{demoResetStore.storeName}</strong> ({demoResetStore.storeId}) to clean demo state?
+            </p>
+            <div className="mb-4">
+              <p className="text-sm font-semibold text-red-600 mb-2">Will DELETE:</p>
+              <ul className="list-disc list-inside text-sm text-gray-700 space-y-1 mb-3">
+                <li>All customers and their data</li>
+                <li>All staff members (except admin)</li>
+                <li>All promo redemptions and purchase intents</li>
+                <li>All timeline events</li>
+              </ul>
+              <p className="text-sm font-semibold text-green-600 mb-2">Will KEEP:</p>
+              <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                <li>Store information and settings</li>
+                <li>Products and inventory</li>
+                <li>Organization assignment</li>
+                <li>Display assignment</li>
+              </ul>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowDemoResetConfirm(false)}
+                className="px-4 py-2 rounded border border-gray-300 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={demoResetStoreData}
+                disabled={resettingDemo}
+                className="px-4 py-2 rounded bg-yellow-600 text-white hover:bg-yellow-700 disabled:opacity-50"
+              >
+                {resettingDemo ? 'Resetting...' : 'Reset Demo Data'}
               </button>
             </div>
           </div>

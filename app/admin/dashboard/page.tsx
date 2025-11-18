@@ -228,6 +228,12 @@ export default async function AdminDashboardPage() {
       promoReimbursementRate: store.promoReimbursementRate ? Number(store.promoReimbursementRate) : 0,
     }));
 
+    const serializedPromoRedemptions = promoRedemptions.map(promo => ({
+      ...promo,
+      purchaseAmount: promo.purchaseAmount ? Number(promo.purchaseAmount) : 0,
+      discountAmount: promo.discountAmount ? Number(promo.discountAmount) : 0,
+    }));
+
     return (
       <DashboardClient
         data={{
@@ -235,7 +241,7 @@ export default async function AdminDashboardPage() {
           stores: serializedStores,
           customers,
           organizations,
-          promoRedemptions,
+          promoRedemptions: serializedPromoRedemptions,
           stats,
           activities: recentActivities
         }}

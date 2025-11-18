@@ -10,6 +10,12 @@ type Display = {
   status: string;
   assignedOrgId?: string | null;
   createdAt: Date;
+  activatedAt?: Date | null;
+  store?: {
+    id: string;
+    storeName: string;
+    storeId: string;
+  } | null;
 };
 
 type Organization = {
@@ -129,7 +135,6 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
 
   const openEdit = (d: Display) => {
     setEditing(d);
-    setForm({ status: d.status, assignedOrgId: d.assignedOrgId || '' });
   };
 
   const saveEdit = async () => {
@@ -380,61 +385,31 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
             </button>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            {/* Delete Button */}
+            {/* Delete All Button */}
             <button
               onClick={() => { setBulkAction({ type: 'delete', value: 'delete' }); setShowBulkConfirm(true); }}
               className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm font-medium"
             >
-              Delete
+              Delete All
             </button>
 
-            {/* Reset Button */}
+            {/* Reset All Button */}
             {hasActivatedDisplays && (
               <button
                 onClick={() => { setBulkAction({ type: 'reset', value: 'reset' }); setShowBulkConfirm(true); }}
                 className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 text-sm font-medium"
               >
-                Reset
+                Reset All
               </button>
             )}
 
-            {/* Change Status Dropdown */}
-            <select
-              defaultValue=""
-              onChange={(e) => {
-                if (e.target.value) {
-                  setBulkAction({ type: 'status', value: e.target.value });
-                  setShowBulkConfirm(true);
-                  e.currentTarget.value = '';
-                }
-              }}
-              className="px-4 py-2 border border-gray-300 rounded-md text-sm bg-white hover:bg-gray-50"
+            {/* Print Selected Labels */}
+            <button
+              onClick={() => printLabels(selected)}
+              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm font-medium"
             >
-              <option value="">Change Status...</option>
-              <option value="inventory">Available</option>
-              <option value="sold">Sold</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-
-            {/* Assign to Organization Dropdown */}
-            <select
-              defaultValue=""
-              onChange={(e) => {
-                if (e.target.value) {
-                  setBulkAction({ type: 'organization', value: e.target.value });
-                  setShowBulkConfirm(true);
-                  e.currentTarget.value = '';
-                }
-              }}
-              className="px-4 py-2 border border-gray-300 rounded-md text-sm bg-white hover:bg-gray-50"
-            >
-              <option value="">Assign to Organization...</option>
-              {organizations.map(org => (
-                <option key={org.orgId} value={org.orgId}>{org.name}</option>
-              ))}
-              <option value="none">Unassign (Make Available)</option>
-            </select>
+              Print Labels
+            </button>
           </div>
         </div>
       )}
@@ -506,7 +481,8 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
                 <th className="px-4 py-3 text-left text-sm font-semibold bg-gray-50">QR Preview</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold bg-gray-50">URL</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold bg-gray-50">Status</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold bg-gray-50">Created</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold bg-gray-50">Store</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold bg-gray-50">Last Action</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold bg-gray-50">Actions</th>
               </tr>
             </thead>
@@ -549,7 +525,13 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">
-                    {new Date(display.createdAt).toLocaleDateString()}
+                    {display.store?.storeName || '—'}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-600">
+                    {display.activatedAt 
+                      ? new Date(display.activatedAt).toLocaleDateString()
+                      : new Date(display.createdAt).toLocaleDateString()
+                    }
                   </td>
                   <td className="px-4 py-3">
                     <button
@@ -572,16 +554,6 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
             <h3 className="text-xl font-semibold mb-4">Confirm Bulk Action</h3>
             <p className="text-gray-700 mb-4">
-              {bulkAction.type === 'status' && (
-                <>Change status to <strong>{bulkAction.value}</strong> for <strong>{selected.length}</strong> display{selected.length !== 1 ? 's' : ''}?</>
-              )}
-              {bulkAction.type === 'organization' && (
-                <>
-                  {bulkAction.value === 'none'
-                    ? `Unassign ${selected.length} display${selected.length !== 1 ? 's' : ''} (make available)?`
-                    : `Assign ${selected.length} display${selected.length !== 1 ? 's' : ''} to ${organizations.find(o => o.orgId === bulkAction.value)?.name}?`}
-                </>
-              )}
               {bulkAction.type === 'reset' && (
                 <>
                   Reset <strong>{selected.length}</strong> display{selected.length !== 1 ? 's' : ''}?
@@ -589,8 +561,7 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
                     This will:
                     <ul className="list-disc ml-5 mt-2 space-y-1">
                       <li>Clear store associations</li>
-                      <li>Set status to "Sold (Not Activated)"</li>
-                      <li>Keep organization assignment</li>
+                      <li>Set status to "Inventory"</li>
                       <li>Make displays available for reactivation</li>
                     </ul>
                   </div>
@@ -613,13 +584,11 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
             </p>
             <div className={`border rounded p-3 mb-6 ${
               bulkAction.type === 'delete' ? 'bg-red-50 border-red-200' :
-              bulkAction.type === 'reset' ? 'bg-orange-50 border-orange-200' : 
-              'bg-yellow-50 border-yellow-200'
+              'bg-orange-50 border-orange-200'
             }`}>
               <p className={`text-sm ${
                 bulkAction.type === 'delete' ? 'text-red-800' :
-                bulkAction.type === 'reset' ? 'text-orange-800' : 
-                'text-yellow-800'
+                'text-orange-800'
               }`}>
                 ⚠️ This will update all selected displays immediately.
                 {bulkAction.type === 'reset' && ' Store data will remain for audit purposes.'}
@@ -638,8 +607,7 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
                 disabled={bulkUpdating}
                 className={`flex-1 px-4 py-2 rounded-md text-white ${
                   bulkAction.type === 'delete' ? 'bg-red-600 hover:bg-red-700' :
-                  bulkAction.type === 'reset' ? 'bg-orange-600 hover:bg-orange-700' : 
-                  'bg-blue-600 hover:bg-blue-700'
+                  'bg-orange-600 hover:bg-orange-700'
                 } disabled:opacity-60`}
               >
                 {bulkUpdating ? 'Working...' : bulkAction.type === 'delete' ? 'Delete Permanently' : 'Confirm'}
@@ -654,48 +622,70 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setEditing(null)} />
           <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
-            <h3 className="text-lg font-semibold mb-4">Edit {editing.displayId}</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Status</label>
-                <select
-                  value={form.status}
-                  onChange={(e) => setForm({ ...form, status: e.target.value })}
-                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                >
-                  <option value="inventory">inventory</option>
-                  <option value="sold">sold</option>
-                  <option value="active">active</option>
-                  <option value="inactive">inactive</option>
-                </select>
+            <h3 className="text-lg font-semibold mb-4">{editing.displayId}</h3>
+            
+            <div className="space-y-3 mb-6">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Status:</span>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  editing.status === 'active' ? 'bg-green-100 text-green-800' :
+                  editing.status === 'sold' ? 'bg-blue-100 text-blue-800' :
+                  editing.status === 'inventory' ? 'bg-gray-100 text-gray-800' :
+                  'bg-red-100 text-red-800'
+                }`}>
+                  {editing.status}
+                </span>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Brand (assignedOrgId)</label>
-                <select
-                  value={form.assignedOrgId}
-                  onChange={(e) => setForm({ ...form, assignedOrgId: e.target.value })}
-                  className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                >
-                  <option value="">Unassigned</option>
-                  {organizations.map(org => (
-                    <option key={org.orgId} value={org.orgId}>{org.name}</option>
-                  ))}
-                </select>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Store:</span>
+                <span className="font-medium">{editing.store?.storeName || '—'}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Last Action:</span>
+                <span className="font-medium">
+                  {editing.activatedAt 
+                    ? new Date(editing.activatedAt).toLocaleDateString()
+                    : new Date(editing.createdAt).toLocaleDateString()
+                  }
+                </span>
               </div>
             </div>
-            <div className="mt-6 flex justify-end gap-2">
+
+            <div className="space-y-3">
+              {/* Reset Button - only show if activated */}
+              {editing.activatedAt && (
+                <button
+                  onClick={() => {
+                    setBulkAction({ type: 'reset', value: 'reset' });
+                    setSelected([editing.displayId]);
+                    setShowBulkConfirm(true);
+                    setEditing(null);
+                  }}
+                  className="w-full px-4 py-2 rounded bg-orange-600 text-white hover:bg-orange-700 font-medium"
+                >
+                  Reset Display
+                </button>
+              )}
+
+              {/* Delete Button */}
+              <button
+                onClick={() => {
+                  setBulkAction({ type: 'delete', value: 'delete' });
+                  setSelected([editing.displayId]);
+                  setShowBulkConfirm(true);
+                  setEditing(null);
+                }}
+                className="w-full px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 font-medium"
+              >
+                Delete Display
+              </button>
+
+              {/* Close Button */}
               <button
                 onClick={() => setEditing(null)}
-                className="px-4 py-2 rounded border border-gray-300 hover:bg-gray-100"
+                className="w-full px-4 py-2 rounded border border-gray-300 hover:bg-gray-100"
               >
-                Cancel
-              </button>
-              <button
-                onClick={saveEdit}
-                disabled={saving}
-                className="px-4 py-2 rounded bg-purple-600 text-white hover:bg-purple-700 disabled:bg-gray-400"
-              >
-                {saving ? 'Saving...' : 'Save Changes'}
+                Close
               </button>
             </div>
           </div>

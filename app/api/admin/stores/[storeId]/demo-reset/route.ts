@@ -7,10 +7,10 @@ import prisma from '@/lib/prisma';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { storeId: string } }
+  { params }: { params: Promise<{ storeId: string }> }
 ) {
   try {
-    const { storeId } = params;
+    const { storeId } = await params;
 
     console.log(`🔄 Starting demo reset for store: ${storeId}`);
 
@@ -38,8 +38,8 @@ export async function POST(
 
     const staffCount = await prisma.staff.count({
       where: {
-        store: { storeId },
-        role: { not: 'admin' }, // Don't count admin in deletion count
+        storeId,
+        type: { not: 'admin' }, // Don't count admin in deletion count
       },
     });
 
@@ -51,7 +51,7 @@ export async function POST(
 
     const purchaseIntentCount = await prisma.purchaseIntent.count({
       where: {
-        store: { storeId },
+        storeId,
       },
     });
 
@@ -69,7 +69,7 @@ export async function POST(
       // 2. Delete all purchase intents for this store
       const deletedIntents = await tx.purchaseIntent.deleteMany({
         where: {
-          store: { storeId },
+          storeId,
         },
       });
 
@@ -81,8 +81,8 @@ export async function POST(
       // 4. Delete all non-admin staff for this store
       const deletedStaff = await tx.staff.deleteMany({
         where: {
-          store: { storeId },
-          role: { not: 'admin' }, // Keep admin
+          storeId,
+          type: { not: 'admin' }, // Keep admin
         },
       });
 

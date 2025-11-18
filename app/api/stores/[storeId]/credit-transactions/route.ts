@@ -48,52 +48,55 @@ export async function GET(
     // Parse the reason field to extract customer/staff IDs
     const enrichedTransactions = await Promise.all(
       transactions.map(async (txn) => {
-        let customerName = null;
+        // Use stored customerName if available (from new schema field)
+        let customerName = txn.customerName || null;
         let staffName = null;
         
-        // Try to find PromoRedemption that created this transaction
+        // If no stored customer name, try to find PromoRedemption that created this transaction
         // Look for recent redemptions around the transaction time
-        const promoRedemption = await prisma.promoRedemption.findFirst({
-          where: {
-            storeId: store.id,
-            redeemedAt: {
-              gte: new Date(txn.createdAt.getTime() - 5000), // Within 5 seconds
-              lte: new Date(txn.createdAt.getTime() + 5000)
+        if (!customerName) {
+          const promoRedemption = await prisma.promoRedemption.findFirst({
+            where: {
+              storeId: store.id,
+              redeemedAt: {
+                gte: new Date(txn.createdAt.getTime() - 5000), // Within 5 seconds
+                lte: new Date(txn.createdAt.getTime() + 5000)
+              }
+            },
+            include: {
+              customer: {
+                select: {
+                  memberId: true,
+                  firstName: true,
+                  lastName: true
+                }
+              }
+            },
+            orderBy: {
+              redeemedAt: 'desc'
             }
-          },
-          include: {
-            customer: {
-              select: {
-                memberId: true,
-                firstName: true,
-                lastName: true
+          });
+          
+          if (promoRedemption) {
+            if (promoRedemption.customer) {
+              customerName = `${promoRedemption.customer.firstName} ${promoRedemption.customer.lastName} (${promoRedemption.customer.memberId})`;
+            }
+            // Look up staff separately
+            if (promoRedemption.redeemedByStaffId) {
+              const staff = await prisma.staff.findUnique({
+                where: { id: promoRedemption.redeemedByStaffId },
+                select: {
+                  staffId: true,
+                  firstName: true,
+                  lastName: true
+                }
+              });
+              if (staff) {
+                staffName = `${staff.firstName} ${staff.lastName} (${staff.staffId})`;
               }
             }
-          },
-          orderBy: {
-            redeemedAt: 'desc'
           }
-        });
-        
-        if (promoRedemption) {
-          if (promoRedemption.customer) {
-            customerName = `${promoRedemption.customer.firstName} ${promoRedemption.customer.lastName} (${promoRedemption.customer.memberId})`;
-          }
-          // Look up staff separately
-          if (promoRedemption.redeemedByStaffId) {
-            const staff = await prisma.staff.findUnique({
-              where: { id: promoRedemption.redeemedByStaffId },
-              select: {
-                staffId: true,
-                firstName: true,
-                lastName: true
-              }
-            });
-            if (staff) {
-              staffName = `${staff.firstName} ${staff.lastName} (${staff.staffId})`;
-            }
-          }
-        }
+        } // Close if (!customerName)
         
         return {
           ...txn,

@@ -49,7 +49,7 @@ export async function GET(
     const enrichedTransactions = await Promise.all(
       transactions.map(async (txn) => {
         // Use stored customerName if available (from new schema field)
-        let customerName = txn.customerName || null;
+        let customerName = (txn as any).customerName || null;
         let staffName = null;
         
         // If no stored customer name, try to find PromoRedemption that created this transaction

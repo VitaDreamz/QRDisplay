@@ -16,6 +16,9 @@ import prisma from '@/lib/prisma';
 import { sendSMS } from '@/lib/twilio';
 import { isStaffOnCall } from '@/lib/staff-notifications';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     // Verify cron secret to prevent unauthorized access

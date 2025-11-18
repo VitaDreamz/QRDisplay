@@ -7,6 +7,7 @@ const publicPaths = [
   "/sign-up",
   "/api/webhooks/clerk",
   "/api/webhooks/shopify(.*)", // Exclude Shopify webhooks from Clerk middleware
+  "/api/cron(.*)", // Exclude cron jobs from Clerk middleware (they use bearer token auth)
 ];
 
 const isPublic = createRouteMatcher(publicPaths);

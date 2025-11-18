@@ -3713,8 +3713,8 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                       .map((partnership) => {
                         const brandImageMap: { [key: string]: string } = {
                           'VitaDreamz Bliss': '/images/products/30ct+60ct-BlissBerry-Bags+gummies.png',
-                          'VitaDreamz Chill': '/images/products/20ct+60ct-ChillOut Chewz-Bags+gummies.png',
-                          'VitaDreamz Slumber': '/images/products/4ct+30ct+60ct-Slumber Berry.png',
+                          'VitaDreamz Chill': '/images/products/20ct+60ct-ChillOut.png',
+                          'VitaDreamz Slumber': '/images/products/4ct+30ct+60ct-Slumber.png',
                         };
                         const brandImage = brandImageMap[partnership.brand.name];
                         return (
@@ -3807,8 +3807,8 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                         const brand = data.brandPartnerships?.find(bp => bp.id === txn.brandPartnershipId);
                         const brandImageMap: { [key: string]: string } = {
                           'VitaDreamz Bliss': '/images/products/30ct+60ct-BlissBerry-Bags+gummies.png',
-                          'VitaDreamz Chill': '/images/products/20ct+60ct-ChillOut Chewz-Bags+gummies.png',
-                          'VitaDreamz Slumber': '/images/products/4ct+30ct+60ct-Slumber Berry.png',
+                          'VitaDreamz Chill': '/images/products/20ct+60ct-ChillOut.png',
+                          'VitaDreamz Slumber': '/images/products/4ct+30ct+60ct-Slumber.png',
                         };
                         return (
                           <tr key={txn.id} className="hover:bg-gray-50">

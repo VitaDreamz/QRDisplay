@@ -316,6 +316,40 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 7.6. For direct purchases, create pseudo-sample in SampleHistory
+    // This ensures the webhook will credit the correct brand partnership
+    if (isDirect && actualProductSku) {
+      try {
+        // Get the product to find its brandId
+        const product = await prisma.product.findUnique({
+          where: { sku: actualProductSku },
+          select: { orgId: true, name: true }
+        });
+
+        if (product) {
+          // Create a pseudo-sample entry for this direct purchase
+          await prisma.sampleHistory.create({
+            data: {
+              customerId: customer.id,
+              brandId: product.orgId,
+              storeId: store.id,
+              productSku: actualProductSku,
+              productName: product.name,
+              sampledAt: new Date(),
+              attributionWindow: 30,
+              expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+            }
+          });
+          console.log(`📝 Created pseudo-sample for direct purchase: ${actualProductSku} (brand: ${product.orgId})`);
+        } else {
+          console.warn(`⚠️  Product not found for SKU ${actualProductSku}, cannot create pseudo-sample`);
+        }
+      } catch (sampleErr) {
+        console.error('❌ Failed to create pseudo-sample:', sampleErr);
+        // Continue anyway - don't fail the redemption
+      }
+    }
+
     // 8. Update customer
     // Generate returning customer promo slug if they don't have one yet
     let returningPromoSlug = customer.returningPromoSlug;

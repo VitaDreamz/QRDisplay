@@ -131,8 +131,23 @@ export async function POST(req: NextRequest) {
     // Decrement sample inventory if tracked
     if (customer.sampleChoice) {
       try {
-        // Find the sample product SKU based on the sample name
-        const sampleSku = `${customer.sampleChoice}-sample`;
+        // customer.sampleChoice is the product name, we need to find the actual SKU
+        // Look up the sample product by name to get its SKU
+        const sampleProduct = await prisma.product.findFirst({
+          where: {
+            name: customer.sampleChoice,
+            productType: 'sample',
+            orgId: customer.orgId,
+          },
+          select: { sku: true }
+        });
+
+        if (!sampleProduct) {
+          console.warn(`⚠️  Sample product not found for "${customer.sampleChoice}"`);
+          throw new Error('Sample product not found');
+        }
+
+        const sampleSku = sampleProduct.sku;
         
         const inventoryItem = await prisma.storeInventory.findUnique({
           where: {

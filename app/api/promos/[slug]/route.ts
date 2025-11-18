@@ -109,21 +109,26 @@ export async function GET(
     }
 
     // Get customer's most recent sample to determine which brand's products to show
-    let brandFilter: string | undefined = undefined;
+    let brandOrgId: string | undefined = undefined;
     
     if (!isDirect) {
       // For sample-based promos, show only products from the brand they sampled
       const recentSample = await prisma.sampleHistory.findFirst({
         where: { customerId: customer.id },
         orderBy: { sampledAt: 'desc' },
-        select: { brandId: true }
+        select: { 
+          brandId: true,
+          brand: {
+            select: { orgId: true }
+          }
+        }
       });
       
       if (recentSample) {
-        brandFilter = recentSample.brandId;
+        brandOrgId = recentSample.brand.orgId; // Use orgId (e.g., "ORG-001") not id (CUID)
       }
     }
-    // For direct purchases, brandFilter stays undefined = show all brands
+    // For direct purchases, brandOrgId stays undefined = show all brands
 
     // Get store's available products
     const storeWithProducts = await prisma.store.findUnique({
@@ -139,7 +144,7 @@ export async function GET(
           in: storeWithProducts?.availableProducts || []
         },
         active: true,
-        ...(brandFilter ? { orgId: brandFilter } : {}) // Filter by brand if applicable
+        ...(brandOrgId ? { orgId: brandOrgId } : {}) // Filter by brand if applicable
       },
       select: {
         sku: true,

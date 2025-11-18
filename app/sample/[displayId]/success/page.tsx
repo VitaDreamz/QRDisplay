@@ -57,6 +57,11 @@ export default async function SampleSuccessPage({
     }
   });
   
+  // Fetch organization data using id (customer.orgId is now a CUID)
+  const organization = await prisma.organization.findUnique({
+    where: { id: customer.orgId }
+  });
+  
   if (!store || !organization) {
     return (
       <div className="min-h-svh bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 flex items-center justify-center p-4">
@@ -67,11 +72,6 @@ export default async function SampleSuccessPage({
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
-          <p className="text-gray-700">Store or organization data not found. Please contact support.</p>
-        </div>
-      </div>
-    );
-  }       <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
           <p className="text-gray-700">Store or organization data not found. Please contact support.</p>
         </div>
       </div>

@@ -226,6 +226,29 @@ export async function POST(request: NextRequest) {
           bccEmails.push(wholesaleOrder.store.adminEmail);
         }
 
+        // Calculate per-brand totals to determine actual credit that will be applied
+        const brandTotals: { [brandOrgId: string]: number } = {};
+        for (const item of orderData.items) {
+          const itemTotal = Number(item.quantity) * Number(item.product.price);
+          brandTotals[item.brandOrgId] = (brandTotals[item.brandOrgId] || 0) + itemTotal;
+        }
+        
+        // Calculate total credit that will actually be applied (Option A logic)
+        let actualCreditApplied = 0;
+        for (const [brandOrgId, brandSubtotal] of Object.entries(brandTotals)) {
+          const partnership = store.brandPartnerships.find(
+            bp => bp.brand.orgId === brandOrgId
+          );
+          if (partnership && Number(partnership.storeCreditBalance) > 0) {
+            // Each brand's credit only applies to THEIR items
+            const creditToDeduct = Math.min(
+              Number(partnership.storeCreditBalance),
+              brandSubtotal
+            );
+            actualCreditApplied += creditToDeduct;
+          }
+        }
+
         const draftOrderData: any = {
           line_items: orderData.items.map(item => ({
             variant_id: item.product.shopifyVariantId,
@@ -247,11 +270,11 @@ export async function POST(request: NextRequest) {
           },
           note: `QRDisplay Wholesale Order #${orderId}\nStore: ${wholesaleOrder.store.storeId} - ${wholesaleOrder.store.storeName}\nBrands: ${Array.from(orderData.brands).join(', ')}`,
           tags: `qrdisplay,wholesale,${wholesaleOrder.store.storeId}`,
-          applied_discount: creditApplied > 0 ? {
+          applied_discount: actualCreditApplied > 0 ? {
             description: 'Store Credit',
             value_type: 'fixed_amount',
-            value: creditApplied.toString(),
-            amount: creditApplied.toString(),
+            value: actualCreditApplied.toString(),
+            amount: actualCreditApplied.toString(),
           } : undefined,
         };
 
@@ -261,7 +284,7 @@ export async function POST(request: NextRequest) {
             to: primaryEmail,
             bcc: bccEmails.length > 0 ? bccEmails : undefined,
             subject: `Wholesale Order #${orderId} - ${wholesaleOrder.store.storeName}`,
-            custom_message: `Your wholesale order has been received! This invoice includes ${orderData.items.length} item(s) from ${Array.from(orderData.brands).join(', ')}.\n\n${creditApplied > 0 ? `Store Credit Applied: $${creditApplied.toFixed(2)}\n` : ''}Total: $${total.toFixed(2)}\n\nThank you for your order!`,
+            custom_message: `Your wholesale order has been received! This invoice includes ${orderData.items.length} item(s) from ${Array.from(orderData.brands).join(', ')}.\n\n${actualCreditApplied > 0 ? `Store Credit Applied: $${actualCreditApplied.toFixed(2)}\n` : ''}Total: $${total.toFixed(2)}\n\nThank you for your order!`,
           };
         }
 
@@ -283,52 +306,42 @@ export async function POST(request: NextRequest) {
         });
 
         // ONLY deduct store credit AFTER successful Shopify order creation
-        // Calculate per-brand totals first
-        const brandTotals: { [brandOrgId: string]: number } = {};
-        for (const item of orderData.items) {
-          const itemTotal = Number(item.quantity) * Number(item.product.price);
-          brandTotals[item.brandOrgId] = (brandTotals[item.brandOrgId] || 0) + itemTotal;
-        }
-        
-        const grandTotal = Object.values(brandTotals).reduce((sum, val) => sum + val, 0);
-        
+        // Now actually deduct the credit from each brand partnership
         for (const [brandOrgId, brandSubtotal] of Object.entries(brandTotals)) {
-          if (creditApplied > 0) {
-            const partnership = store.brandPartnerships.find(
-              bp => bp.brand.orgId === brandOrgId
+          const partnership = store.brandPartnerships.find(
+            bp => bp.brand.orgId === brandOrgId
+          );
+          if (partnership && Number(partnership.storeCreditBalance) > 0) {
+            // For Option A: Each brand's credit only applies to THEIR items
+            // Use the full available credit up to their subtotal amount
+            const creditToDeduct = Math.min(
+              Number(partnership.storeCreditBalance),
+              brandSubtotal
             );
-            if (partnership) {
-              // Calculate this brand's share of the credit based on subtotal percentage
-              const brandCreditShare = (brandSubtotal / grandTotal) * creditApplied;
-              const creditToDeduct = Math.min(
-                Number(partnership.storeCreditBalance),
-                brandCreditShare
-              );
-              
-              const newBalance = Number(partnership.storeCreditBalance) - creditToDeduct;
-              
-              await prisma.storeBrandPartnership.update({
-                where: { id: partnership.id },
-                data: {
-                  storeCreditBalance: newBalance,
-                },
-              });
+            
+            const newBalance = Number(partnership.storeCreditBalance) - creditToDeduct;
+            
+            await prisma.storeBrandPartnership.update({
+              where: { id: partnership.id },
+              data: {
+                storeCreditBalance: newBalance,
+              },
+            });
 
-              // Log credit transaction with brand partnership ID
-              await prisma.storeCreditTransaction.create({
-                data: {
-                  storeId: store.id,
-                  brandPartnershipId: partnership.id,
-                  type: 'redeemed',
-                  reason: `Applied to wholesale order ${orderId}`,
-                  amount: -creditToDeduct,
-                  balance: newBalance,
-                  orderId: orderId,
-                },
-              });
-              
-              console.log(`💳 Deducted $${creditToDeduct.toFixed(2)} from ${partnership.brand.name} (balance: $${newBalance.toFixed(2)})`);
-            }
+            // Log credit transaction with brand partnership ID
+            await prisma.storeCreditTransaction.create({
+              data: {
+                storeId: store.id,
+                brandPartnershipId: partnership.id,
+                type: 'redeemed',
+                reason: `Applied to wholesale order ${orderId}`,
+                amount: -creditToDeduct,
+                balance: newBalance,
+                orderId: orderId,
+              },
+            });
+            
+            console.log(`💳 Deducted $${creditToDeduct.toFixed(2)} from ${partnership.brand.name} (balance: $${newBalance.toFixed(2)})`);
           }
         }
 
@@ -336,7 +349,7 @@ export async function POST(request: NextRequest) {
           orderId: wholesaleOrder.orderId,
           shopifyDomain,
           subtotal,
-          creditApplied,
+          creditApplied: actualCreditApplied,
           total,
           draftOrderUrl: shopifyDraftOrder.invoice_url,
           brands: Array.from(orderData.brands),

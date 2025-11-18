@@ -286,7 +286,7 @@ export async function POST(request: NextRequest) {
         // Calculate per-brand totals first
         const brandTotals: { [brandOrgId: string]: number } = {};
         for (const item of orderData.items) {
-          const itemTotal = Number(item.quantity) * Number(item.unitPrice);
+          const itemTotal = Number(item.quantity) * Number(item.product.price);
           brandTotals[item.brandOrgId] = (brandTotals[item.brandOrgId] || 0) + itemTotal;
         }
         

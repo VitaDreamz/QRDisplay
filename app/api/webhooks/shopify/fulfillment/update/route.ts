@@ -82,8 +82,71 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Send SMS notification to store
-    if (wholesaleOrder.store.purchasingPhone) {
+    // Send SMS notification to all relevant staff
+    const notifications: Array<{ phone: string; role: string }> = [];
+    
+    // Get all staff for this store
+    const staff = await prisma.staff.findMany({
+      where: {
+        storeId: wholesaleOrder.store.id,
+        status: 'active',
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        type: true,
+        onCallDays: true,
+        onCallHoursStart: true,
+        onCallHoursStop: true,
+      },
+    });
+
+    // Get store details for timezone
+    const storeDetails = await prisma.store.findUnique({
+      where: { id: wholesaleOrder.store.id },
+      select: {
+        adminPhone: true,
+        ownerPhone: true,
+        purchasingPhone: true,
+        timezone: true,
+      },
+    });
+
+    // Add admin staff (always notified)
+    const adminStaff = staff.filter(s => s.type === 'admin');
+    adminStaff.forEach(s => {
+      if (s.phone) notifications.push({ phone: s.phone, role: 'Admin' });
+    });
+
+    // Add owner phone
+    if (storeDetails?.adminPhone || storeDetails?.ownerPhone) {
+      const ownerPhone = storeDetails.adminPhone || storeDetails.ownerPhone;
+      if (ownerPhone) notifications.push({ phone: ownerPhone!, role: 'Owner' });
+    }
+
+    // Add purchasing contact
+    if (storeDetails?.purchasingPhone) {
+      notifications.push({ phone: storeDetails.purchasingPhone, role: 'Purchasing' });
+    }
+
+    // Add on-call staff
+    const { isStaffOnCall } = await import('@/lib/staff-notifications');
+    const onCallStaff = staff.filter(s => 
+      s.type !== 'admin' && // Don't duplicate admin
+      isStaffOnCall(s, storeDetails?.timezone || 'America/Los_Angeles')
+    );
+    onCallStaff.forEach(s => {
+      if (s.phone) notifications.push({ phone: s.phone, role: 'On-Call Staff' });
+    });
+
+    // Remove duplicates
+    const uniqueNotifications = Array.from(
+      new Map(notifications.map(n => [n.phone, n])).values()
+    );
+
+    if (uniqueNotifications.length > 0) {
       const itemCount = wholesaleOrder.items.reduce((sum, item) => sum + (item.retailUnits || 0), 0);
       
       const message = `📦 Your wholesale order #${wholesaleOrder.orderId} has been delivered! 
@@ -94,8 +157,20 @@ Please verify you received everything: ${verificationUrl}
 
 -QRDisplay`;
 
-      await sendSMS(wholesaleOrder.store.purchasingPhone, message);
-      console.log(`✅ Sent verification SMS to ${wholesaleOrder.store.purchasingPhone}`);
+      // Send to all recipients
+      for (const recipient of uniqueNotifications) {
+        try {
+          await sendSMS(recipient.phone, message);
+          console.log(`✅ Sent verification SMS to ${recipient.role} (${recipient.phone})`);
+        } catch (smsError) {
+          console.error(`❌ Failed to send SMS to ${recipient.phone}:`, smsError);
+          // Continue sending to others even if one fails
+        }
+      }
+      
+      console.log(`✅ Sent ${uniqueNotifications.length} verification SMS notifications`);
+    } else {
+      console.log(`⚠️  No phone numbers available for verification SMS`);
     }
 
     return NextResponse.json({ success: true, orderId: wholesaleOrder.orderId });

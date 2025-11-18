@@ -297,6 +297,7 @@ model WholesaleOrder {
   // Verification
   verificationToken String?  @unique // For SMS verification link
   verifiedBy        String?  // Staff/Owner who verified receipt
+  lastReminderSentAt DateTime? // When last verification reminder was sent
   
   // Shopify tracking
   shopifyOrderId    String?  // When draft becomes a real order
@@ -588,6 +589,7 @@ model Staff {
   verificationToken   String?   @unique
   verificationExpiry  DateTime?
   verifiedAt          DateTime?
+  lastReminderSentAt  DateTime? // When last verification reminder was sent
   
   // Metadata
   notes             String?

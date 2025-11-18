@@ -3707,46 +3707,46 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
               
               <div className="p-4">
                 {data.brandPartnerships && data.brandPartnerships.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {data.brandPartnerships
                       .filter(bp => bp.status === 'active')
                       .map((partnership) => (
                         <div
                           key={partnership.id}
-                          className="border-2 border-gray-200 rounded-lg p-4 hover:border-purple-300 transition-colors"
+                          className="border-2 border-gray-200 rounded-lg p-3 hover:border-purple-300 transition-colors"
                         >
-                          <div className="flex items-center gap-3 mb-3">
+                          <div className="flex flex-col items-center text-center gap-2 mb-2">
                             {partnership.brand.logoUrl && (
                               <img
                                 src={partnership.brand.logoUrl}
                                 alt={partnership.brand.name}
-                                className="w-12 h-12 rounded-lg object-cover"
+                                className="w-10 h-10 md:w-12 md:h-12 rounded-lg object-cover"
                               />
                             )}
-                            <span className={`${getBrandColor(partnership.brand.name).bg} ${getBrandColor(partnership.brand.name).text} px-3 py-1 rounded-full text-sm font-bold`}>
+                            <span className={`${getBrandColor(partnership.brand.name).bg} ${getBrandColor(partnership.brand.name).text} px-2 py-0.5 rounded-full text-xs font-bold`}>
                               {partnership.brand.name}
                             </span>
                           </div>
                           
-                          <div className="bg-gray-50 rounded-lg p-4">
-                            <p className="text-xs text-gray-600 uppercase tracking-wide mb-1">Available Credit</p>
-                            <p className="text-3xl font-bold text-green-600">
+                          <div className="bg-gray-50 rounded-lg p-2 md:p-3">
+                            <p className="text-[10px] md:text-xs text-gray-600 uppercase tracking-wide mb-0.5">Available Credit</p>
+                            <p className="text-xl md:text-2xl font-bold text-green-600">
                               ${partnership.storeCreditBalance.toFixed(2)}
                             </p>
                           </div>
 
-                          <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                            <div className="bg-orange-50 rounded p-2">
+                          <div className="mt-2 grid grid-cols-3 gap-1 text-[10px] md:text-xs">
+                            <div className="bg-orange-50 rounded p-1.5">
                               <p className="text-orange-600 font-medium">Promo</p>
-                              <p className="text-lg font-bold text-orange-700">{(partnership.promoCommission || 50).toFixed(0)}%</p>
+                              <p className="text-sm md:text-base font-bold text-orange-700">{(partnership.promoCommission || 50).toFixed(0)}%</p>
                             </div>
-                            <div className="bg-purple-50 rounded p-2">
+                            <div className="bg-purple-50 rounded p-1.5">
                               <p className="text-purple-600 font-medium">Online</p>
-                              <p className="text-lg font-bold text-purple-700">{(partnership.onlineCommission || 20).toFixed(0)}%</p>
+                              <p className="text-sm md:text-base font-bold text-purple-700">{(partnership.onlineCommission || 20).toFixed(0)}%</p>
                             </div>
-                            <div className="bg-indigo-50 rounded p-2">
-                              <p className="text-indigo-600 font-medium">Subscription</p>
-                              <p className="text-lg font-bold text-indigo-700">{(partnership.subscriptionCommission || 5).toFixed(0)}%</p>
+                            <div className="bg-indigo-50 rounded p-1.5">
+                              <p className="text-indigo-600 font-medium">Sub</p>
+                              <p className="text-sm md:text-base font-bold text-indigo-700">{(partnership.subscriptionCommission || 5).toFixed(0)}%</p>
                             </div>
                           </div>
                         </div>

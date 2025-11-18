@@ -6,18 +6,13 @@ const publicPaths = [
   "/sign-in",
   "/sign-up",
   "/api/webhooks/clerk",
-  "/api/webhooks/shopify(.*)", // Exclude Shopify webhooks from Clerk middleware
-  "/api/cron(.*)", // Exclude cron jobs from Clerk middleware (they use bearer token auth)
+  "/api/webhooks/shopify(.*)",
+  "/api/cron(.*)",
 ];
 
 const isPublic = createRouteMatcher(publicPaths);
 
 export default clerkMiddleware((_, req) => {
-  // Skip middleware entirely for cron routes (they use bearer token auth)
-  if (req.nextUrl.pathname.startsWith('/api/cron')) {
-    return NextResponse.next();
-  }
-  
   if (isPublic(req)) {
     return NextResponse.next();
   }

@@ -13,6 +13,11 @@ const publicPaths = [
 const isPublic = createRouteMatcher(publicPaths);
 
 export default clerkMiddleware((_, req) => {
+  // Skip middleware entirely for cron routes (they use bearer token auth)
+  if (req.nextUrl.pathname.startsWith('/api/cron')) {
+    return NextResponse.next();
+  }
+  
   if (isPublic(req)) {
     return NextResponse.next();
   }
@@ -20,8 +25,5 @@ export default clerkMiddleware((_, req) => {
 });
 
 export const config = {
-  matcher: [
-    "/((?!.+\\.[\\w]+$|_next|api/cron).*)", // Exclude static files, _next, and /api/cron
-    "/",
-  ],
+  matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/", "/(api|trpc)(.*)"],
 };

@@ -138,6 +138,20 @@ async function handleOrderPaid(orgId: string, order: ShopifyOrder, topic: string
     const shopifyOrderId = order.id.toString();
     const purchaseDate = new Date(order.created_at);
 
+    // IDEMPOTENCY CHECK: Prevent duplicate processing if webhook is received multiple times
+    const existingConversion = await prisma.conversion.findFirst({
+      where: {
+        shopifyOrderId,
+        orgId,
+      },
+    });
+
+    if (existingConversion) {
+      console.log(`⏭️  Order ${shopifyOrderId} already processed - skipping duplicate webhook`);
+      await logWebhook(orgId, null, topic, order, 'success', 'Duplicate webhook - already processed');
+      return;
+    }
+
     console.log(`💰 Order paid: $${orderTotal} by customer ${shopifyCustomerId}`);
     console.log(`📞 Phone in order: ${order.customer.phone}`);
     console.log(`📧 Email in order: ${order.customer.email}`);

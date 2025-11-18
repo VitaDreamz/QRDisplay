@@ -176,10 +176,15 @@ export async function POST(request: NextRequest) {
     // Return PDF as arraybuffer
     const pdfBlob = doc.output('arraybuffer');
     
+    // Generate filename with QR code range (e.g., QR-labels-QRD-001-024.pdf)
+    const firstDisplayId = displays[0].displayId;
+    const lastDisplayId = displays[displays.length - 1].displayId;
+    const filename = `QR-labels-${firstDisplayId}-${lastDisplayId}.pdf`;
+    
     return new Response(pdfBlob, {
     headers: {
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="qr-labels-OL2681-${displays.length}.pdf"`
+      'Content-Disposition': `attachment; filename="${filename}"`
     }
   });
   } catch (error) {

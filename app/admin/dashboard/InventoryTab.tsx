@@ -97,9 +97,15 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
 
+      // Generate filename with QR code range (e.g., QR-labels-QRD-001-024.pdf)
+      const sortedIds = [...displayIds].sort();
+      const firstId = sortedIds[0];
+      const lastId = sortedIds[sortedIds.length - 1];
+      const filename = `QR-labels-${firstId}-${lastId}.pdf`;
+
       const a = document.createElement('a');
       a.href = url;
-      a.download = `qr-labels-OL2681-${displayIds.length}.pdf`;
+      a.download = filename;
       a.click();
       
       URL.revokeObjectURL(url);

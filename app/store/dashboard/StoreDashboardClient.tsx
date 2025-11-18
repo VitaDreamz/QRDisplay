@@ -1162,9 +1162,9 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
         </div>
       </div>
 
-      {/* Stats Cards - Mobile: Home tab only, Desktop: All tabs except Settings */}
+      {/* Stats Cards - Mobile: Overview tab only, Desktop: All tabs except Settings */}
       {activeTab !== 'settings' && (
-        <div className={`px-4 md:px-6 py-2 md:py-3 ${activeTab !== 'home' ? 'hidden md:block' : ''}`}>
+        <div className={`px-4 md:px-6 py-2 md:py-3 ${activeTab !== 'overview' ? 'hidden md:block' : ''}`}>
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2 md:gap-4">
             <div className="bg-white rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition">
               <div className="text-xs text-gray-600 font-medium">Samples Requested</div>

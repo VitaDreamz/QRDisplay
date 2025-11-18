@@ -282,38 +282,52 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        // Deduct store credit from partnerships
+        // ONLY deduct store credit AFTER successful Shopify order creation
+        // Calculate per-brand totals first
+        const brandTotals: { [brandOrgId: string]: number } = {};
         for (const item of orderData.items) {
+          const itemTotal = Number(item.quantity) * Number(item.unitPrice);
+          brandTotals[item.brandOrgId] = (brandTotals[item.brandOrgId] || 0) + itemTotal;
+        }
+        
+        const grandTotal = Object.values(brandTotals).reduce((sum, val) => sum + val, 0);
+        
+        for (const [brandOrgId, brandSubtotal] of Object.entries(brandTotals)) {
           if (creditApplied > 0) {
             const partnership = store.brandPartnerships.find(
-              bp => bp.brand.orgId === item.brandOrgId
+              bp => bp.brand.orgId === brandOrgId
             );
             if (partnership) {
+              // Calculate this brand's share of the credit based on subtotal percentage
+              const brandCreditShare = (brandSubtotal / grandTotal) * creditApplied;
               const creditToDeduct = Math.min(
                 Number(partnership.storeCreditBalance),
-                (creditApplied / orderData.items.length) // Distribute credit evenly
+                brandCreditShare
               );
+              
+              const newBalance = Number(partnership.storeCreditBalance) - creditToDeduct;
               
               await prisma.storeBrandPartnership.update({
                 where: { id: partnership.id },
                 data: {
-                  storeCreditBalance: {
-                    decrement: creditToDeduct,
-                  },
+                  storeCreditBalance: newBalance,
                 },
               });
 
-              // Log credit transaction
+              // Log credit transaction with brand partnership ID
               await prisma.storeCreditTransaction.create({
                 data: {
                   storeId: store.id,
+                  brandPartnershipId: partnership.id,
                   type: 'redeemed',
                   reason: `Applied to wholesale order ${orderId}`,
                   amount: -creditToDeduct,
-                  balance: Number(partnership.storeCreditBalance) - creditToDeduct,
+                  balance: newBalance,
                   orderId: orderId,
                 },
               });
+              
+              console.log(`💳 Deducted $${creditToDeduct.toFixed(2)} from ${partnership.brand.name} (balance: $${newBalance.toFixed(2)})`);
             }
           }
         }

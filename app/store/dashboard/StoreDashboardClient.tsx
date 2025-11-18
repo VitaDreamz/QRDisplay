@@ -3710,17 +3710,24 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                   <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {data.brandPartnerships
                       .filter(bp => bp.status === 'active')
-                      .map((partnership) => (
+                      .map((partnership) => {
+                        const brandImageMap: { [key: string]: string } = {
+                          'VitaDreamz Bliss': '/images/products/30ct+60ct-BlissBerry-Bags+gummies.png',
+                          'VitaDreamz Chill': '/images/products/20ct+60ct-ChillOut Chewz-Bags+gummies.png',
+                          'VitaDreamz Slumber': '/images/products/4ct+30ct+60ct-Slumber Berry.png',
+                        };
+                        const brandImage = brandImageMap[partnership.brand.name];
+                        return (
                         <div
                           key={partnership.id}
                           className="border-2 border-gray-200 rounded-lg p-3 hover:border-purple-300 transition-colors"
                         >
                           <div className="flex flex-col items-center text-center gap-2 mb-2">
-                            {partnership.brand.logoUrl && (
+                            {brandImage && (
                               <img
-                                src={partnership.brand.logoUrl}
+                                src={brandImage}
                                 alt={partnership.brand.name}
-                                className="w-10 h-10 md:w-12 md:h-12 rounded-lg object-cover"
+                                className="w-16 h-16 md:w-20 md:h-20 rounded-lg object-cover shadow-sm"
                               />
                             )}
                             <span className={`${getBrandColor(partnership.brand.name).bg} ${getBrandColor(partnership.brand.name).text} px-2 py-0.5 rounded-full text-xs font-bold`}>
@@ -3750,7 +3757,9 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                             </div>
                           </div>
                         </div>
-                      ))}
+                      );
+                    })}
+
                   </div>
                 ) : (
                   <div className="text-center py-12 text-gray-500">
@@ -3796,6 +3805,11 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                     <tbody className="bg-white divide-y divide-gray-200">
                       {creditTransactions.map((txn: any) => {
                         const brand = data.brandPartnerships?.find(bp => bp.id === txn.brandPartnershipId);
+                        const brandImageMap: { [key: string]: string } = {
+                          'VitaDreamz Bliss': '/images/products/30ct+60ct-BlissBerry-Bags+gummies.png',
+                          'VitaDreamz Chill': '/images/products/20ct+60ct-ChillOut Chewz-Bags+gummies.png',
+                          'VitaDreamz Slumber': '/images/products/4ct+30ct+60ct-Slumber Berry.png',
+                        };
                         return (
                           <tr key={txn.id} className="hover:bg-gray-50">
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
@@ -3809,9 +3823,18 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               {brand ? (
-                                <span className={`inline-flex ${getBrandColor(brand.brand.name).bg} ${getBrandColor(brand.brand.name).text} px-2 py-1 text-xs font-semibold rounded`}>
-                                  {brand.brand.name}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  {brandImageMap[brand.brand.name] && (
+                                    <img 
+                                      src={brandImageMap[brand.brand.name]} 
+                                      alt={brand.brand.name}
+                                      className="w-8 h-8 object-cover rounded"
+                                    />
+                                  )}
+                                  <span className={`inline-flex ${getBrandColor(brand.brand.name).bg} ${getBrandColor(brand.brand.name).text} px-2 py-1 text-xs font-semibold rounded`}>
+                                    {brand.brand.name}
+                                  </span>
+                                </div>
                               ) : (
                                 <span className="text-xs text-gray-400">—</span>
                               )}
@@ -3828,6 +3851,9 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                             <td className="px-4 py-3 text-sm text-gray-900">
                               <div>
                                 <p className="font-medium">{txn.reason}</p>
+                                {txn.customerName && (
+                                  <p className="text-xs text-purple-600 font-medium">Customer: {txn.customerName}</p>
+                                )}
                                 {txn.displayId && (
                                   <p className="text-xs text-gray-500">Display: {txn.displayId}</p>
                                 )}

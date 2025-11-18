@@ -303,6 +303,8 @@ export async function POST(request: NextRequest) {
               reason: `${partnership.promoCommission}% Discount Match - Purchase Reimbursement`,
               amount: creditAmount,
               balance: newBalance,
+              customerId: customer.id,
+              customerName: `${customer.firstName} ${customer.lastName}`,
             },
           });
 

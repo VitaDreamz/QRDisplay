@@ -383,6 +383,10 @@ model StoreCreditTransaction {
   displayId String?  // If earned via display setup
   orderId   String?  // If redeemed in an order
   
+  // Customer attribution (for commission tracking)
+  customerId   String?  // Customer who generated this credit
+  customerName String?  // Cached customer name for easy display
+  
   balance   Decimal  @db.Decimal(10, 2) // Store's balance after this transaction
   
   createdAt DateTime @default(now())

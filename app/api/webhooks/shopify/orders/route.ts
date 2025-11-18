@@ -364,7 +364,15 @@ async function handleOrderPaid(orgId: string, order: ShopifyOrder, topic: string
     const storeId = customer.attributedStoreId || customer.storeId;
     if (storeId) {
       try {
-        await applyStoreCredit(storeId, brandId, commissionAmount, conversion.id, customer.store?.storeName || 'Store');
+        await applyStoreCredit(
+          storeId, 
+          brandId, 
+          commissionAmount, 
+          conversion.id, 
+          customer.store?.storeName || 'Store',
+          customer.id,
+          `${customer.firstName} ${customer.lastName}`
+        );
         
         // Mark conversion as paid
         await prisma.conversion.update({
@@ -437,7 +445,9 @@ async function applyStoreCredit(
   brandId: string,
   amount: number,
   conversionId: string,
-  storeName: string
+  storeName: string,
+  customerId?: string,
+  customerName?: string
 ) {
   console.log(`💳 Applying store credit: $${amount.toFixed(2)} to ${storeIdString} for brand ${brandId}`);
   
@@ -495,6 +505,8 @@ async function applyStoreCredit(
       type: 'earned',
       reason: `Commission from Online Order #${conversionId}`,
       balance: newBalance,
+      customerId,
+      customerName,
     },
   });
 

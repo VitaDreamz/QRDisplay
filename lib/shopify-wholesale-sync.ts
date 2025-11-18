@@ -56,6 +56,19 @@ export async function syncStoreToShopifyWholesale(
     });
 
     const existingCustomers = (searchResponse.body as any).customers || [];
+    
+    // Also search by phone if we don't find by email (phone might be registered with different email)
+    if (existingCustomers.length === 0 && store.purchasingPhone) {
+      const phoneSearchResponse = await restClient.get({
+        path: 'customers/search',
+        query: { query: `phone:${store.purchasingPhone}` },
+      });
+      const phoneCustomers = (phoneSearchResponse.body as any).customers || [];
+      if (phoneCustomers.length > 0) {
+        console.log(`Found existing customer by phone: ${store.purchasingPhone}`);
+        existingCustomers.push(phoneCustomers[0]);
+      }
+    }
 
     let shopifyCustomerId: string;
 

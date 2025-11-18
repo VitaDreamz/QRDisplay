@@ -20,5 +20,9 @@ export default clerkMiddleware((_, req) => {
 });
 
 export const config = {
-  matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/", "/(api|trpc)(.*)"],
+  matcher: [
+    "/((?!.+\\.[\\w]+$|_next).*)",
+    "/",
+    "/(api|trpc)(?!/cron)(.*)", // Match all /api/* except /api/cron/*
+  ],
 };

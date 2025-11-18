@@ -50,7 +50,7 @@ model Organization {
   
   // Commission Settings (per-brand)
   commissionRate       Float?    @default(10.0) // Percentage (e.g., 10.0 = 10%)
-  attributionWindow    Int?      @default(30)   // Days to attribute sale to store
+  attributionWindow    Int?      @default(3650) // Days to attribute sale to store (10 years = lifetime)
   
   // Brand Subscription & Limits (for type='client' only)
   brandTier              String?   @default("free") // free, basic, pro, mega
@@ -776,7 +776,7 @@ model SampleHistory {
   sampledAt   DateTime @default(now())
   
   // Attribution tracking
-  attributionWindow Int @default(30) // Days to attribute purchases to this sample
+  attributionWindow Int @default(3650) // Days to attribute purchases to this sample (10 years)
   expiresAt        DateTime // sampledAt + attributionWindow days
   
   @@index([customerId])

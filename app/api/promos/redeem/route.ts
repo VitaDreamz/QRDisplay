@@ -336,8 +336,8 @@ export async function POST(request: NextRequest) {
               productSku: actualProductSku,
               productName: product.name,
               sampledAt: new Date(),
-              attributionWindow: 30,
-              expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+              attributionWindow: 3650,
+              expiresAt: new Date(Date.now() + 3650 * 24 * 60 * 60 * 1000) // 10 years from now
             }
           });
           console.log(`📝 Created pseudo-sample for direct purchase: ${actualProductSku} (brand: ${product.orgId})`);

@@ -305,20 +305,6 @@ async function handleOrderPaid(orgId: string, order: ShopifyOrder, topic: string
     const commissionAmount = calculateCommission(orderTotal, org.commissionRate || 10.0);
     const daysToConversion = attribution.daysToConversion || 0;
 
-    // Check if conversion already exists
-    const existingConversion = await prisma.conversion.findFirst({
-      where: {
-        shopifyOrderId,
-        orgId,
-      },
-    });
-
-    if (existingConversion) {
-      console.log(`ℹ️  Conversion already tracked for order ${shopifyOrderId}`);
-      await logWebhook(orgId, customer.id, topic, order, 'success', 'Conversion already tracked');
-      return;
-    }
-
     // Create conversion record
     const conversion = await prisma.conversion.create({
       data: {

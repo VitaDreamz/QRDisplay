@@ -184,6 +184,12 @@ model Store {
   // Store Credit (QRDisplay-managed)
   storeCredit           Decimal   @default(0.00) @db.Decimal(10, 2)
   
+  // Message Credits System (Phase 1: Everyone gets 100/month)
+  messageCreditBalance  Int       @default(100)    // Free message credits
+  totalMessagesSent     Int       @default(0)      // Analytics
+  lastCreditRefill      DateTime  @default(now())  // Track monthly refills
+  lastMessageBlastAt    DateTime?                  // Rate limiting (24hr)
+  
   // Available sample products (stores choose which samples they carry)
   availableSamples String[] @default([])
   
@@ -210,6 +216,7 @@ model Store {
   inventoryTransactions InventoryTransaction[]
   productHolds ProductHold[]
   wholesaleOrders WholesaleOrder[]
+  messageCampaigns MessageCampaign[]
   
   // Multi-brand relationships
   brandPartnerships StoreBrandPartnership[]
@@ -534,6 +541,11 @@ model Customer {
   // Daily Sample Limit Tracking (1 sample per day total)
   lastSampleDate    DateTime? // Last date they received ANY sample (date only, not time)
   
+  // SMS Opt-out Tracking
+  smsOptedOut       Boolean   @default(false)
+  smsOptOutDate     DateTime?
+  smsOptOutReason   String?   // "STOP", "Manual", etc.
+  
   requestedAt  DateTime  @default(now())
   
   organization Organization @relation(fields: [orgId], references: [id])
@@ -839,6 +851,30 @@ model MessageLog {
   body         String?
   
   @@map("message_log")
+}
+
+// Message Campaign Log (for blast messages)
+model MessageCampaign {
+  id              String   @id @default(cuid())
+  storeId         String
+  store           Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  // Campaign details
+  message         String
+  audience        String   // 'all', 'undecided', 'sampling', 'purchased', 'ready_for_pickup'
+  templateUsed    String?  // Which template was used (if any)
+  
+  // Results
+  recipientCount  Int      // How many customers targeted
+  sentCount       Int      // How many successfully sent
+  creditsUsed     Int      // Message credits deducted
+  optOutCount     Int      @default(0) // How many opted out after this campaign
+  
+  sentAt          DateTime @default(now())
+  
+  @@index([storeId])
+  @@index([sentAt])
+  @@map("message_campaigns")
 }
 
 // Opt Outs

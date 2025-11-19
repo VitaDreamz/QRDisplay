@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
     // Handle HELP
     if (body === 'HELP' || body === 'INFO') {
       return new Response(
-        `<?xml version="1.0" encoding="UTF-8"?><Response><Message>Reply STOP to unsubscribe or START to resubscribe. Msg&amp;data rates may apply.</Message></Response>`,
+        `<?xml version="1.0" encoding="UTF-8"?><Response><Message>QRDisplay SMS Service. Reply STOP to unsubscribe or START to resubscribe. Need help? Email support@qrdisplay.com or visit qrdisplay.com/contact</Message></Response>`,
         {
           headers: { 'Content-Type': 'text/xml' },
           status: 200
@@ -118,10 +118,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // All other messages - just acknowledge (could forward to store dashboard in future)
+    // All other messages - log but don't auto-reply
+    // (stores can view and reply manually from their dashboard in the future)
     console.log(`💬 Unhandled message from ${from}: "${body}"`);
     
-    // Don't auto-reply to other messages (stores can reply manually)
+    // Return empty TwiML response (no auto-reply for general messages)
     return new Response(
       `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`,
       {

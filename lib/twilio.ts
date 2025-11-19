@@ -4,32 +4,24 @@
  */
 
 export async function sendSMS(to: string, message: string): Promise<boolean> {
-  // Check if Twilio is configured
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const fromNumber = process.env.TWILIO_PHONE_NUMBER;
-
-  if (!accountSid || !authToken || !fromNumber) {
-    console.warn('Twilio not configured - SMS not sent');
-    console.log(`Would have sent SMS to ${to}: ${message}`);
-    return false;
-  }
-
   try {
-    // Import Twilio dynamically to avoid build errors if not installed
-    const twilio = await import('twilio');
-    const client = twilio.default(accountSid, authToken);
+    // Use the same pattern as the rest of the codebase
+    const twilio = require('twilio');
+    const client = twilio(
+      process.env.TWILIO_ACCOUNT_SID,
+      process.env.TWILIO_AUTH_TOKEN
+    );
 
     await client.messages.create({
       body: message,
-      from: fromNumber,
+      from: process.env.TWILIO_PHONE_NUMBER,
       to: to,
     });
 
-    console.log(`SMS sent successfully to ${to}`);
+    console.log(`✅ SMS sent successfully to ${to}`);
     return true;
   } catch (error) {
-    console.error('Failed to send SMS:', error);
+    console.error('❌ Failed to send SMS:', error);
     return false;
   }
 }

@@ -2892,7 +2892,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                             setSelectedInventoryProduct(product);
                                             setShowInventoryDetailModal(true);
                                           }}
-                                          className={`font-medium hover:underline cursor-pointer ${
+                                          className={`font-bold text-lg hover:underline cursor-pointer ${
                                             (product.inventoryQuantity || 0) > 20 ? 'text-green-600' :
                                             (product.inventoryQuantity || 0) > 5 ? 'text-yellow-600' :
                                             'text-red-600'
@@ -2901,7 +2901,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                           {product.inventoryQuantity || 0}
                                           {/* Show holds and incoming if they exist */}
                                           {(product.quantityReserved > 0 || product.quantityIncoming > 0) && (
-                                            <span className="text-xs ml-1">
+                                            <span className="text-sm ml-2 font-semibold">
                                               {product.quantityReserved > 0 && (
                                                 <span className="text-yellow-600">(-{product.quantityReserved})</span>
                                               )}
@@ -5911,28 +5911,28 @@ Thanks for choosing ${orgName}!`;
 
               {/* Inventory Stats */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <div className="text-green-600 text-sm font-medium mb-1">Current Inventory</div>
-                  <div className="text-3xl font-bold text-green-700">
+                <div className="bg-green-50 border-2 border-green-300 rounded-lg p-6">
+                  <div className="text-green-700 text-base font-semibold mb-2">Current Inventory</div>
+                  <div className="text-5xl font-bold text-green-700">
                     {selectedInventoryProduct.inventoryQuantity || 0}
                   </div>
-                  <div className="text-xs text-green-600 mt-1">Units on hand</div>
+                  <div className="text-sm text-green-600 mt-2">Units on hand</div>
                 </div>
 
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <div className="text-yellow-600 text-sm font-medium mb-1">Reserved / Holds</div>
-                  <div className="text-3xl font-bold text-yellow-700">
+                <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-6">
+                  <div className="text-yellow-700 text-base font-semibold mb-2">Reserved / Holds</div>
+                  <div className="text-5xl font-bold text-yellow-700">
                     {selectedInventoryProduct.quantityReserved || 0}
                   </div>
-                  <div className="text-xs text-yellow-600 mt-1">Pending purchases</div>
+                  <div className="text-sm text-yellow-600 mt-2">Pending purchases</div>
                 </div>
 
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="text-blue-600 text-sm font-medium mb-1">Incoming</div>
-                  <div className="text-3xl font-bold text-blue-700">
+                <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6">
+                  <div className="text-blue-700 text-base font-semibold mb-2">Incoming</div>
+                  <div className="text-5xl font-bold text-blue-700">
                     {selectedInventoryProduct.quantityIncoming || 0}
                   </div>
-                  <div className="text-xs text-blue-600 mt-1">On order</div>
+                  <div className="text-sm text-blue-600 mt-2">On order</div>
                 </div>
               </div>
 

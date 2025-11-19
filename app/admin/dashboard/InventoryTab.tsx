@@ -137,7 +137,7 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
   };
 
   const displayCount = displays.length;
-  const nextDisplayId = `QRD-${String(displayCount + 1).padStart(3, '0')}`;
+  const nextDisplayId = `SHD-${String(displayCount + 1).padStart(3, '0')}`;
 
   const openEdit = (d: Display) => {
     setEditing(d);

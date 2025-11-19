@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
       doc.setFontSize(URL_FONT_SIZE);
       doc.setTextColor(100, 100, 100);
       doc.text(
-        'qrdisplay.com/d/',
+        'samplehound.com/d/',
         x + LABEL_WIDTH / 2,
         qrY + QR_SIZE + URL_OFFSET,
         { align: 'center' }

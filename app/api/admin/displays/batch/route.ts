@@ -5,7 +5,7 @@ import prisma from '@/lib/prisma';
 function generateDisplayId(count: number): string {
   const num = count + 1;
   const padded = String(num).padStart(3, '0'); // Minimum 3 digits
-  return `QRD-${padded}`;
+  return `SHD-${padded}`;
 }
 
 export async function POST(request: NextRequest) {
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       const displayId = generateDisplayId(count + i);
       
       // Generate QR code with short URL
-      const url = `https://qrdisplay.com/d/${displayId}`;
+      const url = `https://samplehound.com/d/${displayId}`;
       const qrDataUrl = await QRCode.toDataURL(url, {
         errorCorrectionLevel: 'H',
         type: 'image/png',

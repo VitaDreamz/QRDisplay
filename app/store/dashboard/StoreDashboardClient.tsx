@@ -960,7 +960,8 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
     if (activeTab === 'overview' && role === 'owner' && staff.length === 0) {
       fetchStaff();
     }
-    if (activeTab === 'products') {
+    if (activeTab === 'products' || activeTab === 'brands') {
+      // Fetch products for both Products tab and Brands tab (which shows inventory)
       fetchProducts();
     }
     if (activeTab === 'orders') {
@@ -970,6 +971,11 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
       fetchCreditTransactions();
     }
   }, [activeTab]);
+
+  // Fetch products on initial mount so Brands tab and Wholesale modal have data immediately
+  useEffect(() => {
+    fetchProducts();
+  }, []); // Run once on component mount
 
   const fetchCreditTransactions = async () => {
     setLoadingCreditTransactions(true);

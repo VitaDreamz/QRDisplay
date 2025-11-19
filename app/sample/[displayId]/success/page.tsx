@@ -84,7 +84,7 @@ export default async function SampleSuccessPage({
   const sampleChoice = customer.sampleChoice;
   const promoOffer = store.promoOffer;
   // TypeScript types may be cached; use type assertion for supportEmail
-  const supportEmail = (organization as any).supportEmail || 'support@qrdisplay.com';
+  const supportEmail = (organization as any).supportEmail || 'jbonutto@gmail.com';
 
   return (
     <div className="min-h-svh bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 flex items-center justify-center p-4">

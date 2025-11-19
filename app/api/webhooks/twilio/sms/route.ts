@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
     // Handle HELP
     if (body === 'HELP' || body === 'INFO') {
       return new Response(
-        `<?xml version="1.0" encoding="UTF-8"?><Response><Message>QRDisplay SMS Service. Reply STOP to unsubscribe or START to resubscribe. Need help? Email support@qrdisplay.com or visit qrdisplay.com/contact</Message></Response>`,
+        `<?xml version="1.0" encoding="UTF-8"?><Response><Message>QRDisplay SMS Service. Reply STOP to unsubscribe or START to resubscribe. Need help? Email jbonutto@gmail.com or visit qrdisplay.com/contact</Message></Response>`,
         {
           headers: { 'Content-Type': 'text/xml' },
           status: 200

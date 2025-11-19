@@ -30,7 +30,7 @@ export default async function ActivationSuccess({
 
   const brandName = store.organization.name;
   const brandEmail = store.organization.type === 'platform' 
-    ? 'support@qrdisplay.com' 
+    ? 'jbonutto@gmail.com' 
     : `info@${store.organization.slug}.com`;
 
   return (

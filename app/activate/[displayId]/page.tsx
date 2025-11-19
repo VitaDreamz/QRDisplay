@@ -811,7 +811,7 @@ export default function ActivateDisplay({ params }: { params: Promise<{ displayI
                   )}
                 </>
               ) : (
-                'support@qrdisplay.com'
+                'jbonutto@gmail.com'
               )}
             </p>
         </div>

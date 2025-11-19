@@ -763,50 +763,132 @@ async function handleWholesaleOrder(orgId: string, order: ShopifyOrder, topic: s
  */
 async function handleWholesaleFulfilled(orgId: string, order: ShopifyOrder, topic: string) {
   try {
-    // Check if order contains wholesale products
-    const wholesaleItems = order.line_items.filter(item => item.sku?.endsWith('-BX'));
+    console.log(`🚚 Processing fulfilled order ${order.id} for wholesale products...`);
     
-    if (wholesaleItems.length === 0) {
-      return; // Not a wholesale order
-    }
-
-    console.log(`🚚 Wholesale order fulfilled: ${wholesaleItems.length} items`);
-
     // Find which store this order is for
     const store = await prisma.store.findFirst({
       where: { 
         shopifyCustomerId: order.customer.id.toString(),
-        orgId
       }
     });
 
     if (!store) {
-      console.error(`❌ Store not found for fulfilled order`);
+      console.log(`ℹ️  Store not found for fulfilled order - not a wholesale order`);
       return;
     }
 
+    console.log(`✅ Found store: ${store.storeName} (${store.storeId})`);
+
     // Get fulfillment data (tracking, carrier, etc.)
     const fulfillment = order.fulfillments?.[0];
+    const trackingNumber = fulfillment?.tracking_number || null;
+    const trackingCompany = fulfillment?.tracking_company || null;
+    const trackingUrl = fulfillment?.tracking_url || null;
 
-    for (const item of wholesaleItems) {
+    console.log(`📦 Fulfillment tracking: ${trackingCompany || 'N/A'} - ${trackingNumber || 'N/A'}`);
+
+    // Process each line item to set as incoming and generate verification token
+    for (const item of order.line_items) {
       try {
-        if (!item.sku) continue;
+        let wholesaleProduct = null;
+        let matchMethod = '';
 
-        const retailSku = item.sku.replace(/-BX$/, '');
+        // Match by Shopify Variant ID (BEST)
+        if (item.variant_id) {
+          const variantGid = `gid://shopify/ProductVariant/${item.variant_id}`;
+          wholesaleProduct = await prisma.product.findFirst({
+            where: { 
+              shopifyVariantId: variantGid,
+              unitsPerBox: { not: null }
+            }
+          });
+          if (wholesaleProduct) matchMethod = 'variant ID';
+        }
 
-        // NOTE: Old wholesale tracking code - now handled by WholesaleOrder fulfillment webhooks
-        // See /api/webhooks/shopify/fulfillment/create and /update for proper wholesale tracking
-        
-        console.log(`Wholesale item fulfilled: ${retailSku}`);
+        // Match by Shopify Product ID (GOOD)
+        if (!wholesaleProduct && item.product_id) {
+          const productGid = `gid://shopify/Product/${item.product_id}`;
+          wholesaleProduct = await prisma.product.findFirst({
+            where: { 
+              shopifyProductId: productGid,
+              unitsPerBox: { not: null }
+            }
+          });
+          if (wholesaleProduct) matchMethod = 'product ID';
+        }
+
+        // Match by SKU ending in -BX (FALLBACK)
+        if (!wholesaleProduct && item.sku?.endsWith('-BX')) {
+          wholesaleProduct = await prisma.product.findFirst({
+            where: { 
+              sku: item.sku,
+              unitsPerBox: { not: null }
+            }
+          });
+          if (wholesaleProduct) matchMethod = 'SKU';
+        }
+
+        if (!wholesaleProduct || !wholesaleProduct.unitsPerBox) {
+          console.log(`ℹ️  Skipping non-wholesale item: ${item.title}`);
+          continue; // Not a wholesale product
+        }
+
+        console.log(`✅ Matched wholesale product via ${matchMethod}: ${wholesaleProduct.name}`);
+
+        const retailSku = wholesaleProduct.sku.replace(/-BX$/, '');
+        const unitsShipped = item.quantity * wholesaleProduct.unitsPerBox;
+
+        console.log(`📦 ${item.quantity}x ${wholesaleProduct.sku} = ${unitsShipped} units of ${retailSku} shipped`);
+
+        // Generate verification token
+        const verificationToken = `VER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+        // Update store inventory with incoming units and verification token
+        const inventory = await prisma.storeInventory.upsert({
+          where: {
+            storeId_productSku: {
+              storeId: store.id,
+              productSku: retailSku,
+            },
+          },
+          create: {
+            storeId: store.id,
+            productSku: retailSku,
+            quantityOnHand: 0,
+            quantityIncoming: unitsShipped,
+            quantityReserved: 0,
+            quantityAvailable: 0,
+            verificationToken,
+          },
+          update: {
+            quantityIncoming: { increment: unitsShipped },
+            verificationToken, // Set/update verification token
+          },
+        });
+
+        console.log(`✅ Updated inventory for ${retailSku}: +${unitsShipped} incoming`);
+        console.log(`   Verification token: ${verificationToken}`);
+
+        // Log inventory transaction
+        await prisma.inventoryTransaction.create({
+          data: {
+            storeId: store.id,
+            productSku: retailSku,
+            type: 'wholesale_incoming',
+            quantity: unitsShipped,
+            balanceAfter: inventory.quantityOnHand, // Unchanged until verified
+            notes: `Order #${order.order_number || order.id} fulfilled and shipped - ${item.quantity}x ${wholesaleProduct.name} = ${unitsShipped} units incoming. Tracking: ${trackingNumber || 'N/A'}`,
+          },
+        });
 
       } catch (itemError) {
-        console.error(`❌ Error updating fulfilled item:`, itemError);
+        console.error(`❌ Error processing fulfilled item:`, itemError);
       }
     }
 
-    console.log(`✅ Wholesale fulfillment processing complete`);
+    console.log(`✅ Wholesale fulfillment processing complete - inventory set to incoming with verification`);
 
-    // TODO: Notify store owner with tracking information
+    // TODO: Send SMS/email notification to store with tracking info and verification link
 
   } catch (error) {
     console.error('❌ Error in handleWholesaleFulfilled:', error);

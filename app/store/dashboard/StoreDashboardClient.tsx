@@ -2760,64 +2760,59 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                   </span>
                                 )}
                               </div>
-                              <div className="grid grid-cols-1 md:grid-cols-6 gap-3 text-sm">
-                                <div className="bg-green-50 rounded p-3">
-                                  <div className="text-green-600 font-medium mb-1">💰 Store Credit</div>
-                                  <div className="text-2xl font-bold text-green-700">
+                              {/* Compact Stats Grid - 3x2 layout */}
+                              <div className="grid grid-cols-3 gap-2 md:gap-3 text-sm">
+                                {/* Row 1 */}
+                                <div className="bg-green-50 rounded-lg p-2 md:p-3 border border-green-200">
+                                  <div className="text-green-700 font-semibold text-xs mb-1">💰 Store Credit</div>
+                                  <div className="text-xl md:text-2xl font-bold text-green-700">
                                     ${partnership.storeCreditBalance.toFixed(2)}
                                   </div>
-                                  <div className="text-xs text-green-600 mt-1">Available balance</div>
+                                  <div className="text-[10px] text-green-600 mt-0.5">Available balance</div>
                                 </div>
-                                <div className="bg-orange-50 rounded p-3">
-                                  <div className="text-orange-600 font-medium mb-1">Promo</div>
-                                  <div className="text-center">
-                                    <div className="text-2xl font-bold text-orange-700">
-                                      {(partnership.promoCommission || 50).toFixed(0)}%
-                                    </div>
-                                    <div className="text-[10px] font-semibold text-orange-600 -mt-1">rebate</div>
-                                  </div>
-                                  <div className="text-xs text-orange-600 text-center mt-1">In-Store Promo</div>
-                                  <div className="text-xs text-orange-600 text-center">Brand Match</div>
-                                </div>
-                                <div className="bg-purple-50 rounded p-3">
-                                  <div className="text-purple-600 font-medium mb-1">Online</div>
-                                  <div className="text-center">
-                                    <div className="text-2xl font-bold text-purple-700">
-                                      {(partnership.onlineCommission || 20).toFixed(0)}%
-                                    </div>
-                                    <div className="text-[10px] font-semibold text-purple-600 -mt-1">commission</div>
-                                  </div>
-                                  <div className="text-xs text-purple-600 text-center mt-1">Purchases on</div>
-                                  <div className="text-xs text-purple-600 text-center">Brand Website</div>
-                                </div>
-                                <div className="bg-indigo-50 rounded p-3">
-                                  <div className="text-indigo-600 font-medium mb-1">Subscription</div>
-                                  <div className="text-center">
-                                    <div className="text-2xl font-bold text-indigo-700">
-                                      {(partnership.subscriptionCommission || 5).toFixed(0)}%
-                                    </div>
-                                    <div className="text-[10px] font-semibold text-indigo-600 -mt-1">commission</div>
-                                  </div>
-                                  <div className="text-xs text-indigo-600 text-center mt-1">Subscriptions on</div>
-                                  <div className="text-xs text-indigo-600 text-center">Brand Website</div>
-                                </div>
-                                <div className="bg-blue-50 rounded p-3">
-                                  <div className="text-blue-600 font-medium mb-1">Samples</div>
-                                  <div className="text-2xl font-bold text-blue-700">
+                                <div className="bg-blue-50 rounded-lg p-2 md:p-3 border border-blue-200">
+                                  <div className="text-blue-700 font-semibold text-xs mb-1">Samples</div>
+                                  <div className="text-xl md:text-2xl font-bold text-blue-700">
                                     {partnership.availableSamples.length}
                                   </div>
-                                  <div className="text-xs text-blue-600 mt-1">
+                                  <div className="text-[10px] text-blue-600 mt-0.5">
                                     SKUs available
                                   </div>
                                 </div>
-                                <div className="bg-amber-50 rounded p-3">
-                                  <div className="text-amber-600 font-medium mb-1">Products</div>
-                                  <div className="text-2xl font-bold text-amber-700">
+                                <div className="bg-amber-50 rounded-lg p-2 md:p-3 border border-amber-200">
+                                  <div className="text-amber-700 font-semibold text-xs mb-1">Products</div>
+                                  <div className="text-xl md:text-2xl font-bold text-amber-700">
                                     {partnership.availableProducts.length}
                                   </div>
-                                  <div className="text-xs text-amber-600 mt-1">
+                                  <div className="text-[10px] text-amber-600 mt-0.5">
                                     SKUs available
                                   </div>
+                                </div>
+                                
+                                {/* Row 2 */}
+                                <div className="bg-orange-50 rounded-lg p-2 md:p-3 border border-orange-200">
+                                  <div className="text-orange-700 font-semibold text-xs mb-1">Promo</div>
+                                  <div className="text-xl md:text-2xl font-bold text-orange-700">
+                                    {(partnership.promoCommission || 50).toFixed(0)}%
+                                  </div>
+                                  <div className="text-[10px] text-orange-600 mt-0.5">rebate</div>
+                                  <div className="text-[9px] text-orange-500">In-Store Promo</div>
+                                </div>
+                                <div className="bg-purple-50 rounded-lg p-2 md:p-3 border border-purple-200">
+                                  <div className="text-purple-700 font-semibold text-xs mb-1">Online</div>
+                                  <div className="text-xl md:text-2xl font-bold text-purple-700">
+                                    {(partnership.onlineCommission || 20).toFixed(0)}%
+                                  </div>
+                                  <div className="text-[10px] text-purple-600 mt-0.5">commission</div>
+                                  <div className="text-[9px] text-purple-500">Brand Website</div>
+                                </div>
+                                <div className="bg-indigo-50 rounded-lg p-2 md:p-3 border border-indigo-200">
+                                  <div className="text-indigo-700 font-semibold text-xs mb-1">Subscription</div>
+                                  <div className="text-xl md:text-2xl font-bold text-indigo-700">
+                                    {(partnership.subscriptionCommission || 5).toFixed(0)}%
+                                  </div>
+                                  <div className="text-[10px] text-indigo-600 mt-0.5">commission</div>
+                                  <div className="text-[9px] text-indigo-500">Brand Website</div>
                                 </div>
                               </div>
                             </div>
@@ -2844,37 +2839,48 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
 
                         {/* Inventory Drawer */}
                         {isExpanded && brandProducts.length > 0 && (
-                          <div className="border-t border-gray-200 bg-gray-50 p-4">
+                          <div className="border-t border-gray-200 bg-gray-50 p-2 md:p-4">
                             <div className="overflow-x-auto">
                               <table className="w-full">
                                 <thead className="bg-gray-100 border-b">
                                   <tr>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Price</th>
-                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">In Stock</th>
-                                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                    <th className="px-2 md:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Product</th>
+                                    <th className="px-2 md:px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase hidden md:table-cell">Type</th>
+                                    <th className="px-2 md:px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase hidden md:table-cell">Price</th>
+                                    <th className="px-2 md:px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Stock</th>
+                                    <th className="px-2 md:px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Actions</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200 bg-white">
                                   {brandProducts.map((product) => (
                                     <tr key={product.id} className="hover:bg-gray-50">
-                                      <td className="px-4 py-3">
-                                        <div className="flex items-center gap-3">
+                                      <td className="px-2 md:px-4 py-3">
+                                        <div className="flex items-center gap-2 md:gap-3">
                                           {product.imageUrl && (
                                             <img
                                               src={product.imageUrl}
                                               alt={product.name}
-                                              className="w-10 h-10 rounded object-cover"
+                                              className="w-10 h-10 md:w-12 md:h-12 rounded object-cover flex-shrink-0"
                                             />
                                           )}
-                                          <div>
-                                            <div className="font-medium text-sm">{product.name || product.sku}</div>
+                                          <div className="min-w-0">
+                                            <div className="font-semibold text-sm md:text-base truncate">{product.name || product.sku}</div>
                                             <div className="text-xs text-gray-500">{product.sku}</div>
+                                            {/* Show type and price on mobile */}
+                                            <div className="md:hidden mt-1 flex gap-2 items-center text-xs">
+                                              <span className={`px-1.5 py-0.5 rounded font-medium ${
+                                                product.productType === 'sample'
+                                                  ? 'bg-purple-100 text-purple-700'
+                                                  : 'bg-green-100 text-green-700'
+                                              }`}>
+                                                {product.productType || 'N/A'}
+                                              </span>
+                                              <span className="font-semibold text-gray-700">${Number(product.price).toFixed(2)}</span>
+                                            </div>
                                           </div>
                                         </div>
                                       </td>
-                                      <td className="px-4 py-3">
+                                      <td className="px-2 md:px-4 py-3 hidden md:table-cell">
                                         <span className={`px-2 py-1 rounded text-xs font-medium ${
                                           product.productType === 'sample'
                                             ? 'bg-purple-100 text-purple-700'
@@ -2883,16 +2889,16 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                           {product.productType || 'N/A'}
                                         </span>
                                       </td>
-                                      <td className="px-4 py-3 text-right font-medium text-sm">
+                                      <td className="px-2 md:px-4 py-3 text-right font-semibold text-sm hidden md:table-cell">
                                         ${Number(product.price).toFixed(2)}
                                       </td>
-                                      <td className="px-4 py-3 text-right">
+                                      <td className="px-2 md:px-4 py-3 text-right">
                                         <button
                                           onClick={async () => {
                                             setSelectedInventoryProduct(product);
                                             setShowInventoryDetailModal(true);
                                           }}
-                                          className={`font-bold text-lg hover:underline cursor-pointer ${
+                                          className={`font-bold text-2xl md:text-3xl hover:underline cursor-pointer ${
                                             (product.inventoryQuantity || 0) > 20 ? 'text-green-600' :
                                             (product.inventoryQuantity || 0) > 5 ? 'text-yellow-600' :
                                             'text-red-600'
@@ -2901,7 +2907,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                           {product.inventoryQuantity || 0}
                                           {/* Show holds and incoming if they exist */}
                                           {(product.quantityReserved > 0 || product.quantityIncoming > 0) && (
-                                            <span className="text-sm ml-2 font-semibold">
+                                            <span className="text-base md:text-lg ml-1 font-semibold">
                                               {product.quantityReserved > 0 && (
                                                 <span className="text-yellow-600">(-{product.quantityReserved})</span>
                                               )}
@@ -2912,15 +2918,16 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                           )}
                                         </button>
                                       </td>
-                                      <td className="px-4 py-3 text-center">
+                                      <td className="px-2 md:px-4 py-3 text-center">
                                         {product.quantityIncoming > 0 && product.verificationToken && (
                                           <button
                                             onClick={() => {
                                               window.location.href = `/store/wholesale/verify/${product.verificationToken}`;
                                             }}
-                                            className="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors"
+                                            className="px-2 md:px-3 py-1.5 md:py-2 bg-blue-600 text-white text-xs md:text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
                                           >
-                                            📦 Verify Received
+                                            <span className="hidden md:inline">📦 Verify Received</span>
+                                            <span className="md:hidden">✓ Verify</span>
                                           </button>
                                         )}
                                       </td>

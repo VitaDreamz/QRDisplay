@@ -603,6 +603,10 @@ export async function createShopifyDraftOrder(
       first_name?: string;
       last_name?: string;
     };
+    billing_address?: {
+      first_name?: string;
+      last_name?: string;
+    };
     note?: string;
     tags?: string;
     applied_discount?: {
@@ -613,7 +617,7 @@ export async function createShopifyDraftOrder(
     };
     email?: {
       to: string;
-      bcc?: string[]; // CC emails (Shopify uses BCC for draft order emails)
+      bcc?: string[];
       subject?: string;
       custom_message?: string;
     };
@@ -622,13 +626,17 @@ export async function createShopifyDraftOrder(
   try {
     const url = `https://${shopifyDomain}/admin/api/2024-10/draft_orders.json`;
     
+    // Extract email config before sending to Shopify (it's not part of the draft order API)
+    const emailConfig = draftOrderData.email;
+    const { email, ...draftOrderPayload } = draftOrderData;
+    
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Shopify-Access-Token': accessToken,
       },
-      body: JSON.stringify({ draft_order: draftOrderData }),
+      body: JSON.stringify({ draft_order: draftOrderPayload }),
     });
 
     if (!response.ok) {
@@ -641,12 +649,12 @@ export async function createShopifyDraftOrder(
     const draftOrder = result.draft_order;
 
     // Send invoice email if email config provided
-    if (draftOrderData.email) {
+    if (emailConfig) {
       await sendDraftOrderInvoice(
         shopifyDomain,
         accessToken,
         draftOrder.id,
-        draftOrderData.email
+        emailConfig
       );
     }
 

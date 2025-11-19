@@ -5634,9 +5634,11 @@ Thanks for choosing ${orgName}!`;
                     .filter(bp => bp.status === 'active')
                     .map((partnership) => {
                       // Get wholesale box products for this brand
-                      const brandWholesale = products.filter(
-                        (p) => p.orgId === partnership.brand.orgId && p.productType === 'wholesale-box'
-                      );
+                      const brandWholesale = products
+                        .filter(
+                          (p) => p.orgId === partnership.brand.orgId && p.productType === 'wholesale-box'
+                        )
+                        .sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically by name
                       
                       if (brandWholesale.length === 0) return null;
                       

@@ -52,40 +52,18 @@ export async function GET(
       ],
     });
 
-    // Get inventory for this store (including pending orders)
+    // Get inventory for this store (including verification tokens)
     const inventory = await prisma.storeInventory.findMany({
       where: { storeId: store.id },
-    });
-
-    // Get pending wholesale orders with verification tokens
-    const pendingOrders = await prisma.wholesaleOrder.findMany({
-      where: {
-        storeId: store.id,
-        status: { in: ['delivered', 'fulfilled'] }, // Orders awaiting verification
-      },
       select: {
-        orderId: true,
+        productSku: true,
+        quantityOnHand: true,
+        quantityReserved: true,
+        quantityIncoming: true,
+        pendingOrderId: true,
         verificationToken: true,
-        items: {
-          select: {
-            retailSku: true,
-          },
-        },
       },
     });
-
-    // Map pending orders by SKU
-    const pendingOrderMap = new Map<string, { orderId: string; verificationToken: string | null }>();
-    for (const order of pendingOrders) {
-      for (const item of order.items) {
-        if (item.retailSku) {
-          pendingOrderMap.set(item.retailSku, {
-            orderId: order.orderId,
-            verificationToken: order.verificationToken,
-          });
-        }
-      }
-    }
 
     // Map inventory data to products
     const inventoryMap = new Map(
@@ -94,20 +72,20 @@ export async function GET(
         quantityReserved: inv.quantityReserved,
         quantityIncoming: inv.quantityIncoming || 0,
         pendingOrderId: inv.pendingOrderId,
+        verificationToken: inv.verificationToken,
       }])
     );
 
     // Add inventory quantities to products
     const productsWithInventory = products.map(product => {
       const inv = inventoryMap.get(product.sku);
-      const pendingOrder = pendingOrderMap.get(product.sku);
       return {
         ...product,
         inventoryQuantity: inv?.quantityOnHand || 0,
         quantityReserved: inv?.quantityReserved || 0,
         quantityIncoming: inv?.quantityIncoming || 0,
         pendingOrderId: inv?.pendingOrderId,
-        verificationToken: pendingOrder?.verificationToken,
+        verificationToken: inv?.verificationToken,
       };
     });
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-// GET - Load order for verification
+// GET - Load inventory items for verification
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ token: string }> }
@@ -9,14 +9,10 @@ export async function GET(
   try {
     const { token } = await params;
 
-    const order = await prisma.wholesaleOrder.findUnique({
+    // Find all inventory items with this verification token
+    const inventoryItems = await prisma.storeInventory.findMany({
       where: { verificationToken: token },
       include: {
-        items: {
-          include: {
-            product: true,
-          },
-        },
         store: {
           select: {
             id: true,
@@ -24,16 +20,36 @@ export async function GET(
             storeName: true,
           },
         },
+        product: true,
       },
     });
 
-    if (!order || order.status === 'received') {
-      return NextResponse.json({ error: 'Order not found or already verified' }, { status: 404 });
+    if (inventoryItems.length === 0) {
+      return NextResponse.json({ error: 'Invalid or expired verification link' }, { status: 404 });
     }
+
+    // Group by store (should all be same store)
+    const store = inventoryItems[0].store;
+
+    // Transform to match expected format
+    const order = {
+      store: {
+        name: store.storeName,
+        id: store.id,
+      },
+      items: inventoryItems.map(inv => ({
+        id: inv.id,
+        productSku: inv.productSku,
+        product: inv.product,
+        retailUnits: inv.quantityIncoming,
+        quantity: Math.ceil(inv.quantityIncoming / (inv.product.unitsPerBox || 1)), // Calculate boxes
+      })),
+      deliveredAt: new Date(), // Approximate
+    };
 
     return NextResponse.json({ order });
   } catch (error: any) {
-    console.error('[Verify Order GET] Error:', error);
+    console.error('[Verify Inventory GET] Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -47,68 +63,42 @@ export async function POST(
     const { token } = await params;
     const { receivedQuantities, notes } = await req.json();
 
-    const order = await prisma.wholesaleOrder.findUnique({
+    // Find all inventory items with this verification token
+    const inventoryItems = await prisma.storeInventory.findMany({
       where: { verificationToken: token },
       include: {
-        items: {
-          include: {
-            product: true,
-          },
-        },
-        store: {
-          select: {
-            id: true,
-            storeId: true,
-          },
-        },
+        store: true,
+        product: true,
       },
     });
 
-    if (!order || order.status === 'received') {
-      return NextResponse.json({ error: 'Order not found or already verified' }, { status: 404 });
+    if (inventoryItems.length === 0) {
+      return NextResponse.json({ error: 'Invalid or expired verification link' }, { status: 404 });
     }
 
-    // Update order status
-    await prisma.wholesaleOrder.update({
-      where: { id: order.id },
-      data: {
-        status: 'received',
-        receivedAt: new Date(),
-        verificationNotes: notes || null,
-      },
-    });
+    console.log(`📦 Verifying ${inventoryItems.length} products for store ${inventoryItems[0].store.storeName}`);
 
-    // Update inventory and mark items as verified
-    for (const item of order.items) {
-      const receivedQty = receivedQuantities[item.id] || 0;
+    // Update each inventory item
+    for (const inventory of inventoryItems) {
+      const receivedQty = receivedQuantities[inventory.id] || 0;
+      const expectedQty = inventory.quantityIncoming;
 
-      // Mark item as verified
-      await prisma.wholesaleOrderItem.update({
-        where: { id: item.id },
-        data: {
-          verified: true,
-          receivedQuantity: receivedQty,
-        },
-      });
+      console.log(`  - ${inventory.productSku}: Expected ${expectedQty}, Received ${receivedQty}`);
 
-      // Update store inventory
-      const retailSku = item.retailSku || item.productSku.replace('-BX', '');
-      
+      // Update inventory: move from incoming to on-hand
       await prisma.storeInventory.update({
-        where: {
-          storeId_productSku: {
-            storeId: order.store.id,
-            productSku: retailSku,
-          },
-        },
+        where: { id: inventory.id },
         data: {
           quantityOnHand: {
             increment: receivedQty,
           },
           quantityIncoming: {
-            decrement: item.retailUnits || receivedQty,
+            decrement: expectedQty, // Clear all incoming for this product
           },
-          pendingOrderId: null,
+          quantityAvailable: {
+            increment: receivedQty,
+          },
+          verificationToken: null, // Clear token after verification
           lastRestocked: new Date(),
         },
       });
@@ -116,27 +106,30 @@ export async function POST(
       // Log inventory transaction
       await prisma.inventoryTransaction.create({
         data: {
-          storeId: order.store.id,
-          productSku: retailSku,
+          storeId: inventory.store.id,
+          productSku: inventory.productSku,
           type: 'wholesale_received',
           quantity: receivedQty,
-          balanceAfter: 0, // Will be calculated
-          notes: `Verified receipt of wholesale order ${order.orderId}${receivedQty !== item.retailUnits ? ` (expected ${item.retailUnits}, received ${receivedQty})` : ''}`,
+          balanceAfter: 0, // Will be updated by triggers
+          notes: `Verified receipt of wholesale shipment${receivedQty !== expectedQty ? ` (expected ${expectedQty}, received ${receivedQty})` : ''}${notes ? ` - ${notes}` : ''}`,
         },
       });
 
-      // If there's a discrepancy, create a note
-      if (receivedQty !== item.retailUnits) {
-        const difference = receivedQty - (item.retailUnits || 0);
-        console.log(`⚠️ Discrepancy in ${retailSku}: expected ${item.retailUnits}, received ${receivedQty} (${difference > 0 ? '+' : ''}${difference})`);
+      // Log discrepancy if any
+      if (receivedQty !== expectedQty) {
+        const difference = receivedQty - expectedQty;
+        console.log(`⚠️ Discrepancy in ${inventory.productSku}: expected ${expectedQty}, received ${receivedQty} (${difference > 0 ? '+' : ''}${difference})`);
       }
     }
 
-    console.log(`✅ Order ${order.orderId} verified and inventory updated`);
+    console.log(`✅ Verification complete - inventory updated for ${inventoryItems.length} products`);
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ 
+      success: true,
+      itemsVerified: inventoryItems.length 
+    });
   } catch (error: any) {
-    console.error('[Verify Order POST] Error:', error);
+    console.error('[Verify Inventory POST] Error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

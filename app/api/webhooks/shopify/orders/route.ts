@@ -769,6 +769,13 @@ async function handleWholesaleFulfilled(orgId: string, order: ShopifyOrder, topi
     const store = await prisma.store.findFirst({
       where: { 
         shopifyCustomerId: order.customer.id.toString(),
+      },
+      select: {
+        id: true,
+        storeId: true,
+        storeName: true,
+        purchasingPhone: true,
+        ownerPhone: true,
       }
     });
 
@@ -787,7 +794,11 @@ async function handleWholesaleFulfilled(orgId: string, order: ShopifyOrder, topi
 
     console.log(`📦 Fulfillment tracking: ${trackingCompany || 'N/A'} - ${trackingNumber || 'N/A'}`);
 
-    // Process each line item to set as incoming and generate verification token
+    // Generate ONE verification token for the entire order
+    const verificationToken = `VER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const wholesaleItems = [];
+
+    // Process each line item to set as incoming
     for (const item of order.line_items) {
       try {
         let wholesaleProduct = null;
@@ -840,10 +851,13 @@ async function handleWholesaleFulfilled(orgId: string, order: ShopifyOrder, topi
 
         console.log(`📦 ${item.quantity}x ${wholesaleProduct.sku} = ${unitsShipped} units of ${retailSku} shipped`);
 
-        // Generate verification token
-        const verificationToken = `VER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        wholesaleItems.push({
+          productName: wholesaleProduct.name,
+          retailSku,
+          unitsShipped
+        });
 
-        // Update store inventory with incoming units and verification token
+        // Update store inventory with incoming units and shared verification token
         const inventory = await prisma.storeInventory.upsert({
           where: {
             storeId_productSku: {
@@ -858,16 +872,15 @@ async function handleWholesaleFulfilled(orgId: string, order: ShopifyOrder, topi
             quantityIncoming: unitsShipped,
             quantityReserved: 0,
             quantityAvailable: 0,
-            verificationToken,
+            verificationToken, // Same token for all items in this order
           },
           update: {
             quantityIncoming: { increment: unitsShipped },
-            verificationToken, // Set/update verification token
+            verificationToken, // Same token for all items in this order
           },
         });
 
         console.log(`✅ Updated inventory for ${retailSku}: +${unitsShipped} incoming`);
-        console.log(`   Verification token: ${verificationToken}`);
 
         // Log inventory transaction
         await prisma.inventoryTransaction.create({
@@ -886,9 +899,36 @@ async function handleWholesaleFulfilled(orgId: string, order: ShopifyOrder, topi
       }
     }
 
-    console.log(`✅ Wholesale fulfillment processing complete - inventory set to incoming with verification`);
+    if (wholesaleItems.length === 0) {
+      console.log(`ℹ️  No wholesale items found in order`);
+      return;
+    }
 
-    // TODO: Send SMS/email notification to store with tracking info and verification link
+    console.log(`✅ Wholesale fulfillment processing complete - ${wholesaleItems.length} items set to incoming`);
+    console.log(`   Verification token: ${verificationToken}`);
+
+    // Send SMS notification to purchasing contact and owner
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://qrdisplay.vercel.app';
+    const verifyUrl = `${appUrl}/store/wholesale/verify/${verificationToken}`;
+    
+    const totalUnits = wholesaleItems.reduce((sum, item) => sum + item.unitsShipped, 0);
+    const itemsList = wholesaleItems.map(item => `${item.unitsShipped} ${item.productName}`).join(', ');
+    
+    const message = `📦 Your wholesale order has shipped! ${totalUnits} units arriving: ${itemsList}. ${trackingNumber ? `Tracking: ${trackingNumber}` : ''} When delivered, verify receipt: ${verifyUrl}`;
+
+    // Send to purchasing contact if available
+    if (store.purchasingPhone) {
+      console.log(`📱 Sending SMS to purchasing contact: ${store.purchasingPhone}`);
+      const { sendSMS } = await import('@/lib/twilio');
+      await sendSMS(store.purchasingPhone, message);
+    }
+
+    // Also send to owner if different
+    if (store.ownerPhone && store.ownerPhone !== store.purchasingPhone) {
+      console.log(`📱 Sending SMS to owner: ${store.ownerPhone}`);
+      const { sendSMS } = await import('@/lib/twilio');
+      await sendSMS(store.ownerPhone, message);
+    }
 
   } catch (error) {
     console.error('❌ Error in handleWholesaleFulfilled:', error);

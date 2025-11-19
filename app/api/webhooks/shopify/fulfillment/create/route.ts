@@ -43,90 +43,43 @@ export async function POST(req: NextRequest) {
     console.log(`[Fulfillment Webhook] Order ID: ${fulfillmentData.order_id}`);
     console.log(`[Fulfillment Webhook] Tracking: ${fulfillmentData.tracking_number || 'N/A'}`);
 
-    // We need to fetch the full order to get customer and line items
-    // The fulfillment webhook only includes fulfillment data
-    const shopify = await import('@shopify/shopify-api');
-    const { shopifyApi, ApiVersion } = shopify;
-    
-    const shopifyClient = shopifyApi({
-      apiKey: process.env.SHOPIFY_API_KEY!,
-      apiSecretKey: process.env.SHOPIFY_API_SECRET!,
-      scopes: ['read_orders', 'write_orders'],
-      hostName: shopDomain.replace('.myshopify.com', ''),
-      apiVersion: ApiVersion.January25,
-      isEmbeddedApp: false,
-    });
-
-    // Fetch the full order
-    const session = {
-      shop: shopDomain,
-      accessToken: org.shopifyAccessToken!,
-      isOnline: false,
-      id: `offline_${shopDomain}`,
-      state: 'enabled',
-    };
-
-    const orderGid = `gid://shopify/Order/${fulfillmentData.order_id}`;
-    const client = new shopifyClient.clients.Graphql({ session: session as any });
-    
-    const orderQuery = `
-      query getOrder($id: ID!) {
-        order(id: $id) {
-          id
-          name
-          customer {
-            id
-            tags
-          }
-          lineItems(first: 100) {
-            edges {
-              node {
-                id
-                title
-                sku
-                quantity
-                variant {
-                  id
-                }
-                product {
-                  id
-                }
-              }
-            }
-          }
-        }
-      }
-    `;
-
-    const orderResponse: any = await client.query({
-      data: {
-        query: orderQuery,
-        variables: { id: orderGid },
+    // Fetch the full order using REST API
+    const orderUrl = `https://${shopDomain}/admin/api/2025-01/orders/${fulfillmentData.order_id}.json`;
+    const orderResponse = await fetch(orderUrl, {
+      headers: {
+        'X-Shopify-Access-Token': org.shopifyAccessToken!,
       },
     });
 
-    const order = orderResponse.body.data.order;
+    if (!orderResponse.ok) {
+      console.log(`❌ Failed to fetch order: ${orderResponse.status}`);
+      return NextResponse.json({ error: 'Failed to fetch order' }, { status: 500 });
+    }
+
+    const orderData = await orderResponse.json();
+    const order = orderData.order;
+
     if (!order) {
       console.log(`❌ Order not found: ${fulfillmentData.order_id}`);
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    console.log(`📦 Order ${order.name} - Customer tags: ${order.customer?.tags || 'none'}`);
+    console.log(`📦 Order #${order.order_number} - Customer ID: ${order.customer?.id}`);
 
-    // Check if wholesale order
-    const customerTags = order.customer?.tags || [];
+    // Check if wholesale order by customer tags
+    const customerTags = order.customer?.tags ? order.customer.tags.split(', ') : [];
+    console.log(`🏷️  Customer tags: ${customerTags.join(', ')}`);
+    
     if (!customerTags.includes('wg_wholesale')) {
       console.log(`ℹ️  Not a wholesale order - skipping`);
       return NextResponse.json({ received: true, message: 'Not a wholesale order' });
     }
 
-    // Extract numeric customer ID from GID
-    const customerIdMatch = order.customer.id.match(/\/(\d+)$/);
-    const customerId = customerIdMatch ? customerIdMatch[1] : null;
-
+    // Get customer ID
+    const customerId = order.customer?.id?.toString();
     if (!customerId) {
-      console.log(`❌ Could not extract customer ID from: ${order.customer.id}`);
-      return NextResponse.json({ error: 'Invalid customer ID' }, { status: 400 });
+      console.log(`❌ No customer ID found`);
+      return NextResponse.json({ error: 'No customer ID' }, { status: 400 });
     }
 
     // Find the store by Shopify customer ID
@@ -154,24 +107,14 @@ export async function POST(req: NextRequest) {
     const wholesaleItems = [];
 
     // Process each line item
-    const lineItems = order.lineItems.edges.map((edge: any) => edge.node);
-    
-    for (const item of lineItems) {
+    for (const item of order.line_items) {
       try {
         let wholesaleProduct = null;
         let matchMethod = '';
 
-        // Extract numeric variant ID from GID
-        const variantIdMatch = item.variant?.id?.match(/\/(\d+)$/);
-        const variantId = variantIdMatch ? variantIdMatch[1] : null;
-
-        // Extract numeric product ID from GID
-        const productIdMatch = item.product?.id?.match(/\/(\d+)$/);
-        const productId = productIdMatch ? productIdMatch[1] : null;
-
         // Match by Shopify Variant ID (BEST)
-        if (variantId) {
-          const variantGid = `gid://shopify/ProductVariant/${variantId}`;
+        if (item.variant_id) {
+          const variantGid = `gid://shopify/ProductVariant/${item.variant_id}`;
           wholesaleProduct = await prisma.product.findFirst({
             where: { 
               shopifyVariantId: variantGid,
@@ -182,8 +125,8 @@ export async function POST(req: NextRequest) {
         }
 
         // Match by Shopify Product ID (GOOD)
-        if (!wholesaleProduct && productId) {
-          const productGid = `gid://shopify/Product/${productId}`;
+        if (!wholesaleProduct && item.product_id) {
+          const productGid = `gid://shopify/Product/${item.product_id}`;
           wholesaleProduct = await prisma.product.findFirst({
             where: { 
               shopifyProductId: productGid,

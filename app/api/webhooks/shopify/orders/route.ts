@@ -30,10 +30,11 @@ interface ShopifyOrder {
   line_items: Array<{
     id: number;
     product_id: number;
+    variant_id?: number; // Shopify variant ID
     title: string;
     quantity: number;
     price: string;
-    sku?: string; // SKU for wholesale detection
+    sku?: string; // SKU for wholesale detection (fallback)
   }>;
   fulfillments?: Array<{
     id: number;
@@ -542,55 +543,150 @@ async function handleOrderFulfilled(orgId: string, order: ShopifyOrder, topic: s
 
 /**
  * Handle wholesale orders when paid
- * Detects wholesale SKUs (ending in -BX) and creates incoming inventory records
+ * Matches products by shopifyVariantId (preferred) or shopifyProductId or SKU (fallback)
+ * Creates incoming inventory records for wholesale orders
  */
 async function handleWholesaleOrder(orgId: string, order: ShopifyOrder, topic: string) {
   try {
-    // Check if order contains wholesale products (SKUs ending in -BX)
-    const wholesaleItems = order.line_items.filter(item => item.sku?.endsWith('-BX'));
-    
-    if (wholesaleItems.length === 0) {
-      return; // Not a wholesale order
-    }
-
-    console.log(`📦 Wholesale order detected with ${wholesaleItems.length} wholesale items`);
+    console.log(`🔍 Processing order ${order.id} for wholesale products...`);
+    console.log(`   Order has ${order.line_items.length} line items`);
+    console.log(`   Customer ID: ${order.customer.id}`);
+    console.log(`   Org ID: ${orgId}`);
 
     // Find which store this order is for (via shopifyCustomerId)
     const store = await prisma.store.findFirst({
       where: { 
         shopifyCustomerId: order.customer.id.toString(),
-        orgId // Ensure store belongs to this organization
+        // Don't filter by orgId - store orgId is ORG-QRDISPLAY, order orgId is the brand
       }
     });
 
     if (!store) {
       console.error(`❌ Store not found for wholesale order. Shopify Customer ID: ${order.customer.id}`);
+      console.error(`   Tried to find store with shopifyCustomerId: ${order.customer.id.toString()}`);
       return;
     }
 
     console.log(`✅ Found store: ${store.storeName} (${store.storeId})`);
 
-    // Process each wholesale item
-    for (const item of wholesaleItems) {
+    const wholesaleItems = [];
+
+    // Process each line item
+    for (const item of order.line_items) {
+      console.log(`\n📦 Processing line item:`);
+      console.log(`   Title: ${item.title}`);
+      console.log(`   SKU: ${item.sku || 'NO SKU'}`);
+      console.log(`   Product ID: ${item.product_id}`);
+      console.log(`   Variant ID: ${item.variant_id || 'NO VARIANT ID'}`);
+      console.log(`   Quantity: ${item.quantity}`);
+      
       try {
-        if (!item.sku) continue;
+        let wholesaleProduct = null;
+        let matchMethod = '';
 
-        // Convert wholesale SKU to retail SKU (VD-SB-30-BX → VD-SB-30)
-        const retailSku = item.sku.replace(/-BX$/, '');
-        
-        // Get wholesale product to find unitsPerBox
-        const wholesaleProduct = await prisma.product.findUnique({
-          where: { sku: item.sku }
-        });
-
-        if (!wholesaleProduct || !wholesaleProduct.unitsPerBox) {
-          console.error(`❌ Wholesale product ${item.sku} not found or missing unitsPerBox`);
-          continue;
+        // Method 1: Match by Shopify Variant ID (BEST - most accurate)
+        if (item.variant_id) {
+          const variantGid = `gid://shopify/ProductVariant/${item.variant_id}`;
+          console.log(`   🔍 Trying variant match: ${variantGid}`);
+          wholesaleProduct = await prisma.product.findFirst({
+            where: { 
+              shopifyVariantId: variantGid,
+              // Don't filter by orgId here - will check after
+              unitsPerBox: { not: null } // Must be a wholesale product
+            }
+          });
+          if (wholesaleProduct) {
+            matchMethod = `variant ID ${item.variant_id}`;
+            console.log(`   ✅ MATCHED by variant ID!`);
+          } else {
+            console.log(`   ❌ No match by variant ID`);
+          }
         }
 
-        const unitsOrdered = item.quantity * wholesaleProduct.unitsPerBox;
-        console.log(`📦 ${item.quantity}x ${item.sku} = ${unitsOrdered} units of ${retailSku}`);
+        // Method 2: Match by Shopify Product ID (GOOD - less specific)
+        if (!wholesaleProduct && item.product_id) {
+          const productGid = `gid://shopify/Product/${item.product_id}`;
+          console.log(`   🔍 Trying product match: ${productGid}`);
+          wholesaleProduct = await prisma.product.findFirst({
+            where: { 
+              shopifyProductId: productGid,
+              unitsPerBox: { not: null }
+            }
+          });
+          if (wholesaleProduct) {
+            matchMethod = `product ID ${item.product_id}`;
+            console.log(`   ✅ MATCHED by product ID!`);
+          } else {
+            console.log(`   ❌ No match by product ID`);
+          }
+        }
 
+        // Method 3: Match by SKU ending in -BX (FALLBACK - legacy)
+        if (!wholesaleProduct && item.sku?.endsWith('-BX')) {
+          console.log(`   🔍 Trying SKU match: ${item.sku}`);
+          wholesaleProduct = await prisma.product.findFirst({
+            where: { 
+              sku: item.sku,
+              unitsPerBox: { not: null }
+            }
+          });
+          if (wholesaleProduct) {
+            matchMethod = `SKU ${item.sku}`;
+            console.log(`   ✅ MATCHED by SKU!`);
+          } else {
+            console.log(`   ❌ No match by SKU`);
+          }
+        }
+
+        // If we found a wholesale product, process it
+        if (wholesaleProduct && wholesaleProduct.unitsPerBox) {
+          console.log(`✅ Matched wholesale product via ${matchMethod}: ${wholesaleProduct.name}`);
+          console.log(`   Units per box: ${wholesaleProduct.unitsPerBox}`);
+          
+          // Find the corresponding retail product (same SKU without -BX)
+          const retailSku = wholesaleProduct.sku.replace(/-BX$/, '');
+          console.log(`   Looking for retail SKU: ${retailSku}`);
+          
+          const retailProduct = await prisma.product.findFirst({
+            where: { 
+              sku: retailSku,
+              // Same brand as wholesale product
+              orgId: wholesaleProduct.orgId
+            }
+          });
+
+          if (!retailProduct) {
+            console.error(`❌ Retail product not found for SKU: ${retailSku}`);
+            continue;
+          }
+
+          console.log(`   ✅ Found retail product: ${retailProduct.name}`);
+
+          const unitsOrdered = item.quantity * wholesaleProduct.unitsPerBox;
+          console.log(`📦 ${item.quantity}x ${wholesaleProduct.sku} (${wholesaleProduct.name}) = ${unitsOrdered} units of ${retailSku}`);
+
+          wholesaleItems.push({
+            wholesaleProduct,
+            retailProduct,
+            retailSku,
+            unitsOrdered
+          });
+        }
+      } catch (itemError) {
+        console.error(`Error processing line item ${item.id}:`, itemError);
+      }
+    }
+
+    if (wholesaleItems.length === 0) {
+      console.log(`ℹ️  No wholesale products found in order ${order.id}`);
+      return; // Not a wholesale order
+    }
+
+    console.log(`📦 Wholesale order confirmed with ${wholesaleItems.length} wholesale items`);
+
+    // Process each wholesale item to update inventory
+    for (const { wholesaleProduct, retailSku, unitsOrdered } of wholesaleItems) {
+      try {
         // Get or create store inventory
         let inventory = await prisma.storeInventory.findUnique({
           where: { 
@@ -638,14 +734,14 @@ async function handleWholesaleOrder(orgId: string, order: ShopifyOrder, topic: s
             type: 'wholesale_ordered',
             quantity: unitsOrdered,
             balanceAfter: inventory.quantityOnHand,
-            notes: `Wholesale order #${order.order_number || order.id} - ${item.quantity}x ${item.sku} (${unitsOrdered} units) - Status: Paid`
+            notes: `Wholesale order #${order.order_number || order.id} - ${wholesaleProduct.name} (${unitsOrdered} units) - Status: Paid`
           }
         });
 
         console.log(`📝 Logged transaction for ${retailSku}`);
 
       } catch (itemError) {
-        console.error(`❌ Error processing wholesale item ${item.sku}:`, itemError);
+        console.error(`❌ Error processing wholesale item ${wholesaleProduct?.sku}:`, itemError);
         // Continue processing other items
       }
     }

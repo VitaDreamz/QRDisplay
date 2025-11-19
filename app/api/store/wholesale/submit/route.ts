@@ -266,12 +266,21 @@ export async function POST(request: NextRequest) {
         }
 
         const draftOrderData: any = {
-          line_items: orderData.items.map(item => ({
-            variant_id: item.product.shopifyVariantId,
-            quantity: item.quantity,
-            title: item.product.name,
-            price: item.product.price.toString(),
-          })),
+          line_items: orderData.items.map(item => {
+            // Extract numeric variant ID from GID format
+            // e.g., "gid://shopify/ProductVariant/43894434234544" -> "43894434234544"
+            let variantId = item.product.shopifyVariantId;
+            if (variantId?.startsWith('gid://')) {
+              variantId = variantId.split('/').pop() || variantId;
+            }
+            
+            return {
+              variant_id: variantId,
+              quantity: item.quantity,
+              title: item.product.name,
+              price: item.product.price.toString(),
+            };
+          }),
           customer: shopifyCustomerId ? {
             id: parseInt(shopifyCustomerId.replace(/\D/g, '')), // Extract numeric ID from gid://shopify/Customer/123
           } : {

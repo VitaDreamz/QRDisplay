@@ -83,7 +83,9 @@ export async function syncStoreToShopifyWholesale(
         ...existingTags.filter((t: string) => !t.startsWith('qrdisplay-store:')), // Remove old store tags
         'qrdisplay',
         'wholesale',
+        'wg_wholesale', // Wholesale Genius tag
         `qrdisplay-store:${store.storeId}`,
+        store.storeId, // Add storeId as standalone tag
       ];
 
       // Update existing note or create new one
@@ -140,21 +142,20 @@ export async function syncStoreToShopifyWholesale(
       };
     } else {
       // Create new wholesale customer account
-      const [firstName, ...lastNameParts] = contactName.split(' ');
-      const lastName = lastNameParts.join(' ') || store.storeName;
-
       const createResponse = await restClient.post({
         path: 'customers',
         data: {
           customer: {
-            first_name: firstName,
-            last_name: lastName,
+            first_name: store.storeName,
+            last_name: 'Wholesale',
             email: contactEmail,
             phone: store.purchasingPhone || store.adminPhone || store.ownerPhone,
             tags: [
               'qrdisplay',
               'wholesale',
+              'wg_wholesale', // Wholesale Genius tag
               `qrdisplay-store:${store.storeId}`,
+              store.storeId, // Add storeId as standalone tag
             ].join(','),
             note: `QRDisplay Store: ${store.storeId} - ${store.storeName}\nLocation: ${store.city}, ${store.state}\nContact: ${contactName} | ${contactEmail}\n\nWholesale customer account created via QRDisplay partnership.`,
             accepts_marketing: true,

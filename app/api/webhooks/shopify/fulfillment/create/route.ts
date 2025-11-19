@@ -120,8 +120,6 @@ export async function POST(req: NextRequest) {
 
     console.log(`✅ Found store: ${store.storeName} (${store.storeId})`);
 
-    // Generate ONE verification token for the entire order
-    const verificationToken = `VER-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const trackingNumber = fulfillmentData.tracking_number || null;
     const wholesaleItems = [];
 
@@ -184,20 +182,7 @@ export async function POST(req: NextRequest) {
           unitsShipped
         });
 
-        // Update store inventory with verification token
-        await prisma.storeInventory.update({
-          where: {
-            storeId_productSku: {
-              storeId: store.id,
-              productSku: retailSku,
-            },
-          },
-          data: {
-            verificationToken, // Add verification token to existing incoming inventory
-          },
-        });
-
-        console.log(`✅ Added verification token to ${retailSku}`);
+        // No additional updates needed - quantityIncoming already set by orders/create webhook
 
         // Log transaction
         await prisma.inventoryTransaction.create({
@@ -222,7 +207,6 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(`✅ Fulfillment processing complete - ${wholesaleItems.length} items`);
-    console.log(`   Verification token: ${verificationToken}`);
 
     // Send SMS notifications
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://qrdisplay.vercel.app';

@@ -230,8 +230,9 @@ export async function POST(req: NextRequest) {
     
     const totalUnits = wholesaleItems.reduce((sum, item) => sum + item.unitsShipped, 0);
     
-    // Simple, clean SMS message
-    const message = `📦 Wholesale order shipped! ${totalUnits} units arriving.${trackingNumber ? `\nTracking: ${trackingNumber}` : ''}\n\nView dashboard: ${dashboardUrl}`;
+    // Simple, clean SMS message - only sent when delivered or out for delivery
+    const statusText = fulfillmentData.shipment_status === 'delivered' ? 'delivered' : 'arriving soon';
+    const message = `📦 Wholesale order ${statusText}! ${totalUnits} units ready to receive.${trackingNumber ? `\nTracking: ${trackingNumber}` : ''}\n\nMark as received: ${dashboardUrl}`;
 
     // Send to purchasing contact
     if (store.purchasingPhone) {

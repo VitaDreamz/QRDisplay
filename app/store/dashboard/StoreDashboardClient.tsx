@@ -2769,6 +2769,101 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
               </div>
             </div>
 
+            {/* Incoming Inventory */}
+            {(() => {
+              const incomingProducts = products?.filter(p => (p.quantityIncoming || 0) > 0) || [];
+              if (incomingProducts.length === 0) return null;
+
+              const totalIncoming = incomingProducts.reduce((sum, p) => sum + (p.quantityIncoming || 0), 0);
+              const totalProducts = incomingProducts.length;
+
+              return (
+                <div className="bg-white rounded-lg shadow">
+                  <div 
+                    onClick={() => setIncomingInventoryExpanded(!incomingInventoryExpanded)}
+                    className="p-3 sm:p-4 bg-blue-50/40 cursor-pointer hover:bg-blue-50/60 transition-colors"
+                  >
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <span className="text-gray-500">{incomingInventoryExpanded ? '▼' : '▶'}</span>
+                        <h2 className="text-lg sm:text-xl font-bold text-blue-900">📦 Incoming Inventory</h2>
+                        <span className="text-xs sm:text-sm bg-blue-600 text-white px-2 sm:px-3 py-1 rounded-full font-semibold">
+                          {totalIncoming} Units Arriving
+                        </span>
+                        <span className="text-xs sm:text-sm text-blue-700 font-medium">
+                          {totalProducts} {totalProducts === 1 ? 'Product' : 'Products'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  {incomingInventoryExpanded && (
+                    <div className="p-3 sm:p-4 space-y-3">
+                      {incomingProducts.map((product) => {
+                        const brand = data.brandPartnerships?.find(bp => bp.brand.orgId === product.orgId)?.brand;
+                        return (
+                          <div
+                            key={product.sku}
+                            className="border border-blue-200 bg-blue-50/30 rounded-lg p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                          >
+                            <div className="flex items-center gap-3 sm:gap-4 flex-1">
+                              {product.imageUrl && (
+                                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-lg flex-shrink-0 overflow-hidden">
+                                  <img
+                                    src={product.imageUrl}
+                                    alt={product.name}
+                                    className="w-full h-full object-contain"
+                                  />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">{product.name}</h3>
+                                <div className="flex items-center gap-2 flex-wrap mt-1">
+                                  <span className="text-xs text-gray-600 font-mono">{product.sku}</span>
+                                  {brand && (
+                                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">
+                                      {brand.name}
+                                    </span>
+                                  )}
+                                  <span className="text-xs sm:text-sm bg-blue-600 text-white px-2 sm:px-3 py-1 rounded-full font-semibold">
+                                    +{product.quantityIncoming} units
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              onClick={async () => {
+                                if (!confirm(`Mark ${product.quantityIncoming} units of ${product.name} as received?`)) return;
+                                try {
+                                  const res = await fetch(`/api/stores/${data.store.storeId}/inventory/receive`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ 
+                                      productSku: product.sku,
+                                      quantityReceived: product.quantityIncoming
+                                    })
+                                  });
+                                  if (res.ok) {
+                                    await fetchProducts(); // Refresh
+                                  } else {
+                                    alert('Failed to mark as received');
+                                  }
+                                } catch (err) {
+                                  alert('Error updating inventory');
+                                }
+                              }}
+                              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 active:bg-green-800 whitespace-nowrap"
+                            >
+                              ✓ Mark Received
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* Pending Partnership Requests */}
             {data.brandPartnerships && data.brandPartnerships.filter(bp => bp.status === 'pending').length > 0 && (
               <div className="bg-white rounded-lg shadow p-6">

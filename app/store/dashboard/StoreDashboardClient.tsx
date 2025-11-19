@@ -3030,13 +3030,15 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                           {/* Card layout: Image on top, content stacked below */}
                           <div className="flex flex-col">
                             {product.imageUrl ? (
-                              <img
-                                src={product.imageUrl}
-                                alt={product.name}
-                                className="w-full h-32 sm:h-40 rounded object-cover mb-3"
-                              />
+                              <div className="w-full h-40 sm:h-48 rounded bg-white mb-3 flex items-center justify-center p-2">
+                                <img
+                                  src={product.imageUrl}
+                                  alt={product.name}
+                                  className="max-w-full max-h-full object-contain"
+                                />
+                              </div>
                             ) : (
-                              <div className="w-full h-32 sm:h-40 rounded bg-gray-200 flex items-center justify-center mb-3">
+                              <div className="w-full h-40 sm:h-48 rounded bg-gray-200 flex items-center justify-center mb-3">
                                 <span className="text-5xl">🍬</span>
                               </div>
                             )}
@@ -3197,13 +3199,15 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                 {/* Card layout: Image on top, content stacked below */}
                                 <div className="flex flex-col">
                                   {product.imageUrl ? (
-                                    <img
-                                      src={product.imageUrl}
-                                      alt={product.name}
-                                      className="w-full h-32 sm:h-40 rounded object-cover mb-3"
-                                    />
+                                    <div className="w-full h-40 sm:h-48 rounded bg-white mb-3 flex items-center justify-center p-2">
+                                      <img
+                                        src={product.imageUrl}
+                                        alt={product.name}
+                                        className="max-w-full max-h-full object-contain"
+                                      />
+                                    </div>
                                   ) : (
-                                    <div className="w-full h-32 sm:h-40 rounded bg-gray-200 flex items-center justify-center mb-3">
+                                    <div className="w-full h-40 sm:h-48 rounded bg-gray-200 flex items-center justify-center mb-3">
                                       <span className="text-5xl">📦</span>
                                     </div>
                                   )}

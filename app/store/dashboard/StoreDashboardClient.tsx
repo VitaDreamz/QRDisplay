@@ -3044,14 +3044,21 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                 <div className="text-xs text-gray-400 line-through">
                                   ${Number(product.price).toFixed(2)}
                                 </div>
-                                <div className={`text-xs sm:text-sm font-medium ml-auto ${
-                                  (product.inventoryQuantity || 0) > 20 
-                                    ? 'text-green-600' 
-                                    : (product.inventoryQuantity || 0) > 5 
-                                    ? 'text-yellow-600' 
-                                    : 'text-red-600'
-                                }`}>
-                                  {product.inventoryQuantity || 0} in stock
+                                <div className="flex items-center gap-1 ml-auto">
+                                  <div className={`text-xs sm:text-sm font-medium ${
+                                    (product.inventoryQuantity || 0) > 20 
+                                      ? 'text-green-600' 
+                                      : (product.inventoryQuantity || 0) > 5 
+                                      ? 'text-yellow-600' 
+                                      : 'text-red-600'
+                                  }`}>
+                                    {product.inventoryQuantity || 0} in stock
+                                  </div>
+                                  {product.quantityIncoming > 0 && (
+                                    <span className="text-xs font-medium text-blue-600">
+                                      (+{product.quantityIncoming})
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -3196,14 +3203,21 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                       <div className="text-lg sm:text-xl font-bold text-purple-600">
                                         ${Number(product.price).toFixed(2)}
                                       </div>
-                                      <div className={`text-xs sm:text-sm font-medium ml-auto ${
-                                        (product.inventoryQuantity || 0) > 20 
-                                          ? 'text-green-600' 
-                                          : (product.inventoryQuantity || 0) > 5 
-                                          ? 'text-yellow-600' 
-                                          : 'text-red-600'
-                                      }`}>
-                                        {product.inventoryQuantity || 0} in stock
+                                      <div className="flex items-center gap-1 ml-auto">
+                                        <div className={`text-xs sm:text-sm font-medium ${
+                                          (product.inventoryQuantity || 0) > 20 
+                                            ? 'text-green-600' 
+                                            : (product.inventoryQuantity || 0) > 5 
+                                            ? 'text-yellow-600' 
+                                            : 'text-red-600'
+                                        }`}>
+                                          {product.inventoryQuantity || 0} in stock
+                                        </div>
+                                        {product.quantityIncoming > 0 && (
+                                          <span className="text-xs font-medium text-blue-600">
+                                            (+{product.quantityIncoming})
+                                          </span>
+                                        )}
                                       </div>
                                     </div>
                                   </div>
@@ -5908,7 +5922,7 @@ Thanks for choosing ${orgName}!`;
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <div className="text-yellow-600 text-sm font-medium mb-1">Reserved / Holds</div>
                   <div className="text-3xl font-bold text-yellow-700">
-                    0
+                    {selectedInventoryProduct.quantityReserved || 0}
                   </div>
                   <div className="text-xs text-yellow-600 mt-1">Pending purchases</div>
                 </div>
@@ -5916,11 +5930,33 @@ Thanks for choosing ${orgName}!`;
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="text-blue-600 text-sm font-medium mb-1">Incoming</div>
                   <div className="text-3xl font-bold text-blue-700">
-                    0
+                    {selectedInventoryProduct.quantityIncoming || 0}
                   </div>
                   <div className="text-xs text-blue-600 mt-1">On order</div>
                 </div>
               </div>
+
+              {/* Verify Received Button - Show if there's incoming inventory */}
+              {selectedInventoryProduct.quantityIncoming > 0 && selectedInventoryProduct.verificationToken && (
+                <div className="bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-300 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-blue-900 font-semibold mb-1">📦 Shipment Arrived?</div>
+                      <div className="text-sm text-blue-700">
+                        Verify receipt of {selectedInventoryProduct.quantityIncoming} units
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        window.location.href = `/store/wholesale/verify/${selectedInventoryProduct.verificationToken}`;
+                      }}
+                      className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
+                    >
+                      Verify Received
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Available to Sell */}
               <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4">

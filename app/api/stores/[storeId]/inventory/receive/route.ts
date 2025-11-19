@@ -7,11 +7,11 @@ import prisma from '@/lib/prisma';
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { storeId: string } }
+  { params }: { params: Promise<{ storeId: string }> }
 ) {
   try {
     const { productSku, quantityReceived } = await req.json();
-    const { storeId } = params;
+    const { storeId } = await params;
 
     if (!productSku || !quantityReceived) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });

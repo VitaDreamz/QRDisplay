@@ -237,7 +237,8 @@ model StoreInventory {
   quantityAvailable Int    @default(0)  // onHand - reserved (computed)
   
   // Incoming order tracking
-  pendingOrderId   String?  // WholesaleOrder.orderId if there's incoming inventory
+  pendingOrderId      String?  // WholesaleOrder.orderId if there's incoming inventory
+  verificationToken   String?  // Token for store to verify they received the shipment
   
   lastRestocked   DateTime?
   updatedAt       DateTime @updatedAt

@@ -3,8 +3,10 @@ import { MESSAGE_TEMPLATES, fillTemplate, ensureOptOutText } from '@/lib/message
 
 interface CustomerMessagingSectionProps {
   store: {
+    storeId: string;
     storeName: string;
     messageCreditBalance: number;
+    totalMessagesSent: number;
     lastMessageBlastAt: Date | null;
     lastCreditRefill: Date;
   };
@@ -17,7 +19,7 @@ interface CustomerMessagingSectionProps {
   messageCampaigns: any[];
 }
 
-export function CustomerMessagingSection({
+export default function CustomerMessagingSection({
   store,
   customers,
   onSendCampaign,

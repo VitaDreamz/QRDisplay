@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       // Only add credit if it hasn't been added yet
       if (store && !(store as any).setupPhotoCredit) {
         try {
-          console.log(`💰 Adding $10 store credit for setup photo to store ${updatedDisplay.storeId}`);
+          console.log(`💰 Adding $10 store credit + 50 message credits for setup photo to store ${updatedDisplay.storeId}`);
           await addStoreCredit(
             updatedDisplay.storeId,
             10.00,
@@ -65,17 +65,18 @@ export async function POST(req: NextRequest) {
             displayId
           );
           
-          // Mark that the credit has been applied
+          // Mark that the credit has been applied + add message credits
           await prisma.store.update({
             where: { storeId: updatedDisplay.storeId },
             data: {
               setupPhotoUrl: photoUrl,
               setupPhotoUploadedAt: new Date(),
               setupPhotoCredit: true,
+              messageCreditBalance: { increment: 50 }, // Award 50 message credits
             } as any
           });
           
-          console.log(`✅ Added $10 store credit to store ${updatedDisplay.storeId}`);
+          console.log(`✅ Added $10 store credit + 50 message credits to store ${updatedDisplay.storeId}`);
         } catch (creditErr) {
           console.error('⚠️ Failed to add store credit:', creditErr);
           // Still update the photo even if credit fails

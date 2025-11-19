@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { SAMPLE_OPTIONS } from '@/lib/constants';
+import CustomerMessagingSection from './CustomerMessagingSection';
 
 type Store = {
   storeId: string;
@@ -26,6 +27,10 @@ type Store = {
   purchasingEmail?: string | null;
   availableSamples?: string[];
   availableProducts?: string[];
+  messageCreditBalance?: number;
+  totalMessagesSent?: number;
+  lastCreditRefill?: Date;
+  lastMessageBlastAt?: Date | null;
 };
 
 type Customer = {
@@ -140,6 +145,17 @@ type DashboardData = {
     firstName: string;
     lastName: string;
   } | null;
+  messageCampaigns?: Array<{
+    id: string;
+    message: string;
+    audience: string;
+    templateUsed: string | null;
+    recipientCount: number;
+    sentCount: number;
+    creditsUsed: number;
+    optOutCount: number;
+    sentAt: Date;
+  }>;
 };
 
 export default function StoreDashboardClient({ initialData, role }: { initialData: DashboardData; role: 'owner' | 'staff' }) {
@@ -1929,6 +1945,49 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                 </div>
               </div>
             )}
+
+            {/* Message Credits Section */}
+            <CustomerMessagingSection
+              store={{
+                storeId: data.store.storeId,
+                storeName: data.store.storeName,
+                messageCreditBalance: data.store.messageCreditBalance || 100,
+                totalMessagesSent: data.store.totalMessagesSent || 0,
+                lastCreditRefill: data.store.lastCreditRefill || new Date(),
+                lastMessageBlastAt: data.store.lastMessageBlastAt || null,
+              }}
+              customers={data.customers}
+              messageCampaigns={data.messageCampaigns || []}
+              onSendCampaign={async (campaignData: { audience: string; message: string; templateUsed: string | null }) => {
+                try {
+                  const response = await fetch('/api/store/message/customers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(campaignData),
+                  });
+
+                  const result = await response.json();
+
+                  if (!response.ok) {
+                    if (response.status === 429) {
+                      throw new Error('Rate limit: You can only send one blast every 24 hours. Please wait before sending another campaign.');
+                    } else if (response.status === 402) {
+                      throw new Error('Insufficient message credits. Please wait for your credits to refill or reduce the number of recipients.');
+                    } else {
+                      throw new Error(result.error || 'Failed to send campaign');
+                    }
+                  }
+
+                  // Reload the page to show updated data
+                  window.location.reload();
+                  
+                  return result;
+                } catch (error) {
+                  throw error;
+                }
+              }}
+            />
+
             <div className="p-4 border-b flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
               <div className="flex items-center gap-3 w-full md:w-auto">
                 <h2 className="text-xl font-bold flex-1">Your Customers ({filteredCustomers.length})</h2>

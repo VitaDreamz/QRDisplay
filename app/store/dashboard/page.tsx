@@ -39,6 +39,10 @@ export default async function StoreDashboardPage() {
       subscriptionTier: true,
       staffPin: true,
       storeCredit: true,
+      messageCreditBalance: true,
+      totalMessagesSent: true,
+      lastCreditRefill: true,
+      lastMessageBlastAt: true,
       availableSamples: true,
       availableProducts: true,
       promoOffer: true,
@@ -198,6 +202,13 @@ export default async function StoreDashboardPage() {
     }
   });
 
+  // Fetch message campaigns (last 10 for dashboard)
+  const messageCampaigns = await prisma.messageCampaign.findMany({
+    where: { storeId: store.id },
+    orderBy: { sentAt: 'desc' },
+    take: 10,
+  });
+
   if (!store) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -234,7 +245,11 @@ export default async function StoreDashboardPage() {
       purchasingEmail: store.purchasingEmail,
       availableSamples: store.availableSamples as string[],
       availableProducts: store.availableProducts as string[],
-      storeCredit: Number(store.storeCredit || 0)
+      storeCredit: Number(store.storeCredit || 0),
+      messageCreditBalance: store.messageCreditBalance,
+      totalMessagesSent: store.totalMessagesSent,
+      lastCreditRefill: store.lastCreditRefill,
+      lastMessageBlastAt: store.lastMessageBlastAt,
     },
     // Multi-brand: Brand partnerships with their products
     brandPartnerships: brandPartnerships.map((bp) => ({
@@ -359,7 +374,18 @@ export default async function StoreDashboardPage() {
       staffId: staffMember.staffId,
       firstName: staffMember.firstName,
       lastName: staffMember.lastName
-    } : null
+    } : null,
+    messageCampaigns: messageCampaigns.map((mc: any) => ({
+      id: mc.id,
+      message: mc.message,
+      audience: mc.audience,
+      templateUsed: mc.templateUsed,
+      recipientCount: mc.recipientCount,
+      sentCount: mc.sentCount,
+      creditsUsed: mc.creditsUsed,
+      optOutCount: mc.optOutCount,
+      sentAt: mc.sentAt,
+    }))
   };
 
   return <StoreDashboardClient initialData={data} role={role} />;

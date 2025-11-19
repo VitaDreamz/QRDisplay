@@ -205,6 +205,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
   // Collapsible sections state
   const [purchaseRequestsExpanded, setPurchaseRequestsExpanded] = useState(false);
   const [samplesRequestedExpanded, setSamplesRequestedExpanded] = useState(false);
+  const [incomingInventoryExpanded, setIncomingInventoryExpanded] = useState(true); // Default expanded
   
   // Brand inventory expansion state
   const [expandedBrandInventory, setExpandedBrandInventory] = useState<Record<string, boolean>>({});
@@ -1435,6 +1436,98 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                 )}
               </div>
             )}
+
+            {/* Incoming Inventory Card - Shows when there's inventory to receive */}
+            {(() => {
+              const incomingProducts = products?.filter(p => (p.quantityIncoming || 0) > 0) || [];
+              if (incomingProducts.length === 0) return null;
+
+              const totalIncoming = incomingProducts.reduce((sum, p) => sum + (p.quantityIncoming || 0), 0);
+
+              return (
+                <div className="bg-white rounded-lg shadow">
+                  <div 
+                    onClick={() => setIncomingInventoryExpanded(!incomingInventoryExpanded)}
+                    className="p-3 sm:p-4 bg-blue-50/40 cursor-pointer hover:bg-blue-50/60 transition-colors"
+                  >
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <span className="text-gray-500">{incomingInventoryExpanded ? '▼' : '▶'}</span>
+                        <h2 className="text-lg sm:text-xl font-bold text-blue-900">📦 Incoming Inventory</h2>
+                        <span className="text-xs sm:text-sm bg-blue-600 text-white px-2 sm:px-3 py-1 rounded-full font-semibold">
+                          {totalIncoming} Units Arriving
+                        </span>
+                      </div>
+                      <div className="text-xs sm:text-sm text-gray-600">
+                        {incomingProducts.length} Products
+                      </div>
+                    </div>
+                  </div>
+                  {incomingInventoryExpanded && (
+                    <div className="divide-y max-h-96 overflow-y-auto">
+                      {incomingProducts.map((product) => {
+                        const brand = data.brandPartnerships?.find(
+                          bp => bp.brand.orgId === product.orgId
+                        );
+
+                        return (
+                          <div key={product.id} className="p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+                            <div className="flex items-center gap-3 flex-1">
+                              {product.imageUrl && (
+                                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg bg-white p-1 flex items-center justify-center flex-shrink-0">
+                                  <img 
+                                    src={product.imageUrl} 
+                                    alt={product.name}
+                                    className="max-w-full max-h-full object-contain"
+                                  />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="font-semibold text-sm sm:text-base">{product.name}</div>
+                                <div className="text-xs sm:text-sm text-gray-600">{product.sku}</div>
+                                {brand && (
+                                  <span className={`inline-block ${getBrandColor(brand.brand.name).bg} ${getBrandColor(brand.brand.name).text} text-xs px-2 py-0.5 rounded font-medium mt-1`}>
+                                    {brand.brand.name}
+                                  </span>
+                                )}
+                                <div className="text-lg font-bold text-blue-600 mt-1">
+                                  +{product.quantityIncoming} units
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              onClick={async () => {
+                                if (!confirm(`Mark ${product.quantityIncoming} units of ${product.name} as received?`)) return;
+                                try {
+                                  const res = await fetch(`/api/stores/${data.store.storeId}/inventory/receive`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ 
+                                      productSku: product.sku,
+                                      quantityReceived: product.quantityIncoming
+                                    })
+                                  });
+                                  if (res.ok) {
+                                    await fetchProducts(); // Refresh
+                                  } else {
+                                    alert('Failed to mark as received');
+                                  }
+                                } catch (err) {
+                                  alert('Error updating inventory');
+                                }
+                              }}
+                              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 active:bg-green-800 whitespace-nowrap"
+                            >
+                              ✓ Mark Received
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Samples Requested Card */}
             {data.customers.filter(c => 

@@ -42,6 +42,25 @@ export async function POST(req: NextRequest) {
     console.log(`[Fulfillment Webhook] Fulfillment ID: ${fulfillmentData.id}`);
     console.log(`[Fulfillment Webhook] Order ID: ${fulfillmentData.order_id}`);
     console.log(`[Fulfillment Webhook] Tracking: ${fulfillmentData.tracking_number || 'N/A'}`);
+    console.log(`[Fulfillment Webhook] Status: ${fulfillmentData.status || 'N/A'}`);
+    console.log(`[Fulfillment Webhook] Shipment Status: ${fulfillmentData.shipment_status || 'N/A'}`);
+
+    // Only process when status is delivered or out_for_delivery
+    // Possible values: pending, open, success, cancelled, error, failure
+    // Shipment status: label_printed, label_purchased, attempted_delivery, ready_for_pickup, 
+    //                  confirmed, in_transit, out_for_delivery, delivered, failure
+    const shouldNotify = fulfillmentData.shipment_status === 'delivered' || 
+                        fulfillmentData.shipment_status === 'out_for_delivery';
+
+    if (!shouldNotify) {
+      console.log(`ℹ️  Fulfillment status is '${fulfillmentData.shipment_status}' - waiting for delivery`);
+      return NextResponse.json({ 
+        received: true, 
+        message: `Waiting for delivery status, current: ${fulfillmentData.shipment_status}` 
+      });
+    }
+
+    console.log(`📬 Fulfillment is ${fulfillmentData.shipment_status} - processing...`);
 
     // Fetch the full order using REST API
     const orderUrl = `https://${shopDomain}/admin/api/2025-01/orders/${fulfillmentData.order_id}.json`;
@@ -207,12 +226,12 @@ export async function POST(req: NextRequest) {
 
     // Send SMS notifications
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://qrdisplay.vercel.app';
-    const verifyUrl = `${appUrl}/store/wholesale/verify/${verificationToken}`;
+    const dashboardUrl = `${appUrl}/store/dashboard`;
     
     const totalUnits = wholesaleItems.reduce((sum, item) => sum + item.unitsShipped, 0);
-    const itemsList = wholesaleItems.map(item => `${item.unitsShipped} ${item.productName}`).join(', ');
     
-    const message = `📦 Your wholesale order has shipped! ${totalUnits} units arriving: ${itemsList}. ${trackingNumber ? `Tracking: ${trackingNumber}` : ''} When delivered, verify receipt: ${verifyUrl}`;
+    // Simple, clean SMS message
+    const message = `📦 Wholesale order shipped! ${totalUnits} units arriving.${trackingNumber ? `\nTracking: ${trackingNumber}` : ''}\n\nView dashboard: ${dashboardUrl}`;
 
     // Send to purchasing contact
     if (store.purchasingPhone) {

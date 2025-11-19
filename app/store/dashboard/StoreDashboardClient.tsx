@@ -3772,7 +3772,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
           <>
             {/* Total Balance Card */}
             <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg shadow-lg p-6 text-white">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-4">
                 <div>
                   <p className="text-purple-100 text-sm uppercase tracking-wide mb-2">Total Store Credit Available</p>
                   <p className="text-5xl font-bold">
@@ -3784,6 +3784,15 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                 </div>
                 <span className="text-6xl">💰</span>
               </div>
+              
+              {/* Wholesale Order Button */}
+              <button
+                onClick={() => setShowWholesaleModal(true)}
+                className="w-full bg-white text-purple-600 px-4 py-3 rounded-lg font-semibold hover:bg-purple-50 transition-colors shadow-md flex items-center justify-center gap-2"
+              >
+                <span className="text-xl">📦</span>
+                <span>Place Wholesale Order</span>
+              </button>
             </div>
 
             {/* Per-Brand Credit Balances */}

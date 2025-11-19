@@ -251,8 +251,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ 
       success: true, 
       store: store.storeId,
-      items: wholesaleItems.length,
-      verificationToken 
+      items: wholesaleItems.length
     });
 
   } catch (error: any) {

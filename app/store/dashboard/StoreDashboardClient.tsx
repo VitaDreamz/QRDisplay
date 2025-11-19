@@ -3007,7 +3007,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                 }
 
                 return (
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {samples.map((product) => {
                       if (!product) return null;
 
@@ -3027,38 +3027,40 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                               : 'border-gray-200 hover:border-gray-300'
                           }`}
                         >
-                          {/* Mobile-first layout: Image on left, content stacked on right */}
-                          <div className="flex gap-3 mb-3">
+                          {/* Card layout: Image on top, content stacked below */}
+                          <div className="flex flex-col">
                             {product.imageUrl ? (
                               <img
                                 src={product.imageUrl}
                                 alt={product.name}
-                                className="w-20 h-20 sm:w-24 sm:h-24 rounded object-cover flex-shrink-0"
+                                className="w-full h-32 sm:h-40 rounded object-cover mb-3"
                               />
                             ) : (
-                              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
-                                <span className="text-3xl">🍬</span>
+                              <div className="w-full h-32 sm:h-40 rounded bg-gray-200 flex items-center justify-center mb-3">
+                                <span className="text-5xl">🍬</span>
                               </div>
                             )}
-                            <div className="flex-1 min-w-0 flex flex-col justify-between">
+                            <div className="flex-1 flex flex-col">
                               {/* Product info */}
-                              <div>
-                                <div className="font-medium text-sm sm:text-base leading-tight">{product.name}</div>
-                                <div className="text-xs text-gray-500 mt-0.5">{product.sku}</div>
+                              <div className="mb-3">
+                                <div className="font-medium text-sm sm:text-base leading-tight mb-1">{product.name}</div>
+                                <div className="text-xs text-gray-500">{product.sku}</div>
                                 {brand && (
-                                  <span className={`inline-block ${getBrandColor(brand.brand.name).bg} ${getBrandColor(brand.brand.name).text} text-xs px-2 py-0.5 rounded font-medium mt-1`}>
+                                  <span className={`inline-block ${getBrandColor(brand.brand.name).bg} ${getBrandColor(brand.brand.name).text} text-xs px-2 py-0.5 rounded font-medium mt-2`}>
                                     {brand.brand.name}
                                   </span>
                                 )}
                               </div>
-                              {/* Price and stock on mobile */}
-                              <div className="flex items-baseline gap-2 mt-1">
-                                <div className="text-lg sm:text-xl font-bold text-green-600">FREE</div>
-                                <div className="text-xs text-gray-400 line-through">
-                                  ${Number(product.price).toFixed(2)}
+                              {/* Price and stock */}
+                              <div className="mb-3">
+                                <div className="flex items-baseline gap-2 mb-1">
+                                  <div className="text-xl font-bold text-green-600">FREE</div>
+                                  <div className="text-xs text-gray-400 line-through">
+                                    ${Number(product.price).toFixed(2)}
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-1 ml-auto">
-                                  <div className={`text-xs sm:text-sm font-medium ${
+                                <div className="flex items-center gap-1">
+                                  <div className={`text-sm font-medium ${
                                     (product.inventoryQuantity || 0) > 20 
                                       ? 'text-green-600' 
                                       : (product.inventoryQuantity || 0) > 5 
@@ -3175,8 +3177,8 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                           </span>
                         </div>
 
-                        {/* Products List */}
-                        <div className="space-y-3">
+                        {/* Products Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                           {brandProducts.map((product) => {
                             if (!product) return null;
 
@@ -3192,32 +3194,32 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                     : 'border-gray-200 hover:border-gray-300'
                                 }`}
                               >
-                                {/* Mobile-first layout */}
-                                <div className="flex gap-3 mb-3">
+                                {/* Card layout: Image on top, content stacked below */}
+                                <div className="flex flex-col">
                                   {product.imageUrl ? (
                                     <img
                                       src={product.imageUrl}
                                       alt={product.name}
-                                      className="w-20 h-20 sm:w-24 sm:h-24 rounded object-cover flex-shrink-0"
+                                      className="w-full h-32 sm:h-40 rounded object-cover mb-3"
                                     />
                                   ) : (
-                                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded bg-gray-200 flex items-center justify-center flex-shrink-0">
-                                      <span className="text-3xl">📦</span>
+                                    <div className="w-full h-32 sm:h-40 rounded bg-gray-200 flex items-center justify-center mb-3">
+                                      <span className="text-5xl">📦</span>
                                     </div>
                                   )}
-                                  <div className="flex-1 min-w-0 flex flex-col justify-between">
+                                  <div className="flex-1 flex flex-col">
                                     {/* Product info */}
-                                    <div>
-                                      <div className="font-medium text-sm sm:text-base leading-tight">{product.name}</div>
-                                      <div className="text-xs text-gray-500 mt-0.5">{product.sku}</div>
+                                    <div className="mb-3">
+                                      <div className="font-medium text-sm sm:text-base leading-tight mb-1">{product.name}</div>
+                                      <div className="text-xs text-gray-500">{product.sku}</div>
                                     </div>
                                     {/* Price and stock */}
-                                    <div className="flex items-baseline gap-2 mt-1">
-                                      <div className="text-lg sm:text-xl font-bold text-purple-600">
+                                    <div className="mb-3">
+                                      <div className="text-xl font-bold text-purple-600 mb-1">
                                         ${Number(product.price).toFixed(2)}
                                       </div>
-                                      <div className="flex items-center gap-1 ml-auto">
-                                        <div className={`text-xs sm:text-sm font-medium ${
+                                      <div className="flex items-center gap-1">
+                                        <div className={`text-sm font-medium ${
                                           (product.inventoryQuantity || 0) > 20 
                                             ? 'text-green-600' 
                                             : (product.inventoryQuantity || 0) > 5 

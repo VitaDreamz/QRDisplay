@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
                 name: true,
                 shopifyStoreName: true,
                 shopifyAccessToken: true,
+                supportEmail: true,
               },
             },
           },
@@ -218,11 +219,26 @@ export async function POST(request: NextRequest) {
         const primaryEmail = wholesaleOrder.store.purchasingEmail || wholesaleOrder.store.adminEmail || wholesaleOrder.store.ownerEmail || 'store@qrdisplay.com';
         const bccEmails: string[] = [];
         
-        // Add owner and admin emails to BCC if they exist and are different from primary
+        // Add brand email(s) to BCC - get unique brand emails from items in this order
+        const brandEmailsSet = new Set<string>();
+        for (const item of orderData.items) {
+          const partnership = store.brandPartnerships.find(
+            bp => bp.brand.orgId === item.brandOrgId
+          );
+          if (partnership?.brand.supportEmail) {
+            brandEmailsSet.add(partnership.brand.supportEmail);
+          }
+        }
+        bccEmails.push(...Array.from(brandEmailsSet));
+        
+        // Add owner email to BCC if it exists and is different from primary
         if (wholesaleOrder.store.ownerEmail && wholesaleOrder.store.ownerEmail !== primaryEmail) {
           bccEmails.push(wholesaleOrder.store.ownerEmail);
         }
-        if (wholesaleOrder.store.adminEmail && wholesaleOrder.store.adminEmail !== primaryEmail) {
+        // Add admin email to BCC if it exists and is different from primary and owner
+        if (wholesaleOrder.store.adminEmail && 
+            wholesaleOrder.store.adminEmail !== primaryEmail &&
+            wholesaleOrder.store.adminEmail !== wholesaleOrder.store.ownerEmail) {
           bccEmails.push(wholesaleOrder.store.adminEmail);
         }
 

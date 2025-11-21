@@ -20,7 +20,7 @@ export default async function ActivationSuccess({
   const store = await prisma.stores.findUnique({
     where: { storeId },
     include: {
-      organization: true,
+      organizations: true,
     },
   });
 
@@ -28,10 +28,10 @@ export default async function ActivationSuccess({
     redirect('/');
   }
 
-  const brandName = store.organization.name;
-  const brandEmail = store.organization.type === 'platform' 
+  const brandName = store.organizations.name;
+  const brandEmail = store.organizations.type === 'platform' 
     ? 'jbonutto@gmail.com' 
-    : `info@${store.organization.slug}.com`;
+    : `info@${store.organizations.slug}.com`;
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">

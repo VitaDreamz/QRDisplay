@@ -99,7 +99,7 @@ export async function PATCH(req: NextRequest) {
       data = {
         storeId: null,
         activatedAt: null,
-        status: 'sold'
+        status: 'inventory'
         // assignedOrgId: UNCHANGED - display stays assigned to org
       };
     } else if (action === 'delete') {

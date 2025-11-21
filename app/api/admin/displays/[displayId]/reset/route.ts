@@ -32,7 +32,7 @@ export async function POST(
       where: { displayId },
       data: {
         storeId: null,
-        status: 'sold',
+        status: 'inventory',
         activatedAt: null,
         // assignedOrgId stays unchanged
       }

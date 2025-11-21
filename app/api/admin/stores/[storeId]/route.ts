@@ -238,7 +238,7 @@ export async function DELETE(
           },
           data: {
             storeId: null,
-            status: 'sold',
+            status: 'inventory',
             activatedAt: null
           }
         });

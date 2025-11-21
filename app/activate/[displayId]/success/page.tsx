@@ -17,7 +17,7 @@ export default async function ActivationSuccess({
   }
 
   // Fetch store with organization details
-  const store = await prisma.store.findUnique({
+  const store = await prisma.stores.findUnique({
     where: { storeId },
     include: {
       organization: true,

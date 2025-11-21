@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import QRCode from 'qrcode';
 import prisma from '@/lib/prisma';
+import { generateQRWithLogo } from '@/lib/qr-generator';
 
 function generateDisplayId(count: number): string {
   const num = count + 1;
@@ -24,18 +24,9 @@ export async function POST(request: NextRequest) {
     for (let i = 0; i < quantity; i++) {
       const displayId = generateDisplayId(count + i);
       
-      // Generate QR code with short URL
+      // Generate QR code with SampleHound logo embedded
       const url = `https://qrdisplay.com/d/${displayId}`;
-      const qrDataUrl = await QRCode.toDataURL(url, {
-        errorCorrectionLevel: 'H',
-        type: 'image/png',
-        width: 400,
-        margin: 1,
-        color: {
-          dark: '#1f2937',  // Dark gray (better for printing)
-          light: '#ffffff'
-        }
-      });
+      const qrDataUrl = await generateQRWithLogo(url, { size: 400 });
       
       displays.push({
         displayId,

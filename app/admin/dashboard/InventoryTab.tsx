@@ -438,14 +438,12 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
             </button>
 
             {/* Reset All Button */}
-            {hasActivatedDisplays && (
-              <button
-                onClick={() => { setBulkAction({ type: 'reset', value: 'reset' }); setShowBulkConfirm(true); }}
-                className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 text-sm font-medium"
-              >
-                Reset All
-              </button>
-            )}
+            <button
+              onClick={() => { setBulkAction({ type: 'reset', value: 'reset' }); setShowBulkConfirm(true); }}
+              className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 text-sm font-medium"
+            >
+              Reset All
+            </button>
 
             {/* Print Selected Labels */}
             <button
@@ -696,20 +694,18 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
             </div>
 
             <div className="space-y-3">
-              {/* Reset Button - only show if activated */}
-              {editing.activatedAt && (
-                <button
-                  onClick={() => {
-                    setBulkAction({ type: 'reset', value: 'reset' });
-                    setSelected([editing.displayId]);
-                    setShowBulkConfirm(true);
-                    setEditing(null);
-                  }}
-                  className="w-full px-4 py-2 rounded bg-orange-600 text-white hover:bg-orange-700 font-medium"
-                >
-                  Reset Display
-                </button>
-              )}
+              {/* Reset Button */}
+              <button
+                onClick={() => {
+                  setBulkAction({ type: 'reset', value: 'reset' });
+                  setSelected([editing.displayId]);
+                  setShowBulkConfirm(true);
+                  setEditing(null);
+                }}
+                className="w-full px-4 py-2 rounded bg-orange-600 text-white hover:bg-orange-700 font-medium"
+              >
+                Reset Display
+              </button>
 
               {/* Delete Button */}
               <button

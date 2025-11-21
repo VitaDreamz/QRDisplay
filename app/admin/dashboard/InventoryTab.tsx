@@ -86,6 +86,37 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
     }
   };
 
+  const createSingleDisplay = async () => {
+    setCreating(true);
+    try {
+      const res = await fetch('/api/admin/displays/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quantity: 1 })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to create display');
+      }
+
+      if (data.success) {
+        // Auto-print label after creation
+        const displayIds = data.displays.map((d: any) => d.displayId);
+        await printLabels(displayIds);
+        
+        // Reload page to show new display
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Single display creation failed:', error);
+      alert(`Failed to create display: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const printLabels = async (displayIds: string[]) => {
     try {
       const res = await fetch('/api/admin/displays/labels', {
@@ -265,13 +296,20 @@ export function InventoryTab({ displays, organizations }: { displays: Display[];
             <p className="text-xs text-gray-500 mt-1">Auto-calculated</p>
           </div>
 
-          <div className="flex items-end">
+          <div className="flex items-end gap-2">
             <button
               onClick={createBatch}
               disabled={creating}
-              className="w-full bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
+              className="flex-1 bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
             >
               {creating ? 'Creating...' : 'Create Batch & Generate Labels'}
+            </button>
+            <button
+              onClick={createSingleDisplay}
+              disabled={creating}
+              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium whitespace-nowrap"
+            >
+              {creating ? "Creating..." : "➕ Single"}
             </button>
           </div>
         </div>

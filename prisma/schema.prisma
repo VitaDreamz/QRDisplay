@@ -1,10 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,1009 +7,679 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// LEVEL 1 & 2: Organizations (QRDisplay + Client Brands)
-model Organization {
-  id        String   @id @default(cuid())
-  orgId     String   @unique
-  name      String
-  slug      String   @unique
-  type      String   // 'platform' (QRDisplay) or 'client' (brands)
-  
-  // Public Support Settings
-  logoUrl           String?
-  supportEmail      String?
-  supportPhone      String?
-  emailFromName     String?
-  emailFromAddress  String?
-  emailReplyTo      String?
-  websiteUrl        String?
-  
-  // Customer Service Contact Info
-  customerServiceEmail String?
-  customerServicePhone String?
-  
-  subscriptionStatus String?
-  subscriptionPlan   String?
-  stripeCustomerId   String?
-  
-  // Shopify Integration (multi-tenant)
-  shopifyStoreName     String?   // e.g., "vitadreamz.myshopify.com"
-  shopifyAccessToken   String?   // Encrypted access token
-  shopifyApiKey        String?   // Encrypted (for private apps)
-  shopifyApiSecret     String?   // Encrypted (for private apps)
-  shopifyWebhookSecret String?   // For webhook signature verification
-  shopifyConnectedAt   DateTime? // When Shopify was connected
-  shopifyActive        Boolean   @default(false) // Is integration active?
-  
-  // Commission Settings (per-brand)
-  commissionRate       Float?    @default(10.0) // Percentage (e.g., 10.0 = 10%)
-  attributionWindow    Int?      @default(3650) // Days to attribute sale to store (10 years = lifetime)
-  
-  // Brand Subscription & Limits (for type='client' only)
-  brandTier              String?   @default("free") // free, basic, pro, mega
-  brandStatus            String?   @default("pending") // pending, approved, rejected, suspended
-  maxStoresPerMonth      Int?      @default(5)      // New store partnerships allowed per month
-  maxSampleProducts      Int?      @default(1)      // How many sample SKUs they can offer
-  maxFullSizeProducts    Int?      @default(2)      // How many full-size SKUs they can sell
-  
-  // Brand Usage Tracking (resets monthly)
-  storesAddedThisMonth   Int       @default(0)      // Counter (resets monthly)
-  lastMonthlyReset       DateTime? // When counter was last reset
-  currentActiveStores    Int       @default(0)      // Total active store partnerships
-  
-  // Transaction Fees (QRDisplay revenue from brands)
-  transactionFeePercent  Float?    @default(5.0)    // % QRDisplay takes per sale/wholesale
-  monthlyPlatformFee     Float?    @default(0.0)    // Fixed monthly fee
-  
-  // Brand Approval Workflow
-  approvalStatus         String    @default("pending") // pending, approved, rejected, suspended
-  approvedAt             DateTime?
-  approvedBy             String?   // Super-admin userId who approved
-  rejectionReason        String?
-  onboardingStep         String    @default("registration") // registration, shopify_setup, products_added, pending_approval, live
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  users     User[]
-  stores    Store[]
-  displays  Display[]
-  packs     DisplayPack[]
-  orders    Order[]
-  customers Customer[]
-  promoRedemptions PromoRedemption[]
-  conversions Conversion[]
-  webhookLogs ShopifyWebhookLog[]
-  products  Product[]
-  
-  // Multi-brand relationships
-  brandPartnerships   StoreBrandPartnership[] @relation("BrandPartnerships")
-  sampleHistory       SampleHistory[] @relation("BrandSampleHistory")
-  
-  @@map("organizations")
-}
-
-// Users (all levels)
-model User {
-  id       String   @id @default(cuid())
-  userId   String   @unique
-  orgId    String
-  email    String   @unique
-  name     String?
-  phone    String?
-  role     String   // 'super-admin', 'org-admin', 'store-admin'
-  storeId  String?
-  
-  createdAt DateTime @default(now())
-  
-  organization Organization @relation(fields: [orgId], references: [orgId])
-  store        Store?       @relation(fields: [storeId], references: [storeId])
-  
-  @@map("users")
-}
-
-// LEVEL 3: Stores
-model Store {
-  id           String   @id @default(cuid())
-  storeId      String   @unique
-  orgId        String   // LEGACY: Will be deprecated in favor of platformId
-  platformId   String?  // NEW: Store belongs to platform (QRDisplay/SampleHound)
-  
-  status       String   @default("active")
-  storeName    String
-  
-  // Owner (business owner/main decision maker)
-  ownerName         String?
-  ownerPhone        String?
-  ownerEmail        String?
-  
-  // Program Administrator (day-to-day manager, receives notifications)
-  adminName         String?
-  adminEmail        String?
-  adminPhone        String?
-  
-  // Purchasing Manager (handles inventory ordering)
-  purchasingManager String?
-  purchasingPhone   String?
-  purchasingEmail   String?
-  
-  // Shopify wholesale account linkage
-  shopifyCustomerId String?  // Links this store to a Shopify customer for commission credits
-  parentAccountName String?  // For multi-location: "Acme Corp" (shown in UI)
-  
-  // Subscription & Billing (Store pays Organization via Recharge)
-  subscriptionTier        String    @default("free") // free, basic, dreamer, mega
-  subscriptionStatus      String    @default("active") // active, past_due, canceled, trialing
-  rechargeCustomerId      String? // Customer ID in org's Recharge account
-  rechargeSubscriptionId  String? // Subscription ID in org's Recharge account
-  nextBillingDate         DateTime?
-  trialEndsAt             DateTime?
-  
-  // Subscription Benefits (accumulate with each billing cycle)
-  customerSlotsGranted    Int       @default(10) // Total customer slots granted (accumulates each billing)
-  samplesPerQuarter       Int       @default(10)
-  commissionRate          Float     @default(5.0) // Percentage
-  promoReimbursementRate  Float     @default(10.0) // Percentage of promo value as store credit
-  
-  // Sales Rep Assignment
-  salesRepName  String?
-  salesRepEmail String?
-  salesRepPhone String?
-  
-  streetAddress String?
-  address2      String?  // Suite, unit, apt number
-  city          String?
-  state         String?
-  zipCode       String?
-  
-  timezone     String   @default("America/Los_Angeles")
-  promoOffer   String   @default("20%-off 1st Purchase")
-  returningCustomerPromo String @default("10%-off In-Store Purchase")
-  followupDays Int[]    @default([4, 12])
-  postPurchaseFollowupDays Int[] @default([45, 90])
-  staffPin     String?
-
-  // Wizard setup photo (if uploaded during setup)
-  setupPhotoUrl         String?
-  setupPhotoUploadedAt  DateTime?
-  setupPhotoCredit      Boolean   @default(false)
-  
-  // Store Credit (QRDisplay-managed)
-  storeCredit           Decimal   @default(0.00) @db.Decimal(10, 2)
-  
-  // Message Credits System (Phase 1: Everyone gets 100/month)
-  messageCreditBalance  Int       @default(100)    // Free message credits
-  totalMessagesSent     Int       @default(0)      // Analytics
-  lastCreditRefill      DateTime  @default(now())  // Track monthly refills
-  lastMessageBlastAt    DateTime?                  // Rate limiting (24hr)
-  
-  // Available sample products (stores choose which samples they carry)
-  availableSamples String[] @default([])
-  
-  // Available products for purchase (SKUs that this store carries)
-  availableProducts String[] @default([])
-  
-  // Multi-Brand Limits (based on subscription tier)
-  maxBrandPartnerships   Int       @default(1)      // free=1, basic=10, pro=25, mega=50
-  activeBrandCount       Int       @default(0)      // Cached count of active partnerships
-  
-  activatedAt  DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  organization Organization @relation(fields: [orgId], references: [orgId])
-  displays     Display[]
-  customers    Customer[]
-  users        User[]
-  staff        Staff[]
-  promoRedemptions PromoRedemption[]
-  conversions  Conversion[]
-  creditTransactions StoreCreditTransaction[]
-  inventory    StoreInventory[]
-  inventoryTransactions InventoryTransaction[]
-  productHolds ProductHold[]
-  wholesaleOrders WholesaleOrder[]
-  messageCampaigns MessageCampaign[]
-  
-  // Multi-brand relationships
-  brandPartnerships StoreBrandPartnership[]
-  sampleHistory     SampleHistory[] @relation("StoreSampleHistory")
-  
-  @@map("stores")
-}
-
-// Store Inventory Tracking
-model StoreInventory {
-  id              String   @id @default(cuid())
-  storeId         String
-  productSku      String
-  
-  quantityOnHand  Int      @default(0)  // Physical inventory in store
-  quantityReserved Int     @default(0)  // Reserved for customer holds (2hr)
-  quantityIncoming Int     @default(0)  // On order, not yet received
-  quantityAvailable Int    @default(0)  // onHand - reserved (computed)
-  
-  // Incoming order tracking
-  pendingOrderId      String?  // WholesaleOrder.orderId if there's incoming inventory
-  verificationToken   String?  // Token for store to verify they received the shipment
-  
-  lastRestocked   DateTime?
-  updatedAt       DateTime @updatedAt
-  
-  store   Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productSku], references: [sku])
-  
-  @@unique([storeId, productSku])
-  @@index([storeId])
-  @@map("store_inventory")
-}
-
-// Inventory Transaction Log
-model InventoryTransaction {
-  id          String   @id @default(cuid())
-  storeId     String
-  productSku  String
-  
-  type        String   // "restock", "sample_redemption", "promo_sale", "hold_created", "hold_released", "hold_expired"
-  quantity    Int      // Positive for incoming, negative for outgoing
-  
-  customerId  String?  // If related to a customer action
-  staffId     String?  // If processed by staff
-  notes       String?
-  
-  balanceAfter Int     // Inventory balance after this transaction
-  
-  createdAt   DateTime @default(now())
-  expiresAt   DateTime? // For holds that auto-expire
-  
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  
-  @@index([storeId, createdAt])
-  @@index([expiresAt]) // For finding expired holds
-  @@map("inventory_transactions")
-}
-
-// Wholesale Orders (Store → Brand Purchase Orders)
-model WholesaleOrder {
-  id                String   @id @default(cuid())
-  orderId           String   @unique // e.g., "WO-20250114-001"
-  
+model conversions {
+  id                String        @id
+  orgId             String
+  customerId        String
+  shopifyOrderId    String
+  shopifyCustomerId String
   storeId           String
-  store             Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  
-  // Shopify Integration
-  shopifyDomain     String   // e.g., "vitadreamz.myshopify.com"
-  shopifyDraftOrderId String? // Shopify Draft Order ID
-  shopifyDraftOrderUrl String? // Link to draft order in Shopify admin
-  
-  // Financials
-  subtotal          Decimal  @db.Decimal(10, 2)
-  creditApplied     Decimal  @db.Decimal(10, 2) @default(0.00)
-  total             Decimal  @db.Decimal(10, 2)
-  
-  // Status
-  status            String   @default("pending") // pending, submitted, fulfilled, delivered, received, cancelled
-  submittedAt       DateTime?
-  fulfilledAt       DateTime?
-  deliveredAt       DateTime?
-  receivedAt        DateTime?
-  cancelledAt       DateTime?
-  
-  // Verification
-  verificationToken String?  @unique // For SMS verification link
-  verifiedBy        String?  // Staff/Owner who verified receipt
-  lastReminderSentAt DateTime? // When last verification reminder was sent
-  
-  // Shopify tracking
-  shopifyOrderId    String?  // When draft becomes a real order
-  shopifyFulfillmentId String?
-  trackingNumber    String?
-  
-  // Notes
-  notes             String?  @db.Text
-  verificationNotes String?  @db.Text // Notes from store when verifying receipt
-  
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
-  items             WholesaleOrderItem[]
-  
-  @@index([storeId, createdAt])
-  @@index([shopifyDomain, status])
-  @@map("wholesale_orders")
-}
+  orderNumber       String
+  orderTotal        Float
+  commissionAmount  Float
+  commissionRate    Float
+  sampleDate        DateTime
+  purchaseDate      DateTime
+  daysToConversion  Int
+  attributed        Boolean       @default(true)
+  paid              Boolean       @default(false)
+  createdAt         DateTime      @default(now())
+  customers         customers     @relation(fields: [customerId], references: [memberId])
+  organizations     organizations @relation(fields: [orgId], references: [orgId])
+  stores            stores        @relation(fields: [storeId], references: [storeId])
 
-model WholesaleOrderItem {
-  id                String   @id @default(cuid())
-  
-  orderId           String
-  order             WholesaleOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  
-  productSku        String
-  product           Product  @relation(fields: [productSku], references: [sku])
-  
-  brandOrgId        String   // Which brand this product belongs to
-  
-  quantity          Int
-  unitPrice         Decimal  @db.Decimal(10, 2)
-  total             Decimal  @db.Decimal(10, 2)
-  
-  // Fulfillment tracking
-  retailUnits       Int?     // Calculated retail units (quantity * unitsPerBox)
-  retailSku         String?  // The retail SKU this converts to
-  receivedQuantity  Int?     // Actual quantity received (may differ if short/damaged)
-  verified          Boolean  @default(false) // Has store verified receipt?
-  
-  createdAt         DateTime @default(now())
-  
-  @@index([orderId])
-  @@map("wholesale_order_items")
-}
-
-// Product Holds (2-hour pickup reservations)
-model ProductHold {
-  id          String   @id @default(cuid())
-  storeId     String
-  customerId  String
-  productSku  String
-  
-  quantity    Int      @default(1)
-  status      String   @default("active") // active, picked_up, expired, cancelled
-  
-  createdAt   DateTime @default(now())
-  expiresAt   DateTime // 2 hours from creation
-  notifiedAt  DateTime? // When store was notified
-  pickedUpAt  DateTime?
-  
-  store    Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  
-  @@index([storeId, status])
-  @@index([expiresAt])
   @@index([customerId])
-  @@map("product_holds")
-}
-
-// Store Credit Transactions
-model StoreCreditTransaction {
-  id                  String   @id @default(cuid())
-  storeId             String
-  brandPartnershipId  String?  // Reference to which brand partnership this credit is for
-  
-  amount    Decimal  @db.Decimal(10, 2) // Positive for credits, negative for redemptions
-  type      String   // 'earned' (setup photo, etc) or 'redeemed' (used in order)
-  reason    String   // 'Setup Photo Upload', 'Wholesale Order Applied', etc.
-  
-  // Optional reference to related entities
-  displayId String?  // If earned via display setup
-  orderId   String?  // If redeemed in an order
-  
-  // Customer attribution (for commission tracking)
-  customerId   String?  // Customer who generated this credit
-  customerName String?  // Cached customer name for easy display
-  
-  balance   Decimal  @db.Decimal(10, 2) // Store's balance after this transaction
-  
-  createdAt DateTime @default(now())
-  
-  store              Store                   @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  brandPartnership   StoreBrandPartnership?  @relation(fields: [brandPartnershipId], references: [id], onDelete: Cascade)
-  
-  @@index([storeId])
-  @@index([brandPartnershipId])
-  @@index([createdAt])
-  @@map("store_credit_transactions")
-}
-
-// Display Packs (boxes of 10 displays)
-model DisplayPack {
-  id          String   @id @default(cuid())
-  packId      String   @unique
-  
-  displayIds  String[]
-  quantity    Int
-  
-  status      String   @default("inventory") // inventory, shipped, activated
-  orderId     String?
-  assignedOrgId String?
-  
-  qrCodeUrl   String?
-  
-  shippedAt   DateTime?
-  activatedAt DateTime?
-  activatedBy String?
-  
-  createdAt   DateTime @default(now())
-  
-  organization Organization? @relation(fields: [assignedOrgId], references: [orgId])
-  order        Order?         @relation(fields: [orderId], references: [orderId])
-  
-  @@map("display_packs")
-}
-
-// Individual Displays
-model Display {
-  id          String   @id @default(cuid())
-  displayId   String   @unique
-  
-  ownerOrgId    String  @default("ORG-QRDISPLAY")
-  assignedOrgId String?
-  storeId       String?
-  packId        String?
-  
-  shortlink   String?  @unique
-  targetUrl   String?
-  prefillUrl  String?
-  qrPngUrl    String?
-  
-  status      String   @default("inventory")
-  
-  orderId     String?
-  shippedAt   DateTime?
-  activatedAt DateTime?
-  activatedBy String?
-  
-  createdAt   DateTime @default(now())
-
-  // Wizard setup photo (if uploaded during setup)
-  setupPhotoUrl         String?
-  setupPhotoUploadedAt  DateTime?
-  setupPhotoCredit      Boolean   @default(false)
-  
-  organization Organization? @relation(fields: [assignedOrgId], references: [id])
-  store        Store?         @relation(fields: [storeId], references: [storeId])
-  order        Order?         @relation(fields: [orderId], references: [orderId])
-  
-  // Multi-brand tracking
-  sampleHistory SampleHistory[]
-  
-  @@map("displays")
-}
-
-// Orders
-model Order {
-  id            String   @id @default(cuid())
-  orderId       String   @unique
-  orgId         String
-  
-  quantity      Int
-  unitPrice     Float
-  totalPrice    Float
-  
-  status        String   @default("pending")
-  
-  trackingNumber String?
-  shippedAt     DateTime?
-  deliveredAt   DateTime?
-  
-  createdAt     DateTime @default(now())
-  
-  organization  Organization @relation(fields: [orgId], references: [id])
-  displays      Display[]
-  packs         DisplayPack[]
-  
-  @@map("orders")
-}
-
-// Customers
-model Customer {
-  id           String    @id @default(cuid())
-  memberId     String    @unique
-  orgId        String
-  storeId      String
-  
-  firstName    String
-  lastName     String
-  phone        String
-  email        String?
-  sampleChoice String
-  
-  activated    Boolean   @default(false)
-  activatedAt  DateTime?
-  redeemed     Boolean   @default(false)
-  redeemedAt   DateTime?
-  redeemedBy   String?
-  
-  // Staff tracking
-  redeemedByStaffId      String?
-  promoRedeemedByStaffId String?
-  
-  promoSlug        String?
-  promoRedeemed    Boolean   @default(false)
-  promoRedeemedAt  DateTime?
-  
-  // Retention/Returning Customer Promo
-  returningPromoSlug String?  // Unique promo slug for returning customer offers
-  
-  // Lifecycle stage tracking
-  currentStage     String    @default("pending") // pending, redeemed, purchased, repeat
-  stageChangedAt   DateTime  @default(now())
-  
-  // Shopify Integration
-  shopifyCustomerId String?   // Shopify customer ID for attribution
-  syncedToShopify   Boolean   @default(false)
-  syncedAt          DateTime?
-  attributedStoreId String?   // Store that gets credit for conversions
-  sampleDate        DateTime? // When they got their sample (for attribution window)
-  
-  // Daily Sample Limit Tracking (1 sample per day total)
-  lastSampleDate    DateTime? // Last date they received ANY sample (date only, not time)
-  
-  // SMS Opt-out Tracking
-  smsOptedOut       Boolean   @default(false)
-  smsOptOutDate     DateTime?
-  smsOptOutReason   String?   // "STOP", "Manual", etc.
-  
-  requestedAt  DateTime  @default(now())
-  
-  organization Organization @relation(fields: [orgId], references: [id])
-  store        Store        @relation(fields: [storeId], references: [storeId])
-  redeemedByStaff      Staff?  @relation("RedeemedByStaff", fields: [redeemedByStaffId], references: [id], onDelete: SetNull)
-  promoRedeemedByStaff Staff?  @relation("PromoRedeemedByStaff", fields: [promoRedeemedByStaffId], references: [id], onDelete: SetNull)
-  promoRedemptions PromoRedemption[]
-  purchaseIntents  PurchaseIntent[]
-  conversions      Conversion[]
-  webhookLogs      ShopifyWebhookLog[]
-  productHolds     ProductHold[]
-  staffPointTransactions StaffPointTransaction[]
-  
-  // Multi-brand tracking
-  sampleHistory    SampleHistory[]
-  
-  @@index([shopifyCustomerId])
-  @@map("customers")
-}
-
-// Staff Members
-model Staff {
-  id                String   @id @default(cuid())
-  staffId           String   @unique
-  storeId           String
-  
-  // Basic Info
-  firstName         String
-  lastName          String
-  email             String?
-  phone             String
-  profilePhoto      String?
-  
-  // Work Details
-  type              String   // Sales, Marketing, Cashier, Manager
-  staffPin          String   // 4-digit PIN for redemptions
-  status            String   @default("active") // active, inactive, pending
-  hireDate          DateTime @default(now())
-  
-  // Schedule
-  onCallDays        String[] // ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-  onCallHoursStart  String   // "09:00"
-  onCallHoursStop   String   // "17:00"
-  
-  // Performance Metrics (cached for leaderboard performance)
-  samplesRedeemed   Int      @default(0)
-  salesGenerated    Int      @default(0)
-  lastActive        DateTime?
-  
-  // Gamification Points
-  totalPoints       Int      @default(0) // Lifetime points earned
-  quarterlyPoints   Int      @default(0) // Points this quarter (resets every 3 months)
-  lastQuarterReset  DateTime? // When quarterly points were last reset
-
-  // Verification
-  verified            Boolean   @default(false)
-  verificationToken   String?   @unique
-  verificationExpiry  DateTime?
-  verifiedAt          DateTime?
-  lastReminderSentAt  DateTime? // When last verification reminder was sent
-  
-  // Metadata
-  notes             String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
-  // Relations
-  store                Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  customerRedemptions  Customer[] @relation("RedeemedByStaff")
-  promoRedemptions     Customer[] @relation("PromoRedeemedByStaff")
-  purchaseIntents      PurchaseIntent[]
-  pointTransactions    StaffPointTransaction[]
-  
-  @@map("staff")
-}
-
-// Shortlinks
-model Shortlink {
-  id         String    @id @default(cuid())
-  slug       String    @unique
-  action     String
-  storeId    String
-  memberId   String?
-  role       String
-  
-  requiresPin Boolean  @default(false)
-  redeemed    Boolean  @default(false)
-  redeemedAt  DateTime?
-  
-  createdAt   DateTime @default(now())
-  usedAt      DateTime?
-  
-  @@map("shortlinks")
-}
-
-// Products (SKUs that brands sell)
-model Product {
-  id          String   @id @default(cuid())
-  sku         String   @unique
-  orgId       String   // Which brand owns this product
-  brand       Organization @relation(fields: [orgId], references: [orgId])
-  
-  name        String
-  description String?
-  category    String?
-  
-  // Product type: retail (individual units) or wholesale-box (bulk boxes)
-  productType String   @default("retail")
-  
-  price       Decimal  @db.Decimal(10, 2)
-  msrp        Decimal? @db.Decimal(10, 2)
-  
-  // Wholesale box fields (only for productType = 'wholesale-box')
-  unitsPerBox     Int?     // Number of units in a box
-  wholesalePrice  Decimal? @db.Decimal(10, 2) // Price per unit (wholesale)
-  retailPrice     Decimal? @db.Decimal(10, 2) // Price per unit (retail)
-  
-  // Shopify integration
-  shopifyProductId String? // Shopify product ID (e.g., "gid://shopify/Product/1234567890")
-  shopifyVariantId String? // Shopify variant ID (e.g., "gid://shopify/ProductVariant/1234567890")
-  
-  imageUrl    String?
-  
-  // Status flags
-  active      Boolean  @default(true)
-  featured    Boolean  @default(false)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  purchaseIntents PurchaseIntent[]
-  storeInventory  StoreInventory[]
-  wholesaleOrderItems WholesaleOrderItem[]
-  
-  @@map("products")
-}
-
-// Purchase Intents (customer selects product, store fulfills)
-model PurchaseIntent {
-  id          String   @id @default(cuid())
-  
-  customerId  String
-  customer    Customer @relation(fields: [customerId], references: [id])
-  
-  storeId     String
-  
-  productSku  String
-  product     Product  @relation(fields: [productSku], references: [sku])
-  
-  // Pricing at time of intent
-  originalPrice  Decimal  @db.Decimal(10, 2)
-  discountPercent Int     // e.g., 20 for 20% off
-  finalPrice     Decimal  @db.Decimal(10, 2)
-  
-  // Status tracking
-  status      String   @default("pending") // pending, fulfilled, cancelled
-  
-  // Verify link for in-store redemption
-  verifySlug  String   @unique
-  
-  fulfilledAt DateTime?
-    fulfilledByStaffId String?  // Staff ID who completed the sale
-    fulfilledByStaff   Staff?   @relation(fields: [fulfilledByStaffId], references: [id], onDelete: SetNull)
-  
-    // When store notifies customer that order is ready
-    notifiedAt  DateTime?
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@index([customerId])
-  @@index([storeId])
-  @@index([productSku])
-  
-  @@map("purchase_intents")
-}
-
-// ============================================================================
-// MULTI-BRAND ARCHITECTURE - New Models for Brand Partnerships
-// ============================================================================
-
-// Store-Brand Partnerships (Many-to-Many)
-// Allows stores to partner with multiple brands and carry their products
-model StoreBrandPartnership {
-  id          String   @id @default(cuid())
-  
-  storeId     String
-  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  
-  brandId     String
-  brand       Organization @relation("BrandPartnerships", fields: [brandId], references: [id], onDelete: Cascade)
-  
-  // Partnership-specific settings
-  commissionRate      Float    @default(10.0) // Percentage (e.g., 10.0 = 10%)
-  onlineCommission    Float    @default(20.0) // Online sale commission
-  subscriptionCommission Float @default(5.0)  // Subscription commission
-  promoCommission     Float    @default(50.0) // Promo redemption commission
-  storeCreditBalance  Decimal  @db.Decimal(10, 2) @default(0.00) // Credit with this brand
-  
-  availableSamples    String[] @default([])   // SKUs this store offers as samples for this brand
-  availableProducts   String[] @default([])   // SKUs this store can sell for this brand
-  
-  // Partnership status
-  status              String   @default("active") // active, pending, suspended, ended
-  active              Boolean  @default(true)
-  partnerSince        DateTime @default(now())
-  partnershipEndedAt  DateTime?
-  
-  // Notes/terms
-  notes               String?
-  
-  // Relations
-  creditTransactions  StoreCreditTransaction[]
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@unique([storeId, brandId])
-  @@index([storeId])
-  @@index([brandId])
-  @@map("store_brand_partnerships")
-}
-
-// Sample History - Track which brand's products customers have sampled
-// This replaces the single sampleChoice field with per-brand tracking
-model SampleHistory {
-  id          String   @id @default(cuid())
-  
-  customerId  String
-  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  
-  brandId     String
-  brand       Organization @relation("BrandSampleHistory", fields: [brandId], references: [id], onDelete: Cascade)
-  
-  storeId     String
-  store       Store    @relation("StoreSampleHistory", fields: [storeId], references: [id], onDelete: Cascade)
-  
-  displayId   String?
-  display     Display? @relation(fields: [displayId], references: [displayId], onDelete: SetNull)
-  
-  productSku  String
-  productName String?  // Cached for reporting
-  
-  sampledAt   DateTime @default(now())
-  
-  // Attribution tracking
-  attributionWindow Int @default(3650) // Days to attribute purchases to this sample (10 years)
-  expiresAt        DateTime // sampledAt + attributionWindow days
-  
-  @@index([customerId])
-  @@index([brandId])
-  @@index([storeId])
-  @@index([sampledAt])
-  @@map("sample_history")
-}
-
-// ============================================================================
-
-// Promo Redemptions
-model PromoRedemption {
-  id            String    @id @default(cuid())
-  
-  customerId    String
-  customer      Customer  @relation(fields: [customerId], references: [id])
-  
-  storeId       String
-  store         Store     @relation(fields: [storeId], references: [id])
-  
-  orgId         String
-  organization  Organization @relation(fields: [orgId], references: [id])
-  
-  promoOffer    String
-  promoSlug     String    @unique
-  
-  redeemedAt    DateTime?
-  redeemedBy    String?
-  redeemedByStaffId String?
-  
-  purchaseAmount Decimal?  @db.Decimal(10, 2)
-  discountAmount Decimal?  @db.Decimal(10, 2)
-  
-  createdAt     DateTime  @default(now())
-  
-  @@index([customerId])
-  @@index([storeId])
   @@index([orgId])
-  
-  @@map("promo_redemptions")
-}
-
-// Message Log
-model MessageLog {
-  id           String   @id @default(cuid())
-  timestamp    DateTime @default(now())
-  type         String
-  templateKey  String?
-  toAddress    String
-  status       String
-  sidOrReason  String?
-  storeId      String?
-  memberId     String?
-  context      Json?
-  body         String?
-  
-  @@map("message_log")
-}
-
-// Message Campaign Log (for blast messages)
-model MessageCampaign {
-  id              String   @id @default(cuid())
-  storeId         String
-  store           Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  
-  // Campaign details
-  message         String
-  audience        String   // 'all', 'undecided', 'sampling', 'purchased', 'ready_for_pickup'
-  templateUsed    String?  // Which template was used (if any)
-  
-  // Results
-  recipientCount  Int      // How many customers targeted
-  sentCount       Int      // How many successfully sent
-  creditsUsed     Int      // Message credits deducted
-  optOutCount     Int      @default(0) // How many opted out after this campaign
-  
-  sentAt          DateTime @default(now())
-  
+  @@index([shopifyOrderId])
   @@index([storeId])
-  @@index([sentAt])
-  @@map("message_campaigns")
 }
 
-// Opt Outs
-model OptOut {
-  id        String   @id @default(cuid())
-  phone     String   @unique
-  timestamp DateTime @default(now())
-  reason    String?
-  
-  @@map("opt_outs")
+model customers {
+  id                                            String                     @id
+  memberId                                      String                     @unique
+  orgId                                         String
+  storeId                                       String
+  firstName                                     String
+  lastName                                      String
+  phone                                         String
+  email                                         String?
+  sampleChoice                                  String
+  activated                                     Boolean                    @default(false)
+  activatedAt                                   DateTime?
+  redeemed                                      Boolean                    @default(false)
+  redeemedAt                                    DateTime?
+  redeemedBy                                    String?
+  requestedAt                                   DateTime                   @default(now())
+  promoRedeemed                                 Boolean                    @default(false)
+  promoRedeemedAt                               DateTime?
+  promoSlug                                     String?
+  promoRedeemedByStaffId                        String?
+  redeemedByStaffId                             String?
+  currentStage                                  String                     @default("pending")
+  stageChangedAt                                DateTime                   @default(now())
+  attributedStoreId                             String?
+  sampleDate                                    DateTime?
+  shopifyCustomerId                             String?
+  syncedAt                                      DateTime?
+  syncedToShopify                               Boolean                    @default(false)
+  lastSampleDate                                DateTime?
+  returningPromoSlug                            String?
+  smsOptedOut                                   Boolean?                   @default(false)
+  followupSent                                  Boolean?                   @default(false)
+  lastContactedAt                               DateTime?                  @db.Timestamp(6)
+  notes                                         String?
+  source                                        String?                    @default("in-store")
+  status                                        String?                    @default("active")
+  conversions                                   conversions[]
+  organizations                                 organizations              @relation(fields: [orgId], references: [orgId])
+  staff_customers_promoRedeemedByStaffIdTostaff staff?                     @relation("customers_promoRedeemedByStaffIdTostaff", fields: [promoRedeemedByStaffId], references: [id])
+  staff_customers_redeemedByStaffIdTostaff      staff?                     @relation("customers_redeemedByStaffIdTostaff", fields: [redeemedByStaffId], references: [id])
+  stores                                        stores                     @relation(fields: [storeId], references: [storeId])
+  promo_redemptions                             promo_redemptions[]
+  purchase_intents                              purchase_intents[]
+  shopify_webhook_logs                          shopify_webhook_logs[]
+  staff_point_transactions                      staff_point_transactions[]
+
+  @@index([shopifyCustomerId])
 }
 
-// Errors
-model Error {
-  id         String   @id @default(cuid())
+model display_packs {
+  id            String         @id
+  packId        String         @unique
+  displayIds    String[]
+  quantity      Int
+  status        String         @default("inventory")
+  orderId       String?
+  assignedOrgId String?
+  qrCodeUrl     String?
+  shippedAt     DateTime?
+  activatedAt   DateTime?
+  activatedBy   String?
+  createdAt     DateTime       @default(now())
+  organizations organizations? @relation(fields: [assignedOrgId], references: [orgId])
+  orders        orders?        @relation(fields: [orderId], references: [orderId])
+}
+
+model displays {
+  id                   String         @id
+  displayId            String         @unique
+  ownerOrgId           String         @default("ORG-QRDISPLAY")
+  assignedOrgId        String?
+  storeId              String?
+  packId               String?
+  shortlink            String?        @unique
+  targetUrl            String?
+  prefillUrl           String?
+  qrPngUrl             String?
+  status               String         @default("inventory")
+  orderId              String?
+  shippedAt            DateTime?
+  activatedAt          DateTime?
+  activatedBy          String?
+  createdAt            DateTime       @default(now())
+  setupPhotoCredit     Boolean        @default(false)
+  setupPhotoUploadedAt DateTime?
+  setupPhotoUrl        String?
+  organizations        organizations? @relation(fields: [assignedOrgId], references: [orgId])
+  orders               orders?        @relation(fields: [orderId], references: [orderId])
+  stores               stores?        @relation(fields: [storeId], references: [storeId])
+}
+
+model errors {
+  id         String   @id
   timestamp  DateTime @default(now())
   whereError String
   meta       Json?
   userInfo   String?
-  
-  @@map("errors")
 }
 
-// Shopify Integration Models
-
-// Tracks conversions from samples to Shopify purchases
-model Conversion {
-  id                String   @id @default(cuid())
-  orgId             String
-  customerId        String   // QRDisplay customer
-  shopifyOrderId    String   // Shopify order ID
-  shopifyCustomerId String   // Shopify customer ID
-  storeId           String   // Store that gets credit
-  
-  orderNumber       String   // Human-readable order number
-  orderTotal        Float    // Total order amount
-  commissionAmount  Float    // Commission earned by store
-  commissionRate    Float    // Rate used for calculation
-  
-  sampleDate        DateTime // When customer got sample
-  purchaseDate      DateTime // When they purchased
-  daysToConversion  Int      // Days between sample and purchase
-  
-  attributed        Boolean  @default(true) // Within attribution window?
-  paid              Boolean  @default(false) // Commission paid to store?
-  
-  createdAt         DateTime @default(now())
-  
-  organization Organization @relation(fields: [orgId], references: [id])
-  customer     Customer     @relation(fields: [customerId], references: [memberId])
-  store        Store        @relation(fields: [storeId], references: [storeId])
-  
-  @@index([orgId])
-  @@index([customerId])
-  @@index([storeId])
-  @@index([shopifyOrderId])
-  @@map("conversions")
+model inventory_transactions {
+  id               String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  storeId          String
+  productSku       String
+  type             String
+  quantity         Int
+  previousQuantity Int?
+  newQuantity      Int?
+  reason           String?
+  notes            String?
+  performedBy      String?
+  createdAt        DateTime @default(now())
+  balanceAfter     Int?
+  customerId       String?
+  stores           stores   @relation(fields: [storeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
-// Logs all Shopify webhook events
-model ShopifyWebhookLog {
-  id            String   @id @default(cuid())
-  orgId         String
-  customerId    String?  // QRDisplay customer ID if found
-  webhookId     String?  // Shopify webhook ID
-  topic         String   // e.g., "orders/paid"
-  shopifyOrderId String?
-  
-  payload       Json     // Full webhook payload
-  status        String   @default("pending") // pending, processed, failed, ignored
-  errorMessage  String?
-  
-  processedAt   DateTime?
-  createdAt     DateTime @default(now())
-  
-  organization Organization @relation(fields: [orgId], references: [id])
-  customer     Customer?    @relation(fields: [customerId], references: [id])
-  
-  @@index([orgId])
-  @@index([customerId])
-  @@index([shopifyOrderId])
-  @@index([status])
-  @@map("shopify_webhook_logs")
+model label_print_history {
+  id         String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  batchId    String   @unique
+  printedAt  DateTime @default(now())
+  printedBy  String?
+  displayIds String[]
+  labelCount Int?
+  sheets     Int
+  createdAt  DateTime @default(now())
+  quantity   Int?
+
+  @@index([batchId])
+  @@index([printedAt])
 }
 
-// Staff Point Transactions for Gamification
-model StaffPointTransaction {
-  id          String   @id @default(cuid())
-  staffId     String
-  storeId     String
-  orgId       String
-  
-  points      Decimal  @db.Decimal(10, 2) // Allow half points (0.5, 1.0, 2.0, etc)
-  type        String   // 'sample', 'online_sale', 'instore_sale', 'manual_adjustment'
-  reason      String   // Detailed description
-  
-  // References to what triggered the points
-  customerId  String?  // If related to a customer
-  conversionId String? // If from online sale
-  purchaseIntentId String? // If from in-store sale
-  
-  // Quarter tracking for competitions
-  quarter     String   // "2025-Q1", "2025-Q2", etc
-  
-  createdAt   DateTime @default(now())
-  
-  // Relations
-  staff        Staff        @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  customer     Customer?    @relation(fields: [customerId], references: [id])
-  
-  @@index([staffId])
-  @@index([storeId])
-  @@index([orgId])
-  @@index([quarter])
-  @@index([type])
-  @@map("staff_point_transactions")
-}
-
-// Label Print History
-model LabelPrintHistory {
-  id          String   @id @default(cuid())
-  batchId     String   @unique
-  displayIds  String[] // Array of display IDs printed
-  quantity    Int?     // Number of labels printed
-  sheets      Int?     // Number of sheets printed
-  printedBy   String?  // User who initiated the print
-  printedAt   DateTime @default(now())
-  
-  @@map("label_print_history")
-}
-
-// Magic Links for Store Auth
-model MagicLink {
-  id        String   @id @default(cuid())
-  token     String   @unique
+model magic_links {
+  id        String    @id
+  token     String    @unique
   storeId   String
   expiresAt DateTime
-  used      Boolean  @default(false)
+  used      Boolean   @default(false)
   usedAt    DateTime?
-  createdAt DateTime @default(now())
-  
-  @@map("magic_links")
+  createdAt DateTime  @default(now())
 }
 
+model message_campaigns {
+  id             String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  storeId        String
+  name           String
+  message        String
+  status         String    @default("draft")
+  scheduledFor   DateTime?
+  sentAt         DateTime?
+  recipientCount Int?      @default(0)
+  successCount   Int?      @default(0)
+  failureCount   Int?      @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now())
+  audience       String    @default("all")
+  stores         stores    @relation(fields: [storeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model message_log {
+  id          String   @id
+  timestamp   DateTime @default(now())
+  type        String
+  templateKey String?
+  toAddress   String
+  status      String
+  sidOrReason String?
+  storeId     String?
+  memberId    String?
+  context     Json?
+  body        String?
+}
+
+model opt_outs {
+  id        String   @id
+  phone     String   @unique
+  timestamp DateTime @default(now())
+  reason    String?
+}
+
+model orders {
+  id             String          @id
+  orderId        String          @unique
+  orgId          String
+  quantity       Int
+  unitPrice      Float
+  totalPrice     Float
+  status         String          @default("pending")
+  trackingNumber String?
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+  createdAt      DateTime        @default(now())
+  display_packs  display_packs[]
+  displays       displays[]
+  organizations  organizations   @relation(fields: [orgId], references: [orgId])
+}
+
+model organizations {
+  id                       String                     @id
+  orgId                    String                     @unique
+  name                     String
+  slug                     String                     @unique
+  type                     String
+  subscriptionStatus       String?
+  subscriptionPlan         String?
+  stripeCustomerId         String?
+  createdAt                DateTime                   @default(now())
+  updatedAt                DateTime
+  emailFromAddress         String?
+  emailFromName            String?
+  emailReplyTo             String?
+  supportEmail             String?
+  supportPhone             String?
+  websiteUrl               String?
+  logoUrl                  String?
+  attributionWindow        Int?                       @default(30)
+  commissionRate           Float?                     @default(10.0)
+  shopifyAccessToken       String?
+  shopifyActive            Boolean                    @default(false)
+  shopifyApiKey            String?
+  shopifyApiSecret         String?
+  shopifyConnectedAt       DateTime?
+  shopifyStoreName         String?
+  shopifyWebhookSecret     String?
+  brandTier                String?                    @default("free")
+  brandStatus              String?                    @default("pending")
+  maxStoresPerMonth        Int?                       @default(5)
+  maxSampleProducts        Int?                       @default(1)
+  maxFullSizeProducts      Int?                       @default(2)
+  storesAddedThisMonth     Int                        @default(0)
+  lastMonthlyReset         DateTime?
+  currentActiveStores      Int                        @default(0)
+  transactionFeePercent    Float?                     @default(5.0)
+  monthlyPlatformFee       Float?                     @default(0.0)
+  approvalStatus           String                     @default("pending")
+  approvedAt               DateTime?
+  approvedBy               String?
+  rejectionReason          String?
+  onboardingStep           String                     @default("registration")
+  customerServiceEmail     String?
+  customerServicePhone     String?
+  conversions              conversions[]
+  customers                customers[]
+  display_packs            display_packs[]
+  displays                 displays[]
+  orders                   orders[]
+  promo_redemptions        promo_redemptions[]
+  sample_history           sample_history[]
+  shopify_webhook_logs     shopify_webhook_logs[]
+  store_brand_partnerships store_brand_partnerships[]
+  stores                   stores[]
+  users                    users[]
+  wholesale_orders         wholesale_orders[]
+}
+
+model product_holds {
+  id         String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  storeId    String
+  productSku String
+  customerId String?
+  quantity   Int
+  reason     String?
+  expiresAt  DateTime?
+  releasedAt DateTime?
+  createdAt  DateTime  @default(now())
+  status     String    @default("active")
+  notifiedAt DateTime?
+  pickedUpAt DateTime?
+  stores     stores    @relation(fields: [storeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model products {
+  id                    String                  @id
+  sku                   String                  @unique
+  orgId                 String
+  name                  String
+  description           String?
+  category              String?
+  price                 Decimal                 @db.Decimal(10, 2)
+  msrp                  Decimal?                @db.Decimal(10, 2)
+  imageUrl              String?
+  active                Boolean                 @default(true)
+  featured              Boolean                 @default(false)
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime
+  productType           String                  @default("retail")
+  retailPrice           Decimal?                @db.Decimal(10, 2)
+  unitsPerBox           Int?
+  wholesalePrice        Decimal?                @db.Decimal(10, 2)
+  shopifyProductId      String?
+  shopifyVariantId      String?
+  purchase_intents      purchase_intents[]
+  store_inventory       store_inventory[]
+  wholesale_order_items wholesale_order_items[]
+}
+
+model promo_redemptions {
+  id                String        @id
+  customerId        String
+  storeId           String
+  orgId             String
+  promoOffer        String
+  promoSlug         String        @unique
+  redeemedAt        DateTime?
+  redeemedBy        String?
+  purchaseAmount    Decimal?      @db.Decimal(10, 2)
+  discountAmount    Decimal?      @db.Decimal(10, 2)
+  createdAt         DateTime      @default(now())
+  redeemedByStaffId String?
+  customers         customers     @relation(fields: [customerId], references: [id])
+  organizations     organizations @relation(fields: [orgId], references: [orgId])
+  stores            stores        @relation(fields: [storeId], references: [id])
+
+  @@index([customerId])
+  @@index([orgId])
+  @@index([storeId])
+}
+
+model purchase_intents {
+  id                 String    @id
+  customerId         String
+  storeId            String
+  productSku         String
+  originalPrice      Decimal   @db.Decimal(10, 2)
+  discountPercent    Int
+  finalPrice         Decimal   @db.Decimal(10, 2)
+  status             String    @default("pending")
+  verifySlug         String    @unique
+  fulfilledAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime
+  fulfilledByStaffId String?
+  notifiedAt         DateTime?
+  customers          customers @relation(fields: [customerId], references: [id])
+  staff              staff?    @relation(fields: [fulfilledByStaffId], references: [id])
+  products           products  @relation(fields: [productSku], references: [sku])
+
+  @@index([customerId])
+  @@index([productSku])
+  @@index([storeId])
+}
+
+model sample_history {
+  id                String         @id @default(dbgenerated("(gen_random_uuid())::text"))
+  storeId           String
+  customerId        String?
+  productSku        String
+  displayId         String?
+  quantity          Int            @default(1)
+  givenAt           DateTime       @default(now())
+  givenBy           String?
+  notes             String?
+  sampledAt         DateTime?      @default(now())
+  brandId           String?
+  attributionWindow Int?
+  expiresAt         DateTime?
+  productName       String?
+  organizations     organizations? @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  stores            stores         @relation(fields: [storeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model shopify_webhook_logs {
+  id             String        @id
+  orgId          String
+  webhookId      String?
+  topic          String
+  shopifyOrderId String?
+  payload        Json
+  status         String        @default("pending")
+  errorMessage   String?
+  processedAt    DateTime?
+  createdAt      DateTime      @default(now())
+  customerId     String?
+  customers      customers?    @relation(fields: [customerId], references: [id])
+  organizations  organizations @relation(fields: [orgId], references: [orgId])
+
+  @@index([customerId])
+  @@index([orgId])
+  @@index([shopifyOrderId])
+  @@index([status])
+}
+
+model shortlinks {
+  id          String    @id
+  slug        String    @unique
+  action      String
+  storeId     String
+  memberId    String?
+  role        String
+  requiresPin Boolean   @default(false)
+  redeemed    Boolean   @default(false)
+  redeemedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  usedAt      DateTime?
+}
+
+model staff {
+  id                                                String                     @id
+  staffId                                           String                     @unique
+  storeId                                           String
+  firstName                                         String
+  lastName                                          String
+  email                                             String?
+  phone                                             String
+  profilePhoto                                      String?
+  type                                              String
+  staffPin                                          String
+  status                                            String                     @default("active")
+  hireDate                                          DateTime                   @default(now())
+  onCallDays                                        String[]
+  onCallHoursStart                                  String
+  onCallHoursStop                                   String
+  samplesRedeemed                                   Int                        @default(0)
+  salesGenerated                                    Int                        @default(0)
+  lastActive                                        DateTime?
+  notes                                             String?
+  createdAt                                         DateTime                   @default(now())
+  updatedAt                                         DateTime
+  verificationExpiry                                DateTime?
+  verificationToken                                 String?                    @unique
+  verified                                          Boolean                    @default(false)
+  verifiedAt                                        DateTime?
+  totalPoints                                       Int                        @default(0)
+  quarterlyPoints                                   Int                        @default(0)
+  lastQuarterReset                                  DateTime?
+  lastReminderSentAt                                DateTime?
+  customers_customers_promoRedeemedByStaffIdTostaff customers[]                @relation("customers_promoRedeemedByStaffIdTostaff")
+  customers_customers_redeemedByStaffIdTostaff      customers[]                @relation("customers_redeemedByStaffIdTostaff")
+  purchase_intents                                  purchase_intents[]
+  stores                                            stores                     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  staff_point_transactions                          staff_point_transactions[]
+}
+
+model staff_point_transactions {
+  id               String     @id
+  staffId          String
+  storeId          String
+  orgId            String
+  points           Decimal    @db.Decimal(10, 2)
+  type             String
+  reason           String
+  customerId       String?
+  conversionId     String?
+  purchaseIntentId String?
+  quarter          String
+  createdAt        DateTime   @default(now())
+  customers        customers? @relation(fields: [customerId], references: [id])
+  staff            staff      @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([quarter])
+  @@index([staffId])
+  @@index([storeId])
+  @@index([type])
+}
+
+model store_brand_partnerships {
+  id                     String        @id @default(dbgenerated("(gen_random_uuid())::text"))
+  storeId                String
+  brandId                String
+  status                 String        @default("active")
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @default(now())
+  availableSamples       String[]      @default([])
+  availableProducts      String[]      @default([])
+  onlineCommission       Decimal?      @default(20.0) @db.Decimal(5, 2)
+  subscriptionCommission Decimal?      @default(5.0) @db.Decimal(5, 2)
+  promoCommission        Decimal?      @default(50.0) @db.Decimal(5, 2)
+  storeCreditBalance     Decimal?      @default(0) @db.Decimal(10, 2)
+  active                 Boolean       @default(true)
+  commissionRate         Decimal?      @db.Decimal(5, 2)
+  notes                  String?
+  partnerSince           DateTime?
+  partnershipEndedAt     DateTime?
+  organizations          organizations @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  stores                 stores        @relation(fields: [storeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([storeId, brandId])
+}
+
+model store_credit_transactions {
+  id                 String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  storeId            String
+  type               String
+  amount             Decimal  @db.Decimal(10, 2)
+  previousBalance    Decimal? @db.Decimal(10, 2)
+  newBalance         Decimal? @db.Decimal(10, 2)
+  description        String?
+  reference          String?
+  createdAt          DateTime @default(now())
+  brandPartnershipId String?
+  stores             stores   @relation(fields: [storeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model store_inventory {
+  id                String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  storeId           String
+  productSku        String
+  quantityOnHand    Int       @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now())
+  quantityReserved  Int       @default(0)
+  quantityAvailable Int       @default(0)
+  lowStockThreshold Int?
+  reorderPoint      Int?
+  lastRestockedAt   DateTime?
+  notes             String?
+  quantityIncoming  Int       @default(0)
+  products          products  @relation(fields: [productSku], references: [sku], map: "store_inventory_productsku_fkey")
+  stores            stores    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, productSku])
+}
+
+model stores {
+  id                        String                      @id
+  storeId                   String                      @unique
+  orgId                     String
+  status                    String                      @default("active")
+  storeName                 String
+  adminName                 String?
+  adminEmail                String?
+  adminPhone                String?
+  streetAddress             String?
+  city                      String?
+  state                     String?
+  zipCode                   String?
+  timezone                  String                      @default("America/Los_Angeles")
+  promoOffer                String                      @default("20%-off 1st Purchase")
+  followupDays              Int[]                       @default([4, 12])
+  staffPin                  String?
+  activatedAt               DateTime?
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime
+  ownerEmail                String?
+  ownerName                 String?
+  ownerPhone                String?
+  purchasingEmail           String?
+  purchasingManager         String?
+  purchasingPhone           String?
+  availableSamples          String[]                    @default([])
+  setupPhotoCredit          Boolean                     @default(false)
+  setupPhotoUploadedAt      DateTime?
+  setupPhotoUrl             String?
+  availableProducts         String[]                    @default([])
+  postPurchaseFollowupDays  Int[]                       @default([45, 90])
+  returningCustomerPromo    String                      @default("10%-off In-Store Purchase")
+  parentAccountName         String?
+  shopifyCustomerId         String?
+  platformId                String?
+  subscriptionTier          String                      @default("free")
+  subscriptionStatus        String                      @default("active")
+  rechargeCustomerId        String?
+  rechargeSubscriptionId    String?
+  nextBillingDate           DateTime?
+  trialEndsAt               DateTime?
+  customerSlotsGranted      Int                         @default(10)
+  samplesPerQuarter         Int                         @default(10)
+  commissionRate            Float                       @default(5.0)
+  promoReimbursementRate    Float                       @default(10.0)
+  salesRepName              String?
+  salesRepEmail             String?
+  salesRepPhone             String?
+  address2                  String?
+  storeCredit               Decimal                     @default(0.00) @db.Decimal(10, 2)
+  maxBrandPartnerships      Int                         @default(1)
+  activeBrandCount          Int                         @default(0)
+  messageCreditBalance      Int?                        @default(100)
+  totalMessagesSent         Int?                        @default(0)
+  lastCreditRefill          DateTime?                   @default(now()) @db.Timestamp(6)
+  lastMessageBlastAt        DateTime?                   @db.Timestamp(6)
+  conversions               conversions[]
+  customers                 customers[]
+  displays                  displays[]
+  inventory_transactions    inventory_transactions[]
+  message_campaigns         message_campaigns[]
+  product_holds             product_holds[]
+  promo_redemptions         promo_redemptions[]
+  sample_history            sample_history[]
+  staff                     staff[]
+  store_brand_partnerships  store_brand_partnerships[]
+  store_credit_transactions store_credit_transactions[]
+  store_inventory           store_inventory[]
+  organizations             organizations               @relation(fields: [orgId], references: [orgId])
+  users                     users[]
+  wholesale_orders          wholesale_orders[]
+}
+
+model users {
+  id            String        @id
+  userId        String        @unique
+  orgId         String
+  email         String        @unique
+  name          String?
+  role          String
+  storeId       String?
+  createdAt     DateTime      @default(now())
+  phone         String?
+  organizations organizations @relation(fields: [orgId], references: [orgId])
+  stores        stores?       @relation(fields: [storeId], references: [storeId])
+}
+
+model wholesale_order_items {
+  id               String           @id @default(dbgenerated("(gen_random_uuid())::text"))
+  orderId          String
+  productSku       String
+  quantity         Int
+  unitPrice        Decimal          @db.Decimal(10, 2)
+  totalPrice       Decimal          @db.Decimal(10, 2)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @default(now())
+  retailUnits      Int?
+  wholesale_orders wholesale_orders @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  products         products         @relation(fields: [productSku], references: [sku], map: "wholesale_order_items_productsku_fkey")
+}
+
+model wholesale_orders {
+  id                    String                  @id @default(dbgenerated("(gen_random_uuid())::text"))
+  storeId               String
+  brandId               String
+  orderNumber           String                  @unique
+  status                String                  @default("pending")
+  totalAmount           Decimal                 @db.Decimal(10, 2)
+  shopifyOrderId        String?
+  placedAt              DateTime                @default(now())
+  fulfilledAt           DateTime?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @default(now())
+  lastReminderSentAt    DateTime?
+  receivedAt            DateTime?
+  deliveredAt           DateTime?
+  verificationToken     String?
+  orderId               String?
+  cancelledAt           DateTime?
+  creditApplied         Decimal?                @db.Decimal(10, 2)
+  notes                 String?
+  shopifyDomain         String?
+  shopifyDraftOrderId   String?
+  shopifyDraftOrderUrl  String?
+  shopifyFulfillmentId  String?
+  submittedAt           DateTime?
+  subtotal              Decimal?                @db.Decimal(10, 2)
+  total                 Decimal?                @db.Decimal(10, 2)
+  trackingNumber        String?
+  verificationNotes     String?
+  verifiedBy            String?
+  wholesale_order_items wholesale_order_items[]
+  organizations         organizations           @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  stores                stores                  @relation(fields: [storeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}

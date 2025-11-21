@@ -3203,8 +3203,8 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                         bp => bp.brand.orgId === product.orgId
                       );
 
-                      // Check if this sample is currently offered by the store
-                      const isOffered = (data.store.availableSamples || []).includes(product.sku);
+                      // Check if this sample is currently offered by the partnership
+                      const isOffered = brand ? (brand.availableSamples || []).includes(product.sku) : false;
 
                       return (
                         <div
@@ -3272,25 +3272,29 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                           {/* Offer Toggle Button */}
                           <button
                             onClick={async () => {
-                              const currentSamples = data.store.availableSamples || [];
+                              if (!brand) return;
+                              
+                              const currentSamples = brand.availableSamples || [];
                               const newSamples = isOffered
                                 ? currentSamples.filter((s: string) => s !== product.sku)
                                 : [...currentSamples, product.sku];
                               
                               try {
-                                const res = await fetch('/api/store/settings', {
+                                const res = await fetch(`/api/store/partnerships/${brand.id}`, {
                                   method: 'PATCH',
                                   headers: { 'Content-Type': 'application/json' },
                                   body: JSON.stringify({ availableSamples: newSamples })
                                 });
                                 
                                 if (res.ok) {
+                                  // Update the partnership in local state
                                   setData({
                                     ...data,
-                                    store: {
-                                      ...data.store,
-                                      availableSamples: newSamples
-                                    }
+                                    brandPartnerships: data.brandPartnerships.map(bp =>
+                                      bp.id === brand.id
+                                        ? { ...bp, availableSamples: newSamples }
+                                        : bp
+                                    )
                                   });
                                 }
                               } catch (err) {
@@ -3372,8 +3376,8 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                           {brandProducts.map((product) => {
                             if (!product) return null;
 
-                            // Check if this product is currently offered by the store
-                            const isOffered = (data.store.availableProducts || []).includes(product.sku);
+                            // Check if this product is currently offered by the partnership
+                            const isOffered = (partnership.availableProducts || []).includes(product.sku);
 
                             return (
                               <div
@@ -3433,25 +3437,27 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                 {/* Offer Toggle Button */}
                                 <button
                                   onClick={async () => {
-                                    const currentProducts = data.store.availableProducts || [];
+                                    const currentProducts = partnership.availableProducts || [];
                                     const newProducts = isOffered
                                       ? currentProducts.filter((s: string) => s !== product.sku)
                                       : [...currentProducts, product.sku];
                                     
                                     try {
-                                      const res = await fetch('/api/store/settings', {
+                                      const res = await fetch(`/api/store/partnerships/${partnership.id}`, {
                                         method: 'PATCH',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ availableProducts: newProducts })
                                       });
                                       
                                       if (res.ok) {
+                                        // Update the partnership in local state
                                         setData({
                                           ...data,
-                                          store: {
-                                            ...data.store,
-                                            availableProducts: newProducts
-                                          }
+                                          brandPartnerships: data.brandPartnerships.map(bp =>
+                                            bp.id === partnership.id
+                                              ? { ...bp, availableProducts: newProducts }
+                                              : bp
+                                          )
                                         });
                                       }
                                     } catch (err) {

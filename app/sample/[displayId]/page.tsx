@@ -84,7 +84,7 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
     return storeInfo.storeName;
   }, [storeInfo]);
 
-  // Aggregate ALL samples from ALL brands
+  // Aggregate ALL samples from ALL brands (only in-stock)
   const availableOptions = useMemo(() => {
     if (!storeInfo?.brands) return SAMPLE_OPTIONS;
     
@@ -92,12 +92,15 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
     storeInfo.brands.forEach((brand) => {
       if (brand.availableSamples && brand.availableSamples.length > 0) {
         brand.availableSamples.forEach((sample) => {
-          allSamples.push({
-            ...sample,
-            brandName: brand.brandName,
-            brandId: brand.brandId,
-            brandOrgId: brand.brandOrgId,
-          });
+          // Only include samples with inventory
+          if (sample.quantityOnHand > 0) {
+            allSamples.push({
+              ...sample,
+              brandName: brand.brandName,
+              brandId: brand.brandId,
+              brandOrgId: brand.brandOrgId,
+            });
+          }
         });
       }
     });
@@ -105,7 +108,7 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
     return allSamples.length > 0 ? allSamples : SAMPLE_OPTIONS;
   }, [storeInfo]);
 
-  // Aggregate ALL products from ALL brands
+  // Aggregate ALL products from ALL brands (only in-stock for direct purchase)
   const availableProducts = useMemo(() => {
     if (!storeInfo?.brands) return [];
     
@@ -113,13 +116,16 @@ export default function SampleRequestPage({ params }: { params: Promise<{ displa
     storeInfo.brands.forEach((brand) => {
       if (brand.availableProducts && brand.availableProducts.length > 0) {
         brand.availableProducts.forEach((product) => {
-          allProducts.push({
-            ...product,
-            brandName: brand.brandName,
-            brandId: brand.brandId,
-            brandOrgId: brand.brandOrgId,
-            logoUrl: brand.logoUrl,
-          });
+          // Only include products with inventory for direct purchase
+          if (product.quantityOnHand > 0) {
+            allProducts.push({
+              ...product,
+              brandName: brand.brandName,
+              brandId: brand.brandId,
+              brandOrgId: brand.brandOrgId,
+              logoUrl: brand.logoUrl,
+            });
+          }
         });
       }
     });

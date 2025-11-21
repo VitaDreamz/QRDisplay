@@ -1,0 +1,4 @@
+# Exclude large image directories from serverless functions
+# These are served as static assets instead
+public/images/products/**
+public/images/displays/**

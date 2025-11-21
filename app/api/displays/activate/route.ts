@@ -481,10 +481,10 @@ export async function POST(req: NextRequest) {
           // Mark that the credit has been applied
           await prisma.store.update({
             where: { storeId: updatedStore.storeId },
-            data: { setupPhotoCredit: true } as any,
+            data: { setupPhotoCredit: true, messageCreditBalance: { increment: 50 } } as any,
           });
           
-          console.log(`✅ Added $10 store credit to store ${updatedStore.storeId}`);
+          console.log(`✅ Added $10 store credit + 50 SMS messages to store ${updatedStore.storeId}`);
         } catch (creditErr) {
           console.error('⚠️ Failed to add store credit:', creditErr);
           console.error('⚠️ Full credit error:', JSON.stringify(creditErr, null, 2));

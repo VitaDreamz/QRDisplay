@@ -163,7 +163,7 @@ export default function SuccessPage({ params }: { params: Promise<{ displayId: s
             </div>
             <div className="flex-1">
               <h3 className="text-xl font-bold text-green-900 mb-1">
-                $10 Store Credit Earned! 🎉
+                50 SMS Messages Earned! 🎉
               </h3>
               <p className="text-green-800 text-sm">
                 Thank you for uploading your setup photo!

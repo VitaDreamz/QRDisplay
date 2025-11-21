@@ -66,7 +66,7 @@ export default function PhotoPage({ params }: { params: Promise<{ displayId: str
   };
   
   const handleSkip = () => {
-    if (confirm('Are you sure you want to skip the photo? You\'ll miss out on a $10 credit!')) {
+    if (confirm('Are you sure you want to skip the photo? You\'ll miss out on a 50 SMS credit!')) {
       handleContinue();
     }
   };
@@ -129,8 +129,8 @@ export default function PhotoPage({ params }: { params: Promise<{ displayId: str
               Upload a photo of your assembled display and earn:
             </p>
             <div className="bg-white/20 backdrop-blur rounded-lg p-4 inline-block">
-              <div className="text-4xl font-bold">$10</div>
-              <div className="text-sm">Credit Pending</div>
+              <div className="text-4xl font-bold">50 SMS</div>
+              <div className="text-sm">Messages</div>
             </div>
           </div>
           
@@ -169,7 +169,7 @@ export default function PhotoPage({ params }: { params: Promise<{ displayId: str
                   </div>
                 </label>
                 <div className="text-xs text-gray-600 mt-3">
-                  Credit applies to your next sample order
+                  Bonus SMS messages for follow-ups
                 </div>
               </>
             )}
@@ -190,11 +190,11 @@ export default function PhotoPage({ params }: { params: Promise<{ displayId: str
             Photo Uploaded!
           </h2>
           <div className="bg-white/20 backdrop-blur rounded-lg p-4 inline-block mb-3">
-            <div className="text-4xl font-bold">$10</div>
-            <div className="text-sm">Credit Applied ✓</div>
+            <div className="text-4xl font-bold">50 SMS</div>
+            <div className="text-sm">Messages Earned ✓</div>
           </div>
           <p className="text-green-50 text-sm">
-            Thanks for sharing! Your credit will be applied to your next sample order.
+            Thanks for sharing! Your extra SMS messages for customer follow-ups.
           </p>
         </div>
       )}

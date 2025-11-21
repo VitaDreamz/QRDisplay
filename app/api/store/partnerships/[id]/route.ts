@@ -6,9 +6,10 @@ export const dynamic = 'force-dynamic';
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: partnershipId } = await params;
     const cookieStore = await cookies();
     const storeIdCookie = cookieStore.get('store-id')?.value;
 
@@ -16,7 +17,6 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const partnershipId = params.id;
     const body = await req.json();
     const { availableSamples, availableProducts } = body;
 

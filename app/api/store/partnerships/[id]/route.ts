@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
+import { cookies } from 'next/headers';
+
+export const dynamic = 'force-dynamic';
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    const cookieStore = await cookies();
+    const storeIdCookie = cookieStore.get('store-id')?.value;
+
+    if (!storeIdCookie) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -17,15 +20,11 @@ export async function PATCH(
     const body = await req.json();
     const { availableSamples, availableProducts } = body;
 
-    // Verify the partnership belongs to this user's store
+    // Verify the partnership belongs to this store
     const partnership = await prisma.storeBrandPartnership.findUnique({
       where: { id: partnershipId },
       include: {
-        store: {
-          include: {
-            users: true
-          }
-        }
+        store: true
       }
     });
 
@@ -33,9 +32,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'Partnership not found' }, { status: 404 });
     }
 
-    // Check if user has access to this store
-    const hasAccess = partnership.store.users.some((u: any) => u.email === session.user.email);
-    if (!hasAccess) {
+    // Check if partnership belongs to authenticated store
+    if (partnership.store.id !== storeIdCookie) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 

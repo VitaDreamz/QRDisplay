@@ -22,7 +22,6 @@ export async function generateQRWithLogo(url: string, options?: {
   const qrCanvas = createCanvas(size, size);
   await QRCode.toCanvas(qrCanvas, url, {
     errorCorrectionLevel: 'H', // High error correction (30% recovery)
-    type: 'image/png',
     width: size,
     margin: 1,
     color: {

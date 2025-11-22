@@ -27,6 +27,15 @@ function StoreLoginContent() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-700 to-purple-500 px-4">
       <div className="bg-white rounded-2xl p-8 max-w-md w-full">
         <div className="text-center mb-6">
+          {/* SampleHound Logo */}
+          <div className="mb-6 flex justify-center">
+            <img 
+              src="/images/Logos/SampleHoundLogoQR.png" 
+              alt="SafeHound" 
+              className="h-24 w-auto"
+            />
+          </div>
+          
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Store Login</h1>
           <p className="text-gray-600">Use your Store ID + PIN</p>
         </div>

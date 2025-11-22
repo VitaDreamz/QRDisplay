@@ -66,6 +66,18 @@ export default async function StoreDashboardPage() {
       where: {
         staffId: staffId,
         storeId: store.id
+      },
+      select: {
+        id: true,
+        staffId: true,
+        firstName: true,
+        lastName: true,
+        status: true,
+        samplesRedeemed: true,
+        salesGenerated: true,
+        totalPoints: true,
+        quarterlyPoints: true,
+        lastQuarterReset: true,
       }
     });
 
@@ -209,6 +221,27 @@ export default async function StoreDashboardPage() {
     take: 10,
   });
 
+  // Fetch staff point transactions if user is staff
+  let staffPointTransactions: any[] = [];
+  if (role === 'staff' && staffMember) {
+    staffPointTransactions = await prisma.staff_point_transactions.findMany({
+      where: { 
+        staffId: staffMember.id 
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50, // Get last 50 transactions
+      include: {
+        customers: {
+          select: {
+            firstName: true,
+            lastName: true,
+            memberId: true
+          }
+        }
+      }
+    });
+  }
+
   if (!store) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -312,6 +345,8 @@ export default async function StoreDashboardPage() {
       requestedAt: c.requestedAt,
       redeemedAt: c.redeemedAt,
       promoRedeemedAt: c.promoRedeemedAt,
+      redeemedByStaffId: c.redeemedByStaffId,
+      promoRedeemedByStaffId: c.promoRedeemedByStaffId,
       currentStage: c.currentStage,
       stageChangedAt: c.stageChangedAt,
       // Multi-brand: Include sample history with brand info
@@ -357,6 +392,7 @@ export default async function StoreDashboardPage() {
       discountPercent: i.discountPercent,
       finalPrice: Number(i.finalPrice),
       fulfilledAt: i.fulfilledAt,
+      redeemedByStaffId: i.redeemedByStaffId,
       product: {
         sku: i.product.sku,
         name: i.product.name,
@@ -373,7 +409,12 @@ export default async function StoreDashboardPage() {
     staffMember: staffMember ? {
       staffId: staffMember.staffId,
       firstName: staffMember.firstName,
-      lastName: staffMember.lastName
+      lastName: staffMember.lastName,
+      samplesRedeemed: staffMember.samplesRedeemed,
+      salesGenerated: staffMember.salesGenerated,
+      totalPoints: staffMember.totalPoints,
+      quarterlyPoints: staffMember.quarterlyPoints,
+      lastQuarterReset: staffMember.lastQuarterReset,
     } : null,
     messageCampaigns: messageCampaigns.map((mc: any) => ({
       id: mc.id,
@@ -385,6 +426,19 @@ export default async function StoreDashboardPage() {
       creditsUsed: mc.creditsUsed,
       optOutCount: mc.optOutCount,
       sentAt: mc.sentAt,
+    })),
+    staffPointTransactions: staffPointTransactions.map((t: any) => ({
+      id: t.id,
+      points: Number(t.points),
+      type: t.type,
+      reason: t.reason,
+      quarter: t.quarter,
+      createdAt: t.createdAt,
+      customer: t.customers ? {
+        firstName: t.customers.firstName,
+        lastName: t.customers.lastName,
+        memberId: t.customers.memberId
+      } : null
     }))
   };
 

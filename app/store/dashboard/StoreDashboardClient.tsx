@@ -45,6 +45,8 @@ type Customer = {
   requestedAt: Date;
   redeemedAt?: Date | null;
   promoRedeemedAt?: Date | null;
+  redeemedByStaffId?: string | null;
+  promoRedeemedByStaffId?: string | null;
   currentStage: string;
   stageChangedAt: Date;
   totalPurchases: number;
@@ -137,6 +139,7 @@ type DashboardData = {
     discountPercent: number;
     finalPrice: number;
     fulfilledAt?: Date | null;
+    redeemedByStaffId?: string | null;
     product: { sku: string; name: string; imageUrl?: string | null };
     customer: { memberId: string; firstName: string; lastName: string; phone: string };
   }>;
@@ -144,6 +147,11 @@ type DashboardData = {
     staffId: string;
     firstName: string;
     lastName: string;
+    samplesRedeemed: number;
+    salesGenerated: number;
+    totalPoints: number;
+    quarterlyPoints: number;
+    lastQuarterReset: Date | null;
   } | null;
   messageCampaigns?: Array<{
     id: string;
@@ -155,6 +163,19 @@ type DashboardData = {
     creditsUsed: number;
     optOutCount: number;
     sentAt: Date;
+  }>;
+  staffPointTransactions?: Array<{
+    id: string;
+    points: number;
+    type: string;
+    reason: string;
+    quarter: string;
+    createdAt: Date;
+    customer: {
+      firstName: string;
+      lastName: string;
+      memberId: string;
+    } | null;
   }>;
 };
 
@@ -172,7 +193,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
   };
 
   const [data, setData] = useState(initialData);
-  const [activeTab, setActiveTab] = useState<'overview' | 'customers' | 'brands' | 'products' | 'orders' | 'staff' | 'credit' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'customers' | 'brands' | 'products' | 'orders' | 'staff' | 'stats' | 'credit' | 'settings'>('overview');
   const [customerFilter, setCustomerFilter] = useState<'all' | 'pending' | 'redeemed' | 'promo-used'>('all');
   const [mounted, setMounted] = useState(false);
   
@@ -348,6 +369,31 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
       ? Math.round((numberOfSales / samplesRedeemed) * 100)
       : 0
   };
+
+  // Staff-specific stats: Calculate personal performance metrics
+  const staffStats = role === 'staff' && data.staffMember ? {
+    // Samples redeemed by this staff member
+    mySamplesRedeemed: data.customers.filter(c => c.redeemedByStaffId === data.staffMember?.staffId && c.redeemed).length,
+    // Purchase intents fulfilled by this staff member
+    mySales: purchaseIntents.filter(i => i.status === 'fulfilled' && i.redeemedByStaffId === data.staffMember?.staffId).length,
+    // Total revenue from this staff member's sales
+    myTotalSales: purchaseIntents
+      .filter(i => i.status === 'fulfilled' && i.redeemedByStaffId === data.staffMember?.staffId)
+      .reduce((sum, i) => sum + (Number(i.finalPrice) || 0), 0),
+    // Pending orders for this staff member
+    myPendingOrders: purchaseIntents.filter(i => 
+      (i.status === 'pending' || i.status === 'ready') && 
+      i.redeemedByStaffId === data.staffMember?.staffId
+    ).length,
+    // Points from staff record
+    myQuarterlyPoints: data.staffMember.quarterlyPoints,
+    myTotalPoints: data.staffMember.totalPoints,
+    // Customers this staff member has worked with
+    myCustomers: data.customers.filter(c => 
+      c.redeemedByStaffId === data.staffMember?.staffId || 
+      c.promoRedeemedByStaffId === data.staffMember?.staffId
+    ).length,
+  } : null;
 
   // Mini stats for "today"
   const isToday = (d: Date) => {
@@ -1176,11 +1222,17 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
           <h1 className="text-xl md:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-200 via-purple-200 to-blue-200">
             {data.store.storeName}
           </h1>
-          <p className="text-xs md:text-sm font-medium text-white/80 mt-0.5">
-            Automated Promotions Dashboard
-          </p>
+          {role === 'staff' && data.staffMember ? (
+            <p className="text-xs md:text-sm font-medium text-white/80 mt-0.5">
+              {data.staffMember.firstName} {data.staffMember.lastName}'s Dashboard
+            </p>
+          ) : (
+            <p className="text-xs md:text-sm font-medium text-white/80 mt-0.5">
+              Automated Promotions Dashboard
+            </p>
+          )}
           <p className="text-[9px] text-pink-100/40 mt-0.5 font-light tracking-wide">
-            powered by QRDisplay
+            powered by SafeHound
           </p>
         </div>
       </div>
@@ -1188,68 +1240,107 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
       {/* Stats Cards - Mobile: Overview tab only, Desktop: All tabs except Settings */}
       {activeTab !== 'settings' && (
         <div className={`px-4 md:px-6 py-2 md:py-3 ${activeTab !== 'overview' ? 'hidden md:block' : ''}`}>
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-2 md:gap-4">
-            <div className="bg-white rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition">
-              <div className="text-xs text-gray-600 font-medium">Samples Requested</div>
-              <div className="text-2xl md:text-3xl font-bold text-blue-600 mt-1">{data.customers.filter(c => 
-                c.sampleChoice && 
-                c.sampleChoice.trim() !== '' &&
-                c.currentStage !== 'purchase_requested' && 
-                c.currentStage !== 'cancelled'
-              ).length}</div>
-              <div className="text-xs text-gray-500 mt-1">📋 Total requests</div>
+          {role === 'staff' && staffStats ? (
+            // Staff-specific stats cards
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-2 md:gap-4">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition border border-blue-200">
+                <div className="text-xs text-blue-700 font-medium">My Samples</div>
+                <div className="text-2xl md:text-3xl font-bold text-blue-600 mt-1">{staffStats.mySamplesRedeemed}</div>
+                <div className="text-xs text-blue-600 mt-1">✅ Redeemed by me</div>
+              </div>
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition border border-purple-200">
+                <div className="text-xs text-purple-700 font-medium">My Sales</div>
+                <div className="text-2xl md:text-3xl font-bold text-purple-600 mt-1">{staffStats.mySales}</div>
+                <div className="text-xs text-purple-600 mt-1">🛍️ Orders fulfilled</div>
+              </div>
+              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition border border-green-200">
+                <div className="text-xs text-green-700 font-medium">My Revenue</div>
+                <div className="text-2xl md:text-3xl font-bold text-green-600 mt-1">
+                  ${staffStats.myTotalSales.toFixed(2)}
+                </div>
+                <div className="text-xs text-green-600 mt-1">💰 Total earned</div>
+              </div>
+              <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition border border-amber-200">
+                <div className="text-xs text-amber-700 font-medium">My Pending</div>
+                <div className="text-2xl md:text-3xl font-bold text-amber-600 mt-1">{staffStats.myPendingOrders}</div>
+                <div className="text-xs text-amber-600 mt-1">⏳ Orders waiting</div>
+              </div>
+              <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition border border-indigo-200">
+                <div className="text-xs text-indigo-700 font-medium">Quarterly Points</div>
+                <div className="text-2xl md:text-3xl font-bold text-indigo-600 mt-1">{staffStats.myQuarterlyPoints}</div>
+                <div className="text-xs text-indigo-600 mt-1">🏆 This quarter</div>
+              </div>
+              <div className="bg-gradient-to-br from-pink-50 to-pink-100 rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition border border-pink-200">
+                <div className="text-xs text-pink-700 font-medium">Total Points</div>
+                <div className="text-2xl md:text-3xl font-bold text-pink-600 mt-1">{staffStats.myTotalPoints}</div>
+                <div className="text-xs text-pink-600 mt-1">⭐ All time</div>
+              </div>
             </div>
-            <div className="bg-white rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition">
-              <div className="text-xs text-gray-600 font-medium">Samples Redeemed</div>
-              <div className="text-2xl md:text-3xl font-bold text-green-600 mt-1">{stats.samplesRedeemed}</div>
-              <div className="text-xs text-gray-500 mt-1">✅ +{todayRedeemed} today</div>
-              <div className="text-xs text-emerald-600 font-semibold mt-1 pt-1 border-t border-gray-100">
-                {data.customers.filter(c => 
+          ) : (
+            // Store owner stats cards (existing)
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-2 md:gap-4">
+              <div className="bg-white rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition">
+                <div className="text-xs text-gray-600 font-medium">Samples Requested</div>
+                <div className="text-2xl md:text-3xl font-bold text-blue-600 mt-1">{data.customers.filter(c => 
                   c.sampleChoice && 
                   c.sampleChoice.trim() !== '' &&
                   c.currentStage !== 'purchase_requested' && 
                   c.currentStage !== 'cancelled'
-                ).length > 0 ? ((stats.samplesRedeemed / data.customers.filter(c => 
-                  c.sampleChoice && 
-                  c.sampleChoice.trim() !== '' &&
-                  c.currentStage !== 'purchase_requested' && 
-                  c.currentStage !== 'cancelled'
-                ).length) * 100).toFixed(1) : 0}% conversion
+                ).length}</div>
+                <div className="text-xs text-gray-500 mt-1">📋 Total requests</div>
+              </div>
+              <div className="bg-white rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition">
+                <div className="text-xs text-gray-600 font-medium">Samples Redeemed</div>
+                <div className="text-2xl md:text-3xl font-bold text-green-600 mt-1">{stats.samplesRedeemed}</div>
+                <div className="text-xs text-gray-500 mt-1">✅ +{todayRedeemed} today</div>
+                <div className="text-xs text-emerald-600 font-semibold mt-1 pt-1 border-t border-gray-100">
+                  {data.customers.filter(c => 
+                    c.sampleChoice && 
+                    c.sampleChoice.trim() !== '' &&
+                    c.currentStage !== 'purchase_requested' && 
+                    c.currentStage !== 'cancelled'
+                  ).length > 0 ? ((stats.samplesRedeemed / data.customers.filter(c => 
+                    c.sampleChoice && 
+                    c.sampleChoice.trim() !== '' &&
+                    c.currentStage !== 'purchase_requested' && 
+                    c.currentStage !== 'cancelled'
+                  ).length) * 100).toFixed(1) : 0}% conversion
+                </div>
+              </div>
+              <div className="bg-white rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition">
+                <div className="text-xs text-gray-600 font-medium">Pending Orders</div>
+                <div className="text-2xl md:text-3xl font-bold text-amber-600 mt-1">{pendingIntents.length + readyIntents.length}</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  ⏳ {readyIntents.length} ready, {pendingIntents.length} requested
+                </div>
+              </div>
+              <div className="bg-white rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition">
+                <div className="text-xs text-gray-600 font-medium">Pending Sales</div>
+                <div className="text-2xl md:text-3xl font-bold text-orange-600 mt-1">
+                  ${stats.pendingSales.toFixed(2)}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">💵 In progress</div>
+              </div>
+              <div className="bg-white rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition">
+                <div className="text-xs text-gray-600 font-medium">Total Orders</div>
+                <div className="text-2xl md:text-3xl font-bold text-indigo-600 mt-1">{fulfilledIntents.length}</div>
+                <div className="text-xs text-gray-500 mt-1">🛍️ Completed sales</div>
+                <div className="text-xs text-indigo-600 font-semibold mt-1 pt-1 border-t border-gray-100">
+                  {stats.samplesRedeemed > 0 ? ((fulfilledIntents.length / stats.samplesRedeemed) * 100).toFixed(1) : 0}% conversion
+                </div>
+              </div>
+              <div className="bg-white rounded-xl p-3 md:p-6 shadow-sm hover:shadow transition">
+                <div className="text-xs text-gray-600 font-medium">Total Sales</div>
+                <div className="text-2xl md:text-3xl font-bold text-purple-600 mt-1">
+                  ${stats.totalSales.toFixed(2)}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">💰 {fulfilledIntents.length} fulfilled</div>
+                <div className="text-xs text-purple-600 font-semibold mt-1 pt-1 border-t border-gray-100">
+                  {stats.samplesRedeemed > 0 ? ((stats.numberOfSales / stats.samplesRedeemed) * 100).toFixed(1) : 0}% conversion
+                </div>
               </div>
             </div>
-            <div className="bg-white rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition">
-              <div className="text-xs text-gray-600 font-medium">Pending Orders</div>
-              <div className="text-2xl md:text-3xl font-bold text-amber-600 mt-1">{pendingIntents.length + readyIntents.length}</div>
-              <div className="text-xs text-gray-500 mt-1">
-                ⏳ {readyIntents.length} ready, {pendingIntents.length} requested
-              </div>
-            </div>
-            <div className="bg-white rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition">
-              <div className="text-xs text-gray-600 font-medium">Pending Sales</div>
-              <div className="text-2xl md:text-3xl font-bold text-orange-600 mt-1">
-                ${stats.pendingSales.toFixed(2)}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">💵 In progress</div>
-            </div>
-            <div className="bg-white rounded-xl p-3 md:p-6 shadow-lg hover:shadow-xl transition">
-              <div className="text-xs text-gray-600 font-medium">Total Orders</div>
-              <div className="text-2xl md:text-3xl font-bold text-indigo-600 mt-1">{fulfilledIntents.length}</div>
-              <div className="text-xs text-gray-500 mt-1">🛍️ Completed sales</div>
-              <div className="text-xs text-indigo-600 font-semibold mt-1 pt-1 border-t border-gray-100">
-                {stats.samplesRedeemed > 0 ? ((fulfilledIntents.length / stats.samplesRedeemed) * 100).toFixed(1) : 0}% conversion
-              </div>
-            </div>
-            <div className="bg-white rounded-xl p-3 md:p-6 shadow-sm hover:shadow transition">
-              <div className="text-xs text-gray-600 font-medium">Total Sales</div>
-              <div className="text-2xl md:text-3xl font-bold text-purple-600 mt-1">
-                ${stats.totalSales.toFixed(2)}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">💰 {fulfilledIntents.length} fulfilled</div>
-              <div className="text-xs text-purple-600 font-semibold mt-1 pt-1 border-t border-gray-100">
-                {stats.samplesRedeemed > 0 ? ((stats.numberOfSales / stats.samplesRedeemed) * 100).toFixed(1) : 0}% conversion
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -1276,16 +1367,18 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
           >
             👥 Customers
           </button>
-          <button
-            onClick={() => setActiveTab('brands')}
-            className={`px-6 py-3 text-base font-semibold transition-all rounded-t-lg ${
-              activeTab === 'brands'
-                ? 'bg-purple-600 text-white shadow-lg'
-                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-            }`}
-          >
-            🏷️ Brands
-          </button>
+          {role === 'owner' && (
+            <button
+              onClick={() => setActiveTab('brands')}
+              className={`px-6 py-3 text-base font-semibold transition-all rounded-t-lg ${
+                activeTab === 'brands'
+                  ? 'bg-purple-600 text-white shadow-lg'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+              }`}
+            >
+              🏷️ Brands
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('products')}
             className={`px-6 py-3 text-base font-semibold transition-all rounded-t-lg ${
@@ -1306,6 +1399,18 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
           >
             📦 Orders
           </button>
+          {role === 'staff' && (
+            <button
+              onClick={() => setActiveTab('stats')}
+              className={`px-6 py-3 text-base font-semibold transition-all rounded-t-lg ${
+                activeTab === 'stats'
+                  ? 'bg-purple-600 text-white shadow-lg'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+              }`}
+            >
+              📈 My Stats
+            </button>
+          )}
           {role === 'owner' && (
             <>
               <button
@@ -1732,41 +1837,43 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
               </div>
             )}
 
-            {/* Place Wholesale Order Card */}
-            <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg shadow-lg p-6 text-white">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="flex-1">
-                  <h2 className="text-2xl font-bold mb-2">Place Wholesale Order</h2>
-                  <p className="text-purple-100 mb-3">
-                    Order wholesale products from your brand partners
-                  </p>
-                  <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-lg px-4 py-3">
-                    <span className="text-3xl">💰</span>
-                    <div className="flex-1">
-                      <p className="text-xs text-purple-100 uppercase tracking-wide">Total Store Credit Available</p>
-                      <p className="text-2xl font-bold">
-                        ${(data.brandPartnerships?.reduce((sum, bp) => sum + bp.storeCreditBalance, 0) || 0).toFixed(2)}
-                      </p>
-                      <p className="text-xs text-purple-200 mt-1">
-                        Across {data.brandPartnerships?.filter(bp => bp.status === 'active').length || 0} active brand{(data.brandPartnerships?.filter(bp => bp.status === 'active').length || 0) !== 1 ? 's' : ''}
-                      </p>
+            {/* Place Wholesale Order Card - Owner Only */}
+            {role === 'owner' && (
+              <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg shadow-lg p-6 text-white">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div className="flex-1">
+                    <h2 className="text-2xl font-bold mb-2">Place Wholesale Order</h2>
+                    <p className="text-purple-100 mb-3">
+                      Order wholesale products from your brand partners
+                    </p>
+                    <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-lg px-4 py-3">
+                      <span className="text-3xl">💰</span>
+                      <div className="flex-1">
+                        <p className="text-xs text-purple-100 uppercase tracking-wide">Total Store Credit Available</p>
+                        <p className="text-2xl font-bold">
+                          ${(data.brandPartnerships?.reduce((sum, bp) => sum + bp.storeCreditBalance, 0) || 0).toFixed(2)}
+                        </p>
+                        <p className="text-xs text-purple-200 mt-1">
+                          Across {data.brandPartnerships?.filter(bp => bp.status === 'active').length || 0} active brand{(data.brandPartnerships?.filter(bp => bp.status === 'active').length || 0) !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setActiveTab('credit')}
+                        className="text-xs text-purple-100 hover:text-white underline whitespace-nowrap"
+                      >
+                        See Details →
+                      </button>
                     </div>
-                    <button
-                      onClick={() => setActiveTab('credit')}
-                      className="text-xs text-purple-100 hover:text-white underline whitespace-nowrap"
-                    >
-                      See Details →
-                    </button>
                   </div>
+                  <button
+                    onClick={() => setShowWholesaleModal(true)}
+                    className="px-6 py-3 bg-white text-purple-600 rounded-lg hover:bg-purple-50 transition-colors text-lg font-bold shadow-lg hover:shadow-xl transform hover:scale-105"
+                  >
+                    📦 Wholesale Order
+                  </button>
                 </div>
-                <button
-                  onClick={() => setShowWholesaleModal(true)}
-                  className="px-6 py-3 bg-white text-purple-600 rounded-lg hover:bg-purple-50 transition-colors text-lg font-bold shadow-lg hover:shadow-xl transform hover:scale-105"
-                >
-                  📦 Wholesale Order
-                </button>
               </div>
-            </div>
+            )}
 
             {/* Top 3 Staff */}
             {role === 'owner' && (
@@ -3152,23 +3259,25 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
         {/* Products Tab */}
         {activeTab === 'products' && (
           <div className="space-y-6">
-            {/* Place Wholesale Order Card */}
-            <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg shadow-lg p-6 text-white">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="flex-1">
-                  <h2 className="text-2xl font-bold mb-2">Place Wholesale Order</h2>
-                  <p className="text-purple-100">
-                    Order wholesale products from your brand partners
-                  </p>
+            {/* Place Wholesale Order Card - Owner Only */}
+            {role === 'owner' && (
+              <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg shadow-lg p-6 text-white">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div className="flex-1">
+                    <h2 className="text-2xl font-bold mb-2">Place Wholesale Order</h2>
+                    <p className="text-purple-100">
+                      Order wholesale products from your brand partners
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowWholesaleModal(true)}
+                    className="px-6 py-3 bg-white text-purple-600 rounded-lg hover:bg-purple-50 transition-colors text-lg font-bold shadow-lg hover:shadow-xl transform hover:scale-105"
+                  >
+                    📦 Wholesale Order
+                  </button>
                 </div>
-                <button
-                  onClick={() => setShowWholesaleModal(true)}
-                  className="px-6 py-3 bg-white text-purple-600 rounded-lg hover:bg-purple-50 transition-colors text-lg font-bold shadow-lg hover:shadow-xl transform hover:scale-105"
-                >
-                  📦 Wholesale Order
-                </button>
               </div>
-            </div>
+            )}
 
             {/* Available Samples Section */}
             <div className="bg-white rounded-lg shadow p-6">
@@ -3269,46 +3378,48 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                             </div>
                           </div>
 
-                          {/* Offer Toggle Button */}
-                          <button
-                            onClick={async () => {
-                              if (!brand) return;
-                              
-                              const currentSamples = brand.availableSamples || [];
-                              const newSamples = isOffered
-                                ? currentSamples.filter((s: string) => s !== product.sku)
-                                : [...currentSamples, product.sku];
-                              
-                              try {
-                                const res = await fetch(`/api/store/partnerships/${brand.id}`, {
-                                  method: 'PATCH',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ availableSamples: newSamples })
-                                });
+                          {/* Offer Toggle Button - Owner Only */}
+                          {role === 'owner' && (
+                            <button
+                              onClick={async () => {
+                                if (!brand) return;
                                 
-                                if (res.ok) {
-                                  // Update the partnership in local state
-                                  setData({
-                                    ...data,
-                                    brandPartnerships: data.brandPartnerships.map(bp =>
-                                      bp.id === brand.id
-                                        ? { ...bp, availableSamples: newSamples }
-                                        : bp
-                                    )
+                                const currentSamples = brand.availableSamples || [];
+                                const newSamples = isOffered
+                                  ? currentSamples.filter((s: string) => s !== product.sku)
+                                  : [...currentSamples, product.sku];
+                                
+                                try {
+                                  const res = await fetch(`/api/store/partnerships/${brand.id}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ availableSamples: newSamples })
                                   });
+                                  
+                                  if (res.ok) {
+                                    // Update the partnership in local state
+                                    setData({
+                                      ...data,
+                                      brandPartnerships: data.brandPartnerships.map(bp =>
+                                        bp.id === brand.id
+                                          ? { ...bp, availableSamples: newSamples }
+                                          : bp
+                                      )
+                                    });
+                                  }
+                                } catch (err) {
+                                  console.error('Error updating samples:', err);
                                 }
-                              } catch (err) {
-                                console.error('Error updating samples:', err);
-                              }
-                            }}
-                            className={`w-full px-3 py-2 sm:px-4 rounded-lg text-sm sm:text-base font-medium transition-colors ${
-                              isOffered
-                                ? 'bg-purple-600 text-white hover:bg-purple-700'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                          >
-                            {isOffered ? '✓ Currently Offering' : '+ Offer This Product'}
-                          </button>
+                              }}
+                              className={`w-full px-3 py-2 sm:px-4 rounded-lg text-sm sm:text-base font-medium transition-colors ${
+                                isOffered
+                                  ? 'bg-purple-600 text-white hover:bg-purple-700'
+                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              }`}
+                            >
+                              {isOffered ? '✓ Currently Offering' : '+ Offer This Product'}
+                            </button>
+                          )}
                         </div>
                       );
                     })}
@@ -3434,44 +3545,46 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                   </div>
                                 </div>
 
-                                {/* Offer Toggle Button */}
-                                <button
-                                  onClick={async () => {
-                                    const currentProducts = partnership.availableProducts || [];
-                                    const newProducts = isOffered
-                                      ? currentProducts.filter((s: string) => s !== product.sku)
-                                      : [...currentProducts, product.sku];
-                                    
-                                    try {
-                                      const res = await fetch(`/api/store/partnerships/${partnership.id}`, {
-                                        method: 'PATCH',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ availableProducts: newProducts })
-                                      });
+                                {/* Offer Toggle Button - Owner Only */}
+                                {role === 'owner' && (
+                                  <button
+                                    onClick={async () => {
+                                      const currentProducts = partnership.availableProducts || [];
+                                      const newProducts = isOffered
+                                        ? currentProducts.filter((s: string) => s !== product.sku)
+                                        : [...currentProducts, product.sku];
                                       
-                                      if (res.ok) {
-                                        // Update the partnership in local state
-                                        setData({
-                                          ...data,
-                                          brandPartnerships: data.brandPartnerships.map(bp =>
-                                            bp.id === partnership.id
-                                              ? { ...bp, availableProducts: newProducts }
-                                              : bp
-                                          )
+                                      try {
+                                        const res = await fetch(`/api/store/partnerships/${partnership.id}`, {
+                                          method: 'PATCH',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ availableProducts: newProducts })
                                         });
+                                        
+                                        if (res.ok) {
+                                          // Update the partnership in local state
+                                          setData({
+                                            ...data,
+                                            brandPartnerships: data.brandPartnerships.map(bp =>
+                                              bp.id === partnership.id
+                                                ? { ...bp, availableProducts: newProducts }
+                                                : bp
+                                            )
+                                          });
+                                        }
+                                      } catch (err) {
+                                        console.error('Failed to update products:', err);
                                       }
-                                    } catch (err) {
-                                      console.error('Failed to update products:', err);
-                                    }
-                                  }}
-                                  className={`w-full px-3 py-2 sm:px-4 rounded-lg text-sm sm:text-base font-semibold transition-colors ${
-                                    isOffered
-                                      ? 'bg-purple-600 text-white hover:bg-purple-700'
-                                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                  }`}
-                                >
-                                  {isOffered ? '✓ Offering' : '+ Offer This Product'}
-                                </button>
+                                    }}
+                                    className={`w-full px-3 py-2 sm:px-4 rounded-lg text-sm sm:text-base font-semibold transition-colors ${
+                                      isOffered
+                                        ? 'bg-purple-600 text-white hover:bg-purple-700'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    }`}
+                                  >
+                                    {isOffered ? '✓ Offering' : '+ Offer This Product'}
+                                  </button>
+                                )}
                               </div>
                             );
                           })}
@@ -3963,6 +4076,108 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
               )}
             </div>
           </>
+        )}
+
+        {/* My Stats Tab (Staff Only) */}
+        {activeTab === 'stats' && role === 'staff' && data.staffMember && (
+          <div className="space-y-6">
+            {/* Points Summary Card */}
+            <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg shadow-lg p-6 text-white">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <p className="text-indigo-100 text-sm uppercase tracking-wide mb-2">Quarterly Points</p>
+                  <p className="text-4xl font-bold">{data.staffMember.quarterlyPoints}</p>
+                  <p className="text-indigo-100 text-xs mt-1">Current quarter performance</p>
+                </div>
+                <div>
+                  <p className="text-purple-100 text-sm uppercase tracking-wide mb-2">Total Points</p>
+                  <p className="text-4xl font-bold">{data.staffMember.totalPoints}</p>
+                  <p className="text-purple-100 text-xs mt-1">All-time earnings</p>
+                </div>
+                <div>
+                  <p className="text-pink-100 text-sm uppercase tracking-wide mb-2">Performance</p>
+                  <p className="text-2xl font-bold">{data.staffMember.samplesRedeemed} samples</p>
+                  <p className="text-2xl font-bold">{data.staffMember.salesGenerated} sales</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Point Transaction History */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-2xl font-bold mb-4">Point Transaction History</h2>
+              <p className="text-sm text-gray-600 mb-6">Your recent point earnings and activity</p>
+
+              {(!data.staffPointTransactions || data.staffPointTransactions.length === 0) ? (
+                <div className="text-center py-12 bg-gray-50 rounded-lg">
+                  <span className="text-6xl mb-4 block">📊</span>
+                  <p className="text-gray-600">No point transactions yet</p>
+                  <p className="text-sm text-gray-500 mt-2">Start redeeming samples and making sales to earn points!</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Date</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Type</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Reason</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Customer</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Quarter</th>
+                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Points</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {data.staffPointTransactions.map((transaction) => (
+                        <tr key={transaction.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {new Date(transaction.createdAt).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              transaction.type === 'sample_redeemed' 
+                                ? 'bg-blue-100 text-blue-800'
+                                : transaction.type === 'sale_completed'
+                                ? 'bg-green-100 text-green-800'
+                                : transaction.type === 'bonus'
+                                ? 'bg-purple-100 text-purple-800'
+                                : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {transaction.type.replace(/_/g, ' ')}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{transaction.reason}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">
+                            {transaction.customer ? (
+                              <div>
+                                <div className="font-medium">{transaction.customer.firstName} {transaction.customer.lastName}</div>
+                                <div className="text-xs text-gray-500">{transaction.customer.memberId}</div>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-600">{transaction.quarter}</td>
+                          <td className="px-4 py-3 text-right">
+                            <span className={`text-lg font-bold ${
+                              transaction.points >= 0 ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              {transaction.points >= 0 ? '+' : ''}{transaction.points}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
         {/* Store Credit Tab (Owner Only) */}

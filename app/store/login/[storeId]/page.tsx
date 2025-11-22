@@ -75,7 +75,15 @@ export default function StoreLoginPage({ params }: { params: Promise<{ storeId: 
       <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="text-4xl mb-3">🏪</div>
+          {/* SampleHound Logo */}
+          <div className="mb-4 flex justify-center">
+            <img 
+              src="/images/Logos/SampleHoundLogoQR.png" 
+              alt="SafeHound" 
+              className="h-20 w-auto"
+            />
+          </div>
+          
           <h1 className="text-2xl font-bold text-gray-900 mb-1">
             {storeName ? `${storeName} Dashboard Login` : 'Store Dashboard Login'}
           </h1>

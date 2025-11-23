@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     const maxAttempts = 100;
     
     do {
-      storeId = `SID-${String(storeCount + 1 + attempts).padStart(3, '0')}`;
+      storeId = `SID-${String(storeCount + 90 + 1 + attempts).padStart(3, '0')}`;
       const existing = await prisma.store.findUnique({ where: { storeId } });
       if (!existing) break;
       attempts++;
@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
         const existingTags = existingCustomer.tags ? existingCustomer.tags.split(', ') : [];
         
         // Add our new tags
-        const newTags = [storeId, subscriptionTier, 'qrdisplay'];
+        const newTags = [storeId, subscriptionTier, 'samplehound'];
         const allTags = [...new Set([...existingTags, ...newTags])]; // Remove duplicates
         
         // Update customer with new tags
@@ -286,7 +286,7 @@ export async function POST(request: NextRequest) {
                 customer: { id: customer.id },
                 line_items: lineItems,
                 note: `Trial kit order for ${store.storeName} (${store.id})`,
-                tags: 'trial-kit, qrdisplay'
+                tags: 'trial-kit, samplehound'
               }
             })
           }

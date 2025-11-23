@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
     
-    let nextNum = 1;
+    let nextNum = 90;
     if (lastStore?.storeId) {
       const match = lastStore.storeId.match(/SID-(\d+)/);
       if (match) {
@@ -64,22 +64,22 @@ export async function POST(req: NextRequest) {
     
     const storeId = `SID-${nextNum.toString().padStart(3, '0')}`;
 
-    // Find or create the QRDisplay platform organization
+    // Find or create the SampleHound platform organization
     let platformOrg = await prisma.organization.findFirst({
-      where: { orgId: 'ORG-QRDISPLAY' },
+      where: { orgId: 'ORG-SAMPLEHOUND' },
     });
 
     if (!platformOrg) {
-      // Create the QRDisplay platform organization if it doesn't exist
+      // Create the SampleHound platform organization if it doesn't exist
       platformOrg = await prisma.organization.create({
         data: {
-          orgId: 'ORG-QRDISPLAY',
-          slug: 'qrdisplay',
-          name: 'QRDisplay',
+          orgId: 'ORG-SAMPLEHOUND',
+          slug: 'samplehound',
+          name: 'SampleHound',
           type: 'platform',
         },
       });
-      console.log('Created QRDisplay platform organization:', platformOrg.id);
+      console.log('Created SampleHound platform organization:', platformOrg.id);
     }
 
     // Get subscription tier configuration
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
         ownerEmail: ownerEmail || '',
         staffPin: finalStaffPin,
         status: 'active',
-        orgId: 'ORG-QRDISPLAY', // Assign to QRDisplay platform (references Organization.orgId)
+        orgId: 'ORG-SAMPLEHOUND', // Assign to SampleHound platform (references Organization.orgId)
         promoOffer: '20% off first purchase',
         returningCustomerPromo: '10% off',
         
@@ -283,7 +283,7 @@ export async function POST(req: NextRequest) {
             const { Resend } = require('resend');
             const resend = new Resend(process.env.RESEND_API_KEY);
             await resend.emails.send({
-              from: 'QRDisplay <noreply@qrdisplay.com>',
+              from: 'SampleHound <noreply@samplehound.com>',
               to: staff.email,
               subject: `Verify your staff account for ${businessName}`,
               html: `
@@ -318,7 +318,7 @@ export async function POST(req: NextRequest) {
           process.env.TWILIO_ACCOUNT_SID,
           process.env.TWILIO_AUTH_TOKEN
         );
-        const smsMessage = `🎉 Congratulations! Your store "${businessName}" has been successfully created with QRDisplay!\n\nYour Display Kit will be shipped out shortly.\n\n📱 Please save this number (${process.env.TWILIO_PHONE_NUMBER}) in your contacts as "QRDisplay Alerts" so you'll recognize future updates.\n\nStore ID: ${store.storeId}\nAdmin PIN: ${staffPin}\n\nWelcome to the QRDisplay family!`;
+        const smsMessage = `🎉 Congratulations! Your store "${businessName}" has been successfully created with SampleHound!\n\nYour Display Kit will be shipped out shortly.\n\n📱 Please save this number (${process.env.TWILIO_PHONE_NUMBER}) in your contacts as "SampleHound Alerts" so you'll recognize future updates.\n\nStore ID: ${store.storeId}\nAdmin PIN: ${staffPin}\n\nWelcome to the SampleHound family!`;
         
         await client.messages.create({
           to: `+1${cleanPhone}`,
@@ -348,10 +348,10 @@ export async function POST(req: NextRequest) {
         const brandNames = await Promise.all(brandNamesPromises);
         
         await resend.emails.send({
-          from: 'QRDisplay <noreply@qrdisplay.com>',
+          from: 'SampleHound <noreply@samplehound.com>',
           to: ownerEmail,
-          cc: ['JimBonutto@vitadreamz.com'], // QRDisplay Sales Rep and Contact
-          subject: `🎉 Welcome to QRDisplay - ${businessName} Store Created!`,
+          cc: ['JimBonutto@vitadreamz.com'], // SampleHound Sales Rep and Contact
+          subject: `🎉 Welcome to SampleHound - ${businessName} Store Created!`,
           html: `
             <!DOCTYPE html>
             <html>
@@ -374,11 +374,11 @@ export async function POST(req: NextRequest) {
                 <div class="header">
                   <div class="emoji">🎉</div>
                   <h1 style="margin: 0; font-size: 28px;">Congratulations!</h1>
-                  <p style="margin: 10px 0 0 0; opacity: 0.9;">Your QRDisplay Store is Ready</p>
+                  <p style="margin: 10px 0 0 0; opacity: 0.9;">Your SampleHound Store is Ready</p>
                 </div>
                 
                 <div class="content">
-                  <h2>Welcome to QRDisplay, ${ownerName || businessName}!</h2>
+                  <h2>Welcome to SampleHound, ${ownerName || businessName}!</h2>
                   
                   <p>Your store has been successfully created and your Display Kit will be shipped out shortly! Here are your store details:</p>
                   
@@ -404,7 +404,7 @@ export async function POST(req: NextRequest) {
                   
                   <h3>💡 Important Reminders</h3>
                   <ul>
-                    <li>Save <strong>${process.env.TWILIO_PHONE_NUMBER || 'our SMS number'}</strong> in your contacts as "QRDisplay Alerts"</li>
+                    <li>Save <strong>${process.env.TWILIO_PHONE_NUMBER || 'our SMS number'}</strong> in your contacts as "SampleHound Alerts"</li>
                     <li>Keep your Admin PIN (${staffPin}) secure - you'll need it to manage your store</li>
                     <li>Check your email for order confirmations and shipping updates</li>
                   </ul>
@@ -417,7 +417,7 @@ export async function POST(req: NextRequest) {
                 </div>
                 
                 <div class="footer">
-                  <p>© 2025 QRDisplay. Powered by VitaDreamz.</p>
+                  <p>© 2025 SampleHound. Powered by VitaDreamz.</p>
                   <p>This email was sent to ${ownerEmail} regarding store ${store.storeId}</p>
                 </div>
               </div>

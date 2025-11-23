@@ -562,6 +562,12 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                         >
                           Dashboard
                         </a>
+                                  <a
+                                    href={`/admin/stores/${store.storeId}/credit`}
+                                    className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 inline-block"
+                                  >
+                                    💰 Credit
+                                  </a>
                         <button
                           onClick={() => openEditStore(store)}
                           className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
@@ -724,6 +730,12 @@ export function DashboardClient({ data }: { data: DashboardData }) {
                               >
                                 Dashboard
                               </a>
+                                  <a
+                                    href={`/admin/stores/${store.storeId}/credit`}
+                                    className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 inline-block"
+                                  >
+                                    💰 Credit
+                                  </a>
                               <button
                                 onClick={() => openEditStore(store)}
                                 className="px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"

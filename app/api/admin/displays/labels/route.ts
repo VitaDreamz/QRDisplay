@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
       doc.setFontSize(URL_FONT_SIZE);
       doc.setTextColor(100, 100, 100);
       doc.text(
-        'qrdisplay.com/d/',
+        'samplehound.com/d/',
         x + LABEL_WIDTH / 2,
         qrY + QR_SIZE + URL_OFFSET,
         { align: 'center' }
@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
     // Return PDF as arraybuffer
     const pdfBlob = doc.output('arraybuffer');
     
-    // Generate filename with QR code range (e.g., QR-labels-QRD-001-024.pdf)
+    // Generate filename with QR code range (e.g., QR-labels-SHD-001-024.pdf)
     const firstDisplayId = displays[0].displayId;
     const lastDisplayId = displays[displays.length - 1].displayId;
     const filename = `QR-labels-${firstDisplayId}-${lastDisplayId}.pdf`;

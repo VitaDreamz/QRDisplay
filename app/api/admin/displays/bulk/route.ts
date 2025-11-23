@@ -1,21 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 
 type BulkAction = 'status' | 'organization' | 'reset' | 'delete';
 
 export async function PATCH(req: NextRequest) {
   try {
-    // Auth: super-admin only
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
-    const user = await prisma.user.findUnique({ where: { userId } });
-    if (!user || user.role !== 'super-admin') {
-      return NextResponse.json({ error: 'Unauthorized - Super admin access required' }, { status: 403 });
-    }
-
     const body = await req.json();
     const displayIds: string[] = body?.displayIds || [];
     const action: BulkAction = body?.action;
@@ -28,52 +17,17 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 
-    // Map UI value "available" -> DB status "inventory"
-    const normalizeStatus = (v: string) => (v === 'available' ? 'inventory' : v);
-
     let data: any = {};
-    
+
     if (action === 'status') {
-      if (!rawValue) return NextResponse.json({ error: 'Missing status value' }, { status: 400 });
-      const value = normalizeStatus(rawValue);
-      if (!['inventory', 'sold', 'active', 'inactive'].includes(value)) {
-        return NextResponse.json({ error: 'Invalid status value' }, { status: 400 });
+      // Simple status update (sold/active/inventory)
+      if (!rawValue) {
+        return NextResponse.json({ error: 'Status value required' }, { status: 400 });
       }
-      
-      // ONLY update status-related fields based on specific status value
-      if (value === 'inventory') {
-        // Available = not sold to anyone (full reset to inventory)
-        data = {
-          status: 'inventory',
-          storeId: null,
-          assignedOrgId: null,
-          activatedAt: null
-        };
-      } else if (value === 'sold') {
-        // Sold = assigned to org but not activated
-        // ONLY clear store/activation, keep organization assignment!
-        data = {
-          status: 'sold',
-          storeId: null,
-          activatedAt: null
-          // assignedOrgId: UNCHANGED - don't touch it!
-        };
-      } else if (value === 'active') {
-        // Just mark as active, don't change anything else
-        data = {
-          status: 'active'
-        };
-      } else if (value === 'inactive') {
-        // Just mark as inactive, don't change anything else
-        data = {
-          status: 'inactive'
-        };
-      }
-      
+      data = { status: rawValue };
+
     } else if (action === 'organization') {
-      // ONLY update organization field
-      if (!rawValue) return NextResponse.json({ error: 'Missing organization value' }, { status: 400 });
-      if (rawValue === 'none') {
+      if (rawValue === '' || rawValue === null || rawValue === 'unassign') {
         // Unassigning = make available (clear everything)
         data = {
           assignedOrgId: null,

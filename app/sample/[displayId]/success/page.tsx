@@ -57,9 +57,9 @@ export default async function SampleSuccessPage({
     }
   });
   
-  // Fetch organization data using id (customer.orgId is now a CUID)
+  // Fetch organization data using orgId (customer.orgId is a STRING like "ORG-VBDOW")
   const organization = await prisma.organization.findUnique({
-    where: { id: customer.orgId }
+    where: { orgId: customer.orgId }
   });
   
   if (!store || !organization) {

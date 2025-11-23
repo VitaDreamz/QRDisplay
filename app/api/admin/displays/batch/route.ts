@@ -3,9 +3,9 @@ import prisma from '@/lib/prisma';
 import { generateQRWithLogo } from '@/lib/qr-generator';
 
 function generateDisplayId(count: number): string {
-  const num = count + 1;
+  const num = count + 1 + 96; // Start at SHD-097 (offset of 96 for pre-printed labels)
   const padded = String(num).padStart(3, '0'); // Minimum 3 digits
-  return `QRD-${padded}`;
+  return `SHD-${padded}`;
 }
 
 export async function POST(request: NextRequest) {
@@ -25,12 +25,12 @@ export async function POST(request: NextRequest) {
       const displayId = generateDisplayId(count + i);
       
       // Generate QR code with SampleHound logo embedded
-      const url = `https://qrdisplay.com/d/${displayId}`;
+      const url = `https://samplehound.com/d/${displayId}`;
       const qrDataUrl = await generateQRWithLogo(url, { size: 400 });
       
       displays.push({
         displayId,
-        ownerOrgId: 'ORG-QRDISPLAY', // Owned by QRDisplay platform
+        ownerOrgId: 'ORG-SAMPLEHOUND', // Owned by SampleHound platform
         status: 'inventory', // In inventory, not assigned yet
         assignedOrgId: null, // Not assigned to any brand yet
         qrPngUrl: qrDataUrl,
@@ -51,7 +51,10 @@ export async function POST(request: NextRequest) {
       }))
     });
   } catch (error) {
-    console.error('Batch creation error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error creating displays:', error);
+    return NextResponse.json(
+      { error: 'Failed to create displays' },
+      { status: 500 }
+    );
   }
 }

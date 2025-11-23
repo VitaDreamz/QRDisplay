@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import Link from 'next/link';
 
-export default async function StoreCreditPage({ params }: { params: { storeId: string } }) {
+export default async function StoreCreditPage({ params }: { params: Promise<{ storeId: string }> }) {
   const { storeId } = await params;
 
   // Get store with brand partnerships and credit transactions

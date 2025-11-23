@@ -4,6 +4,10 @@ import prisma from '@/lib/prisma';
 export default async function DeductCreditPage({
   params,
 }: {
+  params: Promise<{ storeId: string; partnershipId: string }>;
+}) {
+  params,
+}: {
   params: { storeId: string; partnershipId: string };
 }) {
   const { storeId, partnershipId } = await params;

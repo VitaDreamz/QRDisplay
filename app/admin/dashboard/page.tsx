@@ -7,7 +7,7 @@ export default async function AdminDashboardPage() {
   try {
     // Parallel data fetching for performance
     const [displays, stores, customers, organizations, promoRedemptions, purchaseIntents] = await Promise.all([
-      prisma.display.findMany({
+      prisma.displays.findMany({
         include: { 
           organization: true, 
           store: true 

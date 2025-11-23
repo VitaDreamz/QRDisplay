@@ -6,7 +6,7 @@ export default async function DeductCreditPage({
 }: {
   params: { storeId: string; partnershipId: string };
 }) {
-  const { storeId, partnershipId } = params;
+  const { storeId, partnershipId } = await params;
 
   const partnership = await prisma.storeBrandPartnership.findUnique({
     where: { id: partnershipId },

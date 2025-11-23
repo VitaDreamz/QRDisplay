@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma';
 import Link from 'next/link';
 
 export default async function StoreCreditPage({ params }: { params: { storeId: string } }) {
-  const { storeId } = params;
+  const { storeId } = await params;
 
   // Get store with brand partnerships and credit transactions
   const store = await prisma.store.findUnique({

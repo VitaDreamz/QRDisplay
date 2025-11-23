@@ -7,7 +7,7 @@ export default async function BrandDetailPage({
   params: Promise<{ orgId: string }>;
 }) {
   const { orgId } = await params;
-  const org = await prisma.organization.findUnique({
+  const org = await prisma.organizations.findUnique({
     where: { orgId },
     include: {
       users: true,

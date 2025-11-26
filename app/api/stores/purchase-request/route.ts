@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
     try {
       if (org.supportEmail) {
         await resend.emails.send({
-          from: 'QRDisplay <noreply@qrdisplay.com>',
+          from: 'SampleHound <noreply@samplehound.com>',
           to: org.supportEmail,
           subject: emailSubject,
           html: emailBody

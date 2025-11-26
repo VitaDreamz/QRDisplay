@@ -3400,7 +3400,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                     // Update the partnership in local state
                                     setData({
                                       ...data,
-                                      brandPartnerships: data.brandPartnerships.map(bp =>
+                                      brandPartnerships: data.brandPartnerships?.map(bp =>
                                         bp.id === brand.id
                                           ? { ...bp, availableSamples: newSamples }
                                           : bp
@@ -3565,7 +3565,7 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
                                           // Update the partnership in local state
                                           setData({
                                             ...data,
-                                            brandPartnerships: data.brandPartnerships.map(bp =>
+                                            brandPartnerships: data.brandPartnerships?.map(bp =>
                                               bp.id === partnership.id
                                                 ? { ...bp, availableProducts: newProducts }
                                                 : bp

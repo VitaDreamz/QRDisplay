@@ -283,7 +283,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Super Admin Dashboard</h1>
-            <p className="text-sm md:text-base text-gray-600 mt-1">Command center for QRDisplay</p>
+            <p className="text-sm md:text-base text-gray-600 mt-1">Command center for SampleHound</p>
           </div>
           <button
             onClick={() => setShowResetDatabaseConfirm(true)}
@@ -1290,7 +1290,7 @@ export function DashboardClient({ data }: { data: DashboardData }) {
             <p className="text-green-700 font-semibold text-sm mb-2">✅ Will be preserved:</p>
             <ul className="list-disc list-inside text-sm text-gray-700 mb-4 space-y-1 bg-green-50 p-3 rounded border border-green-200">
               <li>Organizations (VitaDreamz, QR Display)</li>
-              <li>All display QR codes (QRD-001 to QRD-093)</li>
+              <li>All display QR codes (SHD-097 to SHD-192)</li>
             </ul>
             <p className="text-red-600 font-bold text-sm mb-4">⚠️ THIS ACTION CANNOT BE UNDONE!</p>
             <div className="flex justify-end gap-2">

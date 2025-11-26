@@ -71,13 +71,13 @@ export async function GET(req: NextRequest) {
       try {
         const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/staff/verify/${staff.verificationToken}`;
 
-        const message = `⏰ REMINDER: Please verify your QRDisplay staff account for ${staff.store.storeName}!
+        const message = `⏰ REMINDER: Please verify your SampleHound staff account for ${staff.store.storeName}!
 
 Complete your verification: ${verificationUrl}
 
 This link expires soon. If you need a new link, contact your store manager.
 
--QRDisplay`;
+-SampleHound`;
 
         await sendSMS(staff.phone, message);
         console.log(`✅ Sent verification reminder to ${staff.firstName} ${staff.lastName} (${staff.phone})`);

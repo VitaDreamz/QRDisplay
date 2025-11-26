@@ -56,7 +56,7 @@ export async function getDbUser(req?: Request): Promise<DbUser | null> {
             email,
             name: `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim(),
             role: email === "jbonutto@gmail.com" ? "super-admin" : "user",
-            orgId: "ORG-QRDISPLAY" // Default org for new users
+            orgId: "ORG-SAMPLEHOUND" // Default org for new users
           }
         });
       }

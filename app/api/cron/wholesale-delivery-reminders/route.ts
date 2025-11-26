@@ -127,7 +127,7 @@ Expected: ${itemCount} units across ${order.items.length} products.
 
 Please verify receipt: ${verificationUrl}
 
--QRDisplay`;
+-SampleHound`;
 
           // Send to all recipients
           for (const recipient of uniqueNotifications) {

@@ -209,7 +209,7 @@ export async function POST(req: NextRequest) {
     console.log(`✅ Fulfillment processing complete - ${wholesaleItems.length} items`);
 
     // Send SMS notifications
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://qrdisplay.vercel.app';
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://samplehound.vercel.app';
     const dashboardUrl = `${appUrl}/store/dashboard`;
     
     const totalUnits = wholesaleItems.reduce((sum, item) => sum + item.unitsShipped, 0);

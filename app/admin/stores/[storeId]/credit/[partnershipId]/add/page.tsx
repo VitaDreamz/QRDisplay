@@ -6,10 +6,6 @@ export default async function AddCreditPage({
 }: {
   params: Promise<{ storeId: string; partnershipId: string }>;
 }) {
-  params,
-}: {
-  params: { storeId: string; partnershipId: string };
-}) {
   const { storeId, partnershipId } = await params;
 
   const partnership = await prisma.storeBrandPartnership.findUnique({

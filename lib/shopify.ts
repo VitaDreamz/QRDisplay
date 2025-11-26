@@ -110,7 +110,7 @@ export async function syncCustomerToShopify(
 
     // Build tags array
     const tags = [
-      'qrdisplay',
+      'samplehound',
       `store:${customer.storeId}`,
       `member:${customer.memberId}`,
       'In-Store Sample',
@@ -154,7 +154,7 @@ export async function syncCustomerToShopify(
           customer: {
             id: shopifyCustomer.id,
             tags: tagsString,
-            note: `QRDisplay Member: ${customer.memberId} | Store: ${customer.storeId}${customer.sampleProduct ? ` | Sample: ${customer.sampleProduct}` : ''}`,
+            note: `SampleHound Member: ${customer.memberId} | Store: ${customer.storeId}${customer.sampleProduct ? ` | Sample: ${customer.sampleProduct}` : ''}`,
           },
         },
       });
@@ -174,7 +174,7 @@ export async function syncCustomerToShopify(
             phone: customer.phone,
             email: customer.email || undefined,
             tags: tagsString,
-            note: `QRDisplay Member: ${customer.memberId} | Store: ${customer.storeId}${customer.sampleProduct ? ` | Sample: ${customer.sampleProduct}` : ''}`,
+            note: `SampleHound Member: ${customer.memberId} | Store: ${customer.storeId}${customer.sampleProduct ? ` | Sample: ${customer.sampleProduct}` : ''}`,
             accepts_marketing: true,
             accepts_marketing_updated_at: new Date().toISOString(),
           },
@@ -245,7 +245,7 @@ export async function addCustomerTimelineEvent(
     });
     
     const metafields = (metafieldsResponse.body as any).metafields || [];
-    const eventsMetafield = metafields.find((m: any) => m.namespace === 'qrdisplay' && m.key === 'events');
+    const eventsMetafield = metafields.find((m: any) => m.namespace === 'samplehound' && m.key === 'events');
     
     let events: Array<{ timestamp: string; message: string }> = [];
     if (eventsMetafield?.value) {
@@ -284,7 +284,7 @@ export async function addCustomerTimelineEvent(
         path: `customers/${shopifyCustomerId}/metafields`,
         data: {
           metafield: {
-            namespace: 'qrdisplay',
+            namespace: 'samplehound',
             key: 'events',
             value: JSON.stringify(events),
             type: 'json',
@@ -537,7 +537,7 @@ export async function tagShopifyCustomer(
 }
 
 /**
- * Add store credit to a store's balance in QRDisplay
+ * Add store credit to a store's balance in SampleHound
  * This is managed internally, not through Shopify
  */
 export async function addStoreCredit(

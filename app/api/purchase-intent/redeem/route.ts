@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       
       // Update Shopify with in-store purchase
       const org = await prisma.organization.findUnique({
-        where: { id: customer.orgId } // customer.orgId is CUID, matches Organization.id
+        where: { orgId: customer.orgId } // customer.orgId is now the orgId string
       });
       
       const store = await prisma.store.findUnique({
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
         if (customer) {
           // Get the brand org to use correct orgId for points
           const brandOrg = await prisma.organization.findUnique({
-            where: { id: customer.orgId },
+            where: { orgId: customer.orgId }, // customer.orgId is now the orgId string
             select: { orgId: true, name: true }
           });
           
@@ -221,11 +221,22 @@ export async function POST(request: NextRequest) {
           throw new Error('Customer not found');
         }
 
+        // Get the brand organization to find its database ID
+        const brandOrg = await prisma.organization.findUnique({
+          where: { orgId: customer.orgId },
+          select: { id: true }
+        });
+
+        if (!brandOrg) {
+          console.warn(`⚠️  No organization found for orgId ${customer.orgId}`);
+          return NextResponse.json({ error: 'Brand not found' }, { status: 404 });
+        }
+
         // Get the brand partnership to find the promoCommission rate
         const partnership = await prisma.storeBrandPartnership.findFirst({
           where: {
             storeId: intent.storeId,
-            brandId: customer.orgId,
+            brandId: brandOrg.id, // Use database ID
             active: true,
           },
         });

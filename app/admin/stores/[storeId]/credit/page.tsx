@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import Link from 'next/link';
+import { DeleteButton } from './DeleteButton';
 
 export default async function StoreCreditPage({ params }: { params: Promise<{ storeId: string }> }) {
   const { storeId } = await params;
@@ -124,26 +125,7 @@ export default async function StoreCreditPage({ params }: { params: Promise<{ st
                           </td>
                           <td className="p-2 max-w-xs truncate">{tx.reason}</td>
                           <td className="p-2">
-                            <form
-                              action={`/api/admin/credit-transactions/${tx.id}/delete`}
-                              method="POST"
-                            >
-                              <button
-                                type="submit"
-                                className="text-red-600 hover:underline text-xs"
-                                onClick={(e) => {
-                                  if (
-                                    !confirm(
-                                      'Are you sure you want to delete this transaction?'
-                                    )
-                                  ) {
-                                    e.preventDefault();
-                                  }
-                                }}
-                              >
-                                Delete
-                              </button>
-                            </form>
+                            <DeleteButton transactionId={tx.id} />
                           </td>
                         </tr>
                       ))}

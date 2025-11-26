@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
 
     // Handle different webhook topics
     if (topic === 'orders/paid' || topic === 'orders/create') {
-      await handleOrderPaid(org.id, order, topic);
+      await handleOrderPaid(org.orgId, order, topic); // Pass orgId string for foreign keys
       await handleWholesaleOrder(org.id, order, topic); // Process wholesale orders
     } else if (topic === 'orders/fulfilled') {
       await handleOrderFulfilled(org.id, order, topic);
@@ -165,7 +165,7 @@ async function handleOrderPaid(orgId: string, order: ShopifyOrder, topic: string
       try {
         // Fetch org first to use Shopify API
         const orgForTags = await prisma.organization.findUnique({
-          where: { id: orgId },
+          where: { orgId: orgId }, // orgId is now the orgId string
         });
         
         if (orgForTags) {
@@ -275,23 +275,21 @@ async function handleOrderPaid(orgId: string, order: ShopifyOrder, topic: string
     }
 
     if (!customer) {
-      console.log(`ℹ️  Customer not found in QRDisplay - no attribution`);
-      await logWebhook(orgId, null, topic, order, 'success', 'Customer not in QRDisplay system');
+      console.log(`ℹ️  Customer not found in SampleHound - no attribution`);
+      await logWebhook(orgId, null, topic, order, 'success', 'Customer not in SampleHound system');
       return;
     }
 
     console.log(`👤 Found customer: ${customer.firstName} ${customer.lastName} (${customer.id})`);
-
+    
     // Get organization for commission settings
     const org = await prisma.organization.findUnique({
-      where: { id: orgId },
+      where: { orgId: orgId }, // orgId is now the orgId string
     });
 
     if (!org) {
       throw new Error('Organization not found');
-    }
-
-    // Check if conversion should be attributed
+    }    // Check if conversion should be attributed
     const attribution = shouldAttributeConversion(customer, org, purchaseDate);
 
     if (!attribution.shouldAttribute) {
@@ -557,7 +555,7 @@ async function handleWholesaleOrder(orgId: string, order: ShopifyOrder, topic: s
     const store = await prisma.store.findFirst({
       where: { 
         shopifyCustomerId: order.customer.id.toString(),
-        // Don't filter by orgId - store orgId is ORG-QRDISPLAY, order orgId is the brand
+        // Don't filter by orgId - store orgId is ORG-SAMPLEHOUND, order orgId is the brand
       }
     });
 
@@ -908,7 +906,7 @@ async function handleWholesaleFulfilled(orgId: string, order: ShopifyOrder, topi
     console.log(`   Verification token: ${verificationToken}`);
 
     // Send SMS notification to purchasing contact and owner
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://qrdisplay.vercel.app';
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://samplehound.vercel.app';
     const verifyUrl = `${appUrl}/store/wholesale/verify/${verificationToken}`;
     
     const totalUnits = wholesaleItems.reduce((sum, item) => sum + item.unitsShipped, 0);

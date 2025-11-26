@@ -5,16 +5,16 @@ const prisma = new PrismaClient();
 async function seed() {
   console.log('🌱 Starting seed...');
 
-  // 1. Create QRDisplay organization (platform/super-admin)
+  // 1. Create SampleHound organization (platform/super-admin)
   const qrDisplay = await prisma.organization.create({
     data: {
-      orgId: 'ORG-QRDISPLAY',
+      orgId: 'ORG-SAMPLEHOUND',
       name: 'QR Display',
-      slug: 'qrdisplay',
+      slug: 'samplehound',
       type: 'platform',
     },
   });
-  console.log('✅ Created QRDisplay organization');
+  console.log('✅ Created SampleHound organization');
 
   // 2. Create super-admin user
   const adminUser = await prisma.user.create({
@@ -49,8 +49,8 @@ async function seed() {
           ownerOrgId: qrDisplay.orgId,
           status: 'inventory',
           shortlink: `d${num}`,
-          targetUrl: `https://qrdisplay.co/d/${num}`,
-          qrPngUrl: `https://qrdisplay.co/qr/d${num}.png`,
+          targetUrl: `https://samplehound.co/d/${num}`,
+          qrPngUrl: `https://samplehound.co/qr/d${num}.png`,
         },
       });
     })

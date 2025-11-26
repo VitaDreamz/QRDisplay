@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
     const existingCustomer = await prisma.customer.findFirst({
       where: {
         phone: normalizedPhone,
-        orgId: brandOrg.id,
+        orgId: brandOrg.orgId, // Query by orgId string
       },
       orderBy: {
         requestedAt: 'desc',
@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
     const customer = await prisma.customer.create({
       data: {
         memberId,
-        orgId: brandOrg.id, // Use brand org, not display org
+        orgId: brandOrg.orgId, // Use brand orgId string (foreign key to organizations.orgId)
         storeId: display.store.storeId,
         firstName: String(firstName).trim(),
         lastName: String(lastName).trim(),
@@ -235,7 +235,7 @@ export async function POST(req: NextRequest) {
     const baseUrl =
       process.env.NEXT_PUBLIC_BASE_URL ||
       process.env.APP_BASE_URL ||
-      (process.env.NODE_ENV === 'production' ? 'https://qrdisplay.com' : 'http://localhost:3001');
+      (process.env.NODE_ENV === 'production' ? 'https://samplehound.com' : 'http://localhost:3001');
 
     // Send SMS messages (fire-and-forget style)
     try {
@@ -312,6 +312,8 @@ export async function POST(req: NextRequest) {
     // Sync customer to Shopify (if integration is active)
     try {
       // Use brand org for Shopify sync (not display org)
+      console.log(`🔍 Checking Shopify sync: brandOrg.orgId=${brandOrg?.orgId}, shopifyActive=${brandOrg?.shopifyActive}`);
+      
       if (brandOrg?.shopifyActive) {
         const result = await syncCustomerToShopify(brandOrg, {
           ...customer,

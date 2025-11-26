@@ -187,7 +187,7 @@ export async function sendActivationEmail(data: {
                       © ${new Date().getFullYear()} ${organization.name}. All rights reserved.
                     </p>
                     <p style="margin: 8px 0 0 0; font-size: 11px; color: #999999;">
-                      Powered by QRDisplay
+                      Powered by SampleHound
                     </p>
                   </td>
                 </tr>
@@ -202,7 +202,7 @@ export async function sendActivationEmail(data: {
 
   try {
     await resend.emails.send({
-      from: 'QRDisplay <noreply@qrdisplay.com>',
+      from: 'SampleHound <noreply@samplehound.com>',
       to: store.contactEmail,
       replyTo: organization.supportEmail || undefined,
       subject,
@@ -307,7 +307,7 @@ export async function sendBrandStoreActivationEmail(data: {
 
   try {
     await resend.emails.send({
-      from: 'QRDisplay <noreply@qrdisplay.com>',
+      from: 'SampleHound <noreply@samplehound.com>',
       to: brandEmail,
       subject: `🏪 New Store Activated - ${store.storeName}`,
       html
@@ -337,7 +337,7 @@ export async function sendBrandSampleRequestEmail(data: {
 }) {
   const { brandEmail, customer, store, requestedAt } = data;
   
-  const dashboardUrl = `https://qrdisplay.com/store/login/${store.storeId}`;
+  const dashboardUrl = `https://samplehound.com/store/login/${store.storeId}`;
   
   const html = `
     <!DOCTYPE html>
@@ -381,7 +381,7 @@ export async function sendBrandSampleRequestEmail(data: {
 
   try {
     await resend.emails.send({
-      from: 'QRDisplay <noreply@qrdisplay.com>',
+      from: 'SampleHound <noreply@samplehound.com>',
       to: brandEmail,
       subject: `✨ New Sample Request - ${store.storeName}`,
       html
@@ -446,7 +446,7 @@ export async function sendBrandSampleRedemptionEmail(data: {
 
   try {
     await resend.emails.send({
-      from: 'QRDisplay <noreply@qrdisplay.com>',
+      from: 'SampleHound <noreply@samplehound.com>',
       to: brandEmail,
       subject: `✅ Sample Redeemed - ${store.storeName}`,
       html
@@ -468,7 +468,7 @@ export async function sendStorePurchaseIntentEmail(data: {
   pricing: { originalPrice: number; discountPercent: number; finalPrice: number };
 }) {
   const { toEmail, store, customer, product, pricing } = data;
-  const dashboardUrl = `https://qrdisplay.com/store/login/${store.storeId}`;
+  const dashboardUrl = `https://samplehound.com/store/login/${store.storeId}`;
   const subject = `🛒 New Purchase Request – ${product.name}`;
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -489,7 +489,7 @@ export async function sendStorePurchaseIntentEmail(data: {
 
   try {
     await resend.emails.send({
-      from: 'QRDisplay <noreply@qrdisplay.com>',
+      from: 'SampleHound <noreply@samplehound.com>',
       to: toEmail,
       subject,
       html
@@ -524,7 +524,7 @@ export async function sendBrandPurchaseIntentEmail(data: {
 
   try {
     await resend.emails.send({
-      from: 'QRDisplay <noreply@qrdisplay.com>',
+      from: 'SampleHound <noreply@samplehound.com>',
       to: toEmail,
       subject,
       html
@@ -583,7 +583,7 @@ export async function sendBrandPromoRedemptionEmail(data: {
 
   try {
     await resend.emails.send({
-      from: 'QRDisplay <noreply@qrdisplay.com>',
+      from: 'SampleHound <noreply@samplehound.com>',
       to: brandEmail,
       subject: `🎉 Promo Redeemed - ${store.storeName}`,
       html

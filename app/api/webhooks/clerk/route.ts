@@ -59,7 +59,7 @@ export async function POST(req: Request) {
     let role = requestedRole || "org-admin";
     let orgId = requestedOrgId || null;
     if (email === superAdminEmail) {
-      orgId = "ORG-QRDISPLAY";
+      orgId = "ORG-SAMPLEHOUND";
       role = "super-admin";
     }
 

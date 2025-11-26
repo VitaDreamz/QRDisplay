@@ -36,14 +36,14 @@ async function main() {
       console.log('→ Updated phone and name\n');
     }
   } else {
-    // Create new user for ORG-QRDISPLAY (platform admin)
+    // Create new user for ORG-SAMPLEHOUND (platform admin)
     user = await prisma.user.create({
       data: {
         userId: 'USR-QRDISPLAY-ADMIN',
         email,
         phone,
         name,
-        orgId: 'ORG-QRDISPLAY',
+        orgId: 'ORG-SAMPLEHOUND',
         role: 'org-admin',
       }
     });

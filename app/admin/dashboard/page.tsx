@@ -9,14 +9,14 @@ export default async function AdminDashboardPage() {
     const [displays, stores, customers, organizations, promoRedemptions, purchaseIntents] = await Promise.all([
       prisma.displays.findMany({
         include: { 
-          organization: true, 
-          store: true 
+          organizations: true, 
+          stores: true 
         },
         orderBy: { createdAt: 'desc' }
       }),
-      prisma.store.findMany({
+      prisma.stores.findMany({
         include: {
-          organization: true,
+          organizations: true,
           displays: true,
           _count: { 
             select: { 
@@ -33,14 +33,14 @@ export default async function AdminDashboardPage() {
         },
         orderBy: { activatedAt: 'desc' }
       }),
-      prisma.customer.findMany({
+      prisma.customers.findMany({
         include: { 
-          store: true, 
-          organization: true 
+          stores: true, 
+          organizations: true 
         },
         orderBy: { requestedAt: 'desc' }
       }),
-      prisma.organization.findMany({
+      prisma.organizations.findMany({
         select: { 
           id: true,  // CUID for foreign key references
           orgId: true, 
@@ -70,7 +70,7 @@ export default async function AdminDashboardPage() {
         },
         orderBy: { name: 'asc' }
       }),
-      prisma.promoRedemption.findMany({
+      prisma.promo_redemptions.findMany({
         select: {
           id: true,
           redeemedAt: true,
@@ -79,7 +79,7 @@ export default async function AdminDashboardPage() {
           promoOffer: true,
           promoSlug: true,
           createdAt: true,
-          customer: {
+          customers: {
             select: {
               id: true,
               firstName: true,
@@ -88,7 +88,7 @@ export default async function AdminDashboardPage() {
               returningPromoSlug: true
             }
           },
-          store: {
+          stores: {
             select: {
               id: true,
               storeName: true,
@@ -98,7 +98,7 @@ export default async function AdminDashboardPage() {
         },
         orderBy: { createdAt: 'desc' }
       }),
-      prisma.purchaseIntent.findMany({
+      prisma.purchase_intents.findMany({
         select: {
           id: true,
           finalPrice: true,

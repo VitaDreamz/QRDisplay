@@ -224,14 +224,14 @@ export default async function StoreDashboardPage() {
   // Fetch staff point transactions if user is staff
   let staffPointTransactions: any[] = [];
   if (role === 'staff' && staffMember) {
-    staffPointTransactions = await prisma.staff_point_transactions.findMany({
+    staffPointTransactions = await prisma.staffPointTransaction.findMany({
       where: { 
         staffId: staffMember.id 
       },
       orderBy: { createdAt: 'desc' },
       take: 50, // Get last 50 transactions
       include: {
-        customers: {
+        customer: {
           select: {
             firstName: true,
             lastName: true,

@@ -254,7 +254,7 @@ export async function POST(request: NextRequest) {
           const { Resend } = require('resend');
           const resend = new Resend(process.env.RESEND_API_KEY);
           await resend.emails.send({
-            from: 'QRDisplay <noreply@qrdisplay.com>',
+            from: 'SampleHound <noreply@samplehound.com>',
             to: email,
             subject: `Verify your staff account for ${storeNameValue}`,
             html: `

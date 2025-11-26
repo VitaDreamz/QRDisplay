@@ -216,7 +216,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Create Draft Order in Shopify
-        const primaryEmail = wholesaleOrder.store.purchasingEmail || wholesaleOrder.store.adminEmail || wholesaleOrder.store.ownerEmail || 'store@qrdisplay.com';
+        const primaryEmail = wholesaleOrder.store.purchasingEmail || wholesaleOrder.store.adminEmail || wholesaleOrder.store.ownerEmail || 'store@samplehound.com';
         const bccEmails: string[] = [];
         
         // Add brand email(s) to BCC - get unique brand emails from items in this order
@@ -293,8 +293,8 @@ export async function POST(request: NextRequest) {
             first_name: wholesaleOrder.store.storeName,
             last_name: 'Wholesale',
           },
-          note: `QRDisplay Wholesale Order #${orderId}\nStore: ${wholesaleOrder.store.storeId} - ${wholesaleOrder.store.storeName}\nBrands: ${Array.from(orderData.brands).join(', ')}`,
-          tags: `qrdisplay,wholesale,${wholesaleOrder.store.storeId}`,
+          note: `SampleHound Wholesale Order #${orderId}\nStore: ${wholesaleOrder.store.storeId} - ${wholesaleOrder.store.storeName}\nBrands: ${Array.from(orderData.brands).join(', ')}`,
+          tags: `samplehound,wholesale,${wholesaleOrder.store.storeId}`,
           applied_discount: actualCreditApplied > 0 ? {
             description: 'Store Credit',
             value_type: 'fixed_amount',

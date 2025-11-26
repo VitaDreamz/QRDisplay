@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
                     process.env.APP_BASE_URL || 
-                    'https://qrdisplay.com';
+                    'https://samplehound.com';
 
     for (const customer of customers) {
       // Use the most recent purchase date or stage change date

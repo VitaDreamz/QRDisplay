@@ -9,9 +9,9 @@ export async function GET() {
     console.log('API Key exists:', !!process.env.RESEND_API_KEY);
     
     const result = await resend.emails.send({
-      from: 'QRDisplay <noreply@qrdisplay.com>',
+      from: 'SampleHound <noreply@samplehound.com>',
       to: 'jimbonutto@vitadreamz.com',
-      subject: 'Test Email from QRDisplay',
+      subject: 'Test Email from SampleHound',
       html: '<h1>Success!</h1><p>Resend is working!</p>'
     });
     

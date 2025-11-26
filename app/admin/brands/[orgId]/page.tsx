@@ -63,12 +63,12 @@ export default async function BrandDetailPage({
                 <dt className="text-sm font-medium text-purple-200">URL Slug</dt>
                 <dd className="mt-1 text-sm text-white">
                   <a
-                    href={`https://qrdisplay.com/${org.slug}`}
+                    href={`https://samplehound.com/${org.slug}`}
                     className="text-blue-300 hover:text-blue-200"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    qrdisplay.com/{org.slug}
+                    samplehound.com/{org.slug}
                   </a>
                 </dd>
               </div>

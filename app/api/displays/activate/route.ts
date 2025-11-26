@@ -6,7 +6,7 @@ import { tagShopifyCustomer, addStoreCredit } from '@/lib/shopify';
 
 // Helper to generate a new Store ID with 3-digit minimum padding
 function generateStoreId(nextIndex: number) {
-  return `SID-${nextIndex.toString().padStart(3, '0')}`;
+  return `SID-${(nextIndex + 90).toString().padStart(3, '0')}`;
 }
 
 export async function POST(req: NextRequest) {

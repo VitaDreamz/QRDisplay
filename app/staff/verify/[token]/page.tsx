@@ -87,7 +87,7 @@ export default async function StaffVerifyPage({
             After verification, you can login anytime at:
           </p>
           <p className="text-sm font-mono text-center text-blue-600">
-            qrdisplay.com/store/login/{staff.store.storeId}
+            samplehound.com/store/login/{staff.store.storeId}
           </p>
         </div>
       </div>

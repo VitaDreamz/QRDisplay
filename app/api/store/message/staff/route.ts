@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
           if (!s.email) continue;
           try {
             await resend.emails.send({
-              from: 'QRDisplay <noreply@qrdisplay.com>',
+              from: 'SampleHound <noreply@samplehound.com>',
               to: s.email,
               subject: `Store Update`,
               html: `<p>${message.replace(/\n/g, '<br/>')}</p>`

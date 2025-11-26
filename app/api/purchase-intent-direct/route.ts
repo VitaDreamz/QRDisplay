@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { normalizePhone } from '@/lib/phone';
 import { generateSlug } from '@/lib/slugs';
+import { syncCustomerToShopify } from '@/lib/shopify';
 
 async function generateMemberId(): Promise<string> {
   const count = await prisma.customer.count();
@@ -42,14 +43,19 @@ export async function POST(req: NextRequest) {
     // Multi-brand: Determine which brand org we're working with
     const targetBrandOrgId = brandOrgId || (display.assignedOrgId || display.organization!.orgId);
     
+    console.log(`🔍 Direct purchase: looking up brand orgId="${targetBrandOrgId}" (from brandOrgId=${brandOrgId}, display.assignedOrgId=${display.assignedOrgId}, display.organization.orgId=${display.organization?.orgId})`);
+    
     // Multi-brand: Get brand organization
     const brandOrg = await prisma.organization.findUnique({
       where: { orgId: targetBrandOrgId },
     });
     
     if (!brandOrg) {
+      console.error(`❌ Brand organization not found for orgId="${targetBrandOrgId}"`);
       return NextResponse.json({ error: 'Brand not found' }, { status: 404 });
     }
+    
+    console.log(`✅ Found brand organization: id="${brandOrg.id}", orgId="${brandOrg.orgId}", name="${brandOrg.name}"`);
 
     // Multi-brand: Validate brand partnership (if brandOrgId was provided)
     if (brandOrgId) {
@@ -103,11 +109,13 @@ export async function POST(req: NextRequest) {
     // Generate Member ID
     const memberId = await generateMemberId();
 
+    console.log(`👤 Creating customer with orgId="${brandOrg.orgId}" (from brand "${brandOrg.name}")`);
+
     // Create customer record with purchase intent
     const customer = await prisma.customer.create({
       data: {
         memberId,
-        orgId: brandOrg.id, // Use brand org, not display org
+        orgId: brandOrg.orgId, // Use brand orgId string (foreign key to organizations.orgId)
         storeId: display.store.storeId,
         firstName: String(firstName).trim(),
         lastName: String(lastName).trim(),
@@ -174,7 +182,7 @@ export async function POST(req: NextRequest) {
     const baseUrl =
       process.env.NEXT_PUBLIC_BASE_URL ||
       process.env.APP_BASE_URL ||
-      (process.env.NODE_ENV === 'production' ? 'https://qrdisplay.com' : 'http://localhost:3001');
+      (process.env.NODE_ENV === 'production' ? 'https://samplehound.com' : 'http://localhost:3001');
 
     // Send SMS with promo link
     try {
@@ -200,6 +208,36 @@ export async function POST(req: NextRequest) {
     } catch (smsErr) {
       console.error('❌ SMS send failed:', smsErr);
       // Do not fail the request if SMS fails
+    }
+
+    // Sync customer to Shopify (if integration is active)
+    try {
+      console.log(`🔍 Checking Shopify sync: brandOrg.orgId=${brandOrg.orgId}, shopifyActive=${brandOrg.shopifyActive}`);
+      
+      if (brandOrg?.shopifyActive) {
+        const result = await syncCustomerToShopify(brandOrg, {
+          ...customer,
+          sampleProduct: product.name, // Tag with the product they're purchasing
+          stage: 'purchase-intent', // Direct purchase stage
+        });
+        
+        // Update customer record with Shopify ID
+        await prisma.customer.update({
+          where: { id: customer.id },
+          data: {
+            shopifyCustomerId: result.shopifyCustomerId,
+            syncedToShopify: true,
+            syncedAt: new Date(),
+          },
+        });
+        
+        console.log(`✅ Customer ${customer.memberId} synced to Shopify (${result.isNew ? 'new' : 'existing'} customer #${result.shopifyCustomerId})`);
+      } else {
+        console.log(`⏭️  Skipping Shopify sync: shopifyActive=${brandOrg?.shopifyActive}`);
+      }
+    } catch (shopifyErr) {
+      console.error('❌ Shopify sync failed:', shopifyErr);
+      // Do not fail the request if Shopify sync fails
     }
 
     return NextResponse.json({

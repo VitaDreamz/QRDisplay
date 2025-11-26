@@ -16,14 +16,14 @@ export async function POST(req: NextRequest) {
 
     // Send email notification to admin
     const emailResult = await resend.emails.send({
-      from: 'QRDisplay Contact <noreply@qrdisplay.com>',
+      from: 'SampleHound Contact <noreply@samplehound.com>',
       replyTo: email,
       to: 'jbonutto@gmail.com',
-      subject: `[QRDisplay Contact] ${category.toUpperCase()}: ${subject}`,
+      subject: `[SampleHound Contact] ${category.toUpperCase()}: ${subject}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #9333ea 0%, #ec4899 100%); padding: 30px; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">QRDisplay Contact Form</h1>
+            <h1 style="color: white; margin: 0; font-size: 24px;">SampleHound Contact Form</h1>
           </div>
           
           <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb;">
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
 
           <div style="background: #f3f4f6; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
             <p style="color: #6b7280; font-size: 12px; margin: 0;">
-              This message was sent via the QRDisplay contact form at qrdisplay.com/contact
+              This message was sent via the SampleHound contact form at samplehound.com/contact
             </p>
           </div>
         </div>

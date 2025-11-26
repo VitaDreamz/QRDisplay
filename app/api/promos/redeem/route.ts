@@ -59,13 +59,22 @@ export async function POST(request: NextRequest) {
     }
     
     console.log(`👤 Found customer ${customer.memberId} (stage: ${customer.currentStage}, isDirect: ${isDirect})`);
-
+    
+    // Get the brand organization for the customer (need database ID for foreign keys)
+    const brandOrg = await prisma.organization.findUnique({
+      where: { orgId: customer.orgId },
+      select: { id: true, orgId: true, name: true }
+    });
+    
+    if (!brandOrg) {
+      console.error(`❌ Brand organization not found for customer orgId: ${customer.orgId}`);
+      return NextResponse.json({ error: 'Brand not found' }, { status: 404 });
+    }
+    
     // 5. Get store and validate PIN (check admin PIN or staff PINs)
     const store = await prisma.store.findUnique({
       where: { storeId: shortlink.storeId }
-    });
-
-    if (!store) {
+    });    if (!store) {
       return NextResponse.json({ error: 'Store not found' }, { status: 404 });
     }
 
@@ -167,7 +176,7 @@ export async function POST(request: NextRequest) {
         data: {
           customerId: customer.id,
           storeId: store.id,
-          orgId: customer.orgId, // Use customer's orgId (CUID), not store.orgId string
+          orgId: brandOrg.id, // Use brand organization's database ID
           promoOffer: store.promoOffer,
           promoSlug: slug,
           redeemedAt: new Date(),
@@ -239,17 +248,6 @@ export async function POST(request: NextRequest) {
         
         console.log(`💰 Processing points for $${finalPurchaseAmountToUse} sale by staff ${staffMember.staffId} (${isDirect ? 'direct purchase' : 'promo redemption'})`);
         
-        // Get the brand org to use correct orgId for points
-        const brandOrg = await prisma.organization.findUnique({
-          where: { id: customer.orgId },
-          select: { orgId: true, name: true }
-        });
-        
-        if (!brandOrg) {
-          console.error(`❌ Brand org not found for customer orgId: ${customer.orgId}`);
-          throw new Error('Brand organization not found');
-        }
-        
         console.log(`🎯 Awarding points to staff ${staffMember.staffId} for ${brandOrg.name} sale`);
         
         await awardInStoreSalePoints({
@@ -275,7 +273,7 @@ export async function POST(request: NextRequest) {
         const partnership = await prisma.storeBrandPartnership.findFirst({
           where: {
             storeId: store.id,
-            brandId: customer.orgId, // customer.orgId is the brand's internal ID
+            brandId: brandOrg.id, // Use brand organization's database ID
             active: true,
           },
         });
@@ -329,11 +327,22 @@ export async function POST(request: NextRequest) {
         });
 
         if (product) {
+          // Get the organization's database ID from the orgId string
+          const productOrg = await prisma.organization.findUnique({
+            where: { orgId: product.orgId },
+            select: { id: true }
+          });
+
+          if (!productOrg) {
+            console.warn(`⚠️  Organization not found for product orgId ${product.orgId}`);
+            throw new Error('Product organization not found');
+          }
+
           // Create a pseudo-sample entry for this direct purchase
           await prisma.sampleHistory.create({
             data: {
               customerId: customer.id,
-              brandId: product.orgId,
+              brandId: productOrg.id, // Use the organization's database ID
               storeId: store.id,
               productSku: actualProductSku,
               productName: product.name,

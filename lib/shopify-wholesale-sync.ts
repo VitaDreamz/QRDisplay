@@ -80,19 +80,19 @@ export async function syncStoreToShopifyWholesale(
       // Get existing tags and add store-specific tags
       const existingTags = shopifyCustomer.tags ? shopifyCustomer.tags.split(',').map((t: string) => t.trim()) : [];
       const newTags = [
-        ...existingTags.filter((t: string) => !t.startsWith('qrdisplay-store:')), // Remove old store tags
-        'qrdisplay',
+        ...existingTags.filter((t: string) => !t.startsWith('samplehound-store:')), // Remove old store tags
+        'samplehound',
         'wholesale',
         'wg_wholesale', // Wholesale Genius tag
-        `qrdisplay-store:${store.storeId}`,
+        `samplehound-store:${store.storeId}`,
         store.storeId, // Add storeId as standalone tag
       ];
 
       // Update existing note or create new one
-      const storeNote = `QRDisplay Store: ${store.storeId} - ${store.storeName}\nLocation: ${store.city}, ${store.state}\nContact: ${contactName} | ${contactEmail}`;
+      const storeNote = `SampleHound Store: ${store.storeId} - ${store.storeName}\nLocation: ${store.city}, ${store.state}\nContact: ${contactName} | ${contactEmail}`;
       const existingNote = shopifyCustomer.note || '';
-      const updatedNote = existingNote.includes('QRDisplay Store:') 
-        ? existingNote.replace(/QRDisplay Store:[\s\S]*?(?=\n\n|$)/, storeNote)
+      const updatedNote = existingNote.includes('SampleHound Store:') 
+        ? existingNote.replace(/SampleHound Store:[\s\S]*?(?=\n\n|$)/, storeNote)
         : `${existingNote}\n\n${storeNote}`.trim();
 
       await restClient.put({
@@ -105,19 +105,19 @@ export async function syncStoreToShopifyWholesale(
             // Update metafields for better tracking
             metafields: [
               {
-                namespace: 'qrdisplay',
+                namespace: 'samplehound',
                 key: 'store_id',
                 value: store.storeId,
                 type: 'single_line_text_field',
               },
               {
-                namespace: 'qrdisplay',
+                namespace: 'samplehound',
                 key: 'store_name',
                 value: store.storeName,
                 type: 'single_line_text_field',
               },
               {
-                namespace: 'qrdisplay',
+                namespace: 'samplehound',
                 key: 'partnership_type',
                 value: 'wholesale',
                 type: 'single_line_text_field',
@@ -151,13 +151,13 @@ export async function syncStoreToShopifyWholesale(
             email: contactEmail,
             phone: store.purchasingPhone || store.adminPhone || store.ownerPhone,
             tags: [
-              'qrdisplay',
+              'samplehound',
               'wholesale',
               'wg_wholesale', // Wholesale Genius tag
-              `qrdisplay-store:${store.storeId}`,
+              `samplehound-store:${store.storeId}`,
               store.storeId, // Add storeId as standalone tag
             ].join(','),
-            note: `QRDisplay Store: ${store.storeId} - ${store.storeName}\nLocation: ${store.city}, ${store.state}\nContact: ${contactName} | ${contactEmail}\n\nWholesale customer account created via QRDisplay partnership.`,
+            note: `SampleHound Store: ${store.storeId} - ${store.storeName}\nLocation: ${store.city}, ${store.state}\nContact: ${contactName} | ${contactEmail}\n\nWholesale customer account created via SampleHound partnership.`,
             accepts_marketing: true,
             tax_exempt: false, // Can be updated if store has tax exemption
             // Add address if available
@@ -173,25 +173,25 @@ export async function syncStoreToShopifyWholesale(
             // Metafields for tracking
             metafields: [
               {
-                namespace: 'qrdisplay',
+                namespace: 'samplehound',
                 key: 'store_id',
                 value: store.storeId,
                 type: 'single_line_text_field',
               },
               {
-                namespace: 'qrdisplay',
+                namespace: 'samplehound',
                 key: 'store_name',
                 value: store.storeName,
                 type: 'single_line_text_field',
               },
               {
-                namespace: 'qrdisplay',
+                namespace: 'samplehound',
                 key: 'partnership_type',
                 value: 'wholesale',
                 type: 'single_line_text_field',
               },
               {
-                namespace: 'qrdisplay',
+                namespace: 'samplehound',
                 key: 'partnership_started',
                 value: new Date().toISOString(),
                 type: 'date',

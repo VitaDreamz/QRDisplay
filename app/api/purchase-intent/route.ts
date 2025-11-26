@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
       
       // Update Shopify stage and add timeline event
       org = await prisma.organization.findUnique({
-        where: { id: customer.orgId } // customer.orgId is CUID, matches Organization.id
+        where: { orgId: customer.orgId } // customer.orgId is now the orgId string
       });
       
       if (org?.shopifyActive && (customer as any).shopifyCustomerId) {
@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
     // Fire notifications (best-effort, non-blocking)
     try {
       // Store notifications - notify admin (always) and on-call staff
-      const storeMsg = `Purchase Request at ${store.storeName}: ${org?.name || 'VitaDreamz'} - ${product.name}\nPrice: $${parseFloat(finalPrice).toFixed(2)} (${discountPercent}% off $${parseFloat(originalPrice).toFixed(2)} MSRP)\n\nCheck stock & mark ready at qrdisplay.com/store/login/${store.storeId} in your dashboard.`;
+      const storeMsg = `Purchase Request at ${store.storeName}: ${org?.name || 'VitaDreamz'} - ${product.name}\nPrice: $${parseFloat(finalPrice).toFixed(2)} (${discountPercent}% off $${parseFloat(originalPrice).toFixed(2)} MSRP)\n\nCheck stock & mark ready at samplehound.com/store/login/${store.storeId} in your dashboard.`;
       
       if (
         process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER

@@ -1,7 +1,7 @@
 /**
  * Shopify Customer Sync Service
  * 
- * Syncs QRDisplay stores to brand Shopify wholesale customers
+ * Syncs SampleHound stores to brand Shopify wholesale customers
  * Search by email → Update if exists → Create if not
  */
 
@@ -72,7 +72,7 @@ async function createShopifyCustomer(
       `state:${store.state}`,
       `city:${store.city}`,
       `store:${store.storeId}`,
-      'qrdisplay:active',
+      'samplehound:active',
     ].filter(Boolean).join(', ');
 
     const customerData = {
@@ -82,23 +82,23 @@ async function createShopifyCustomer(
         first_name: store.ownerName?.split(' ')[0] || store.storeName,
         last_name: store.ownerName?.split(' ').slice(1).join(' ') || '',
         tags,
-        note: `QRDisplay Store: ${store.storeId}\nBusiness: ${store.storeName}\nCity: ${store.city}, ${store.state}\nTier: ${subscriptionTier}\nCreated: ${new Date().toISOString()}`,
+        note: `SampleHound Store: ${store.storeId}\nBusiness: ${store.storeName}\nCity: ${store.city}, ${store.state}\nTier: ${subscriptionTier}\nCreated: ${new Date().toISOString()}`,
         tax_exempt: true,
         metafields: [
           {
-            namespace: 'qrdisplay',
+            namespace: 'samplehound',
             key: 'store_id',
             value: store.storeId,
             type: 'single_line_text_field',
           },
           {
-            namespace: 'qrdisplay',
+            namespace: 'samplehound',
             key: 'subscription_tier',
             value: subscriptionTier,
             type: 'single_line_text_field',
           },
           {
-            namespace: 'qrdisplay',
+            namespace: 'samplehound',
             key: 'last_sync',
             value: new Date().toISOString(),
             type: 'single_line_text_field',
@@ -152,7 +152,7 @@ async function updateShopifyCustomer(
       `state:${store.state}`,
       `city:${store.city}`,
       `store:${store.storeId}`,
-      'qrdisplay:active',
+      'samplehound:active',
     ];
 
     // Merge tags (remove old tier/state/city/store tags, add new ones)
@@ -162,7 +162,7 @@ async function updateShopifyCustomer(
         !tag.startsWith('state:') &&
         !tag.startsWith('city:') &&
         !tag.startsWith('store:') &&
-        !tag.startsWith('qrdisplay:')
+        !tag.startsWith('samplehound:')
     );
     const mergedTags = [...new Set([...filteredTags, ...newTags])].join(', ');
 
@@ -170,22 +170,22 @@ async function updateShopifyCustomer(
       customer: {
         id: customerId,
         tags: mergedTags,
-        note: `${existingCustomer.note || ''}\n\n[QRDisplay Update ${new Date().toISOString()}]\nStore: ${store.storeId} | ${store.storeName}\nTier: ${subscriptionTier} | Location: ${store.city}, ${store.state}`,
+        note: `${existingCustomer.note || ''}\n\n[SampleHound Update ${new Date().toISOString()}]\nStore: ${store.storeId} | ${store.storeName}\nTier: ${subscriptionTier} | Location: ${store.city}, ${store.state}`,
         metafields: [
           {
-            namespace: 'qrdisplay',
+            namespace: 'samplehound',
             key: 'store_id',
             value: store.storeId,
             type: 'single_line_text_field',
           },
           {
-            namespace: 'qrdisplay',
+            namespace: 'samplehound',
             key: 'subscription_tier',
             value: subscriptionTier,
             type: 'single_line_text_field',
           },
           {
-            namespace: 'qrdisplay',
+            namespace: 'samplehound',
             key: 'last_sync',
             value: new Date().toISOString(),
             type: 'single_line_text_field',

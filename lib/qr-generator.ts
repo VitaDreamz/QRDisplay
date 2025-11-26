@@ -20,7 +20,7 @@ export async function generateQRWithLogo(url: string, options?: {
     const fs = await import('fs');
     
     const size = options?.size || 400;
-    const logoSize = options?.logoSize || Math.floor(size * 0.25);
+    const logoSize = options?.logoSize || Math.floor(size * 0.4); // Back to 40%
     const logoPath = options?.logoPath || path.join(process.cwd(), 'public/images/Logos/SampleHoundLogo.png');
     
     // Generate base QR code
@@ -30,55 +30,52 @@ export async function generateQRWithLogo(url: string, options?: {
       width: size,
       margin: 1,
       color: {
-        dark: '#1f2937',
-        light: '#ffffff'
+        dark: '#000000',
+        light: '#FFFFFF'
       }
     });
     
     const ctx = qrCanvas.getContext('2d');
     
-    // Add white circle background for logo
-    const centerX = size / 2;
-    const centerY = size / 2;
-    const circleRadius = logoSize / 2 + 8;
+    // Load and draw logo
+    const logo = await loadImage(logoPath);
+    const logoX = (size - logoSize) / 2;
+    const logoY = (size - logoSize) / 2;
     
-    ctx.fillStyle = '#ffffff';
+    // Draw white background circle for logo
+    ctx.fillStyle = 'white';
     ctx.beginPath();
-    ctx.arc(centerX, centerY, circleRadius, 0, 2 * Math.PI);
+    ctx.arc(size / 2, size / 2, logoSize / 2 + 10, 0, Math.PI * 2);
     ctx.fill();
     
-    // Load and draw logo if file exists
-    if (fs.existsSync(logoPath)) {
-      try {
-        const logo = await loadImage(logoPath);
-        const logoX = centerX - logoSize / 2;
-        const logoY = centerY - logoSize / 2;
-        ctx.drawImage(logo, logoX, logoY, logoSize, logoSize);
-      } catch (error) {
-        console.error('Error loading logo:', error);
-      }
-    }
+    // Draw logo
+    ctx.drawImage(logo, logoX, logoY, logoSize, logoSize);
     
+    // Convert to data URL
     return qrCanvas.toDataURL('image/png');
+    
   } catch (error) {
-    // Canvas not available or failed - fall back to simple QR
-    console.log('Canvas not available, using simple QR code');
+    console.warn('Canvas not available or error generating QR with logo, falling back to simple QR:', error);
     return generateSimpleQR(url, options?.size);
   }
 }
 
 /**
- * Generate a simple QR code without logo (fallback for environments without canvas)
+ * Generate a simple QR code without logo (fallback)
  */
-export async function generateSimpleQR(url: string, size: number = 400): Promise<string> {
-  return await QRCode.toDataURL(url, {
-    errorCorrectionLevel: 'H',
-    type: 'image/png',
-    width: size,
-    margin: 1,
-    color: {
-      dark: '#1f2937',
-      light: '#ffffff'
-    }
-  });
+export async function generateSimpleQR(url: string, size?: number): Promise<string> {
+  try {
+    return await QRCode.toDataURL(url, {
+      errorCorrectionLevel: 'H',
+      width: size || 400,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    });
+  } catch (error) {
+    console.error('Error generating QR code:', error);
+    throw error;
+  }
 }

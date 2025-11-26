@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
                     process.env.APP_BASE_URL || 
-                    'https://qrdisplay.com';
+                    'https://samplehound.com';
 
     for (const customer of customers) {
       // Skip customers who already used promo or don't have a promo slug

@@ -155,7 +155,7 @@ You're expecting ${itemCount} units across ${wholesaleOrder.items.length} produc
 
 Please verify you received everything: ${verificationUrl}
 
--QRDisplay`;
+-SampleHound`;
 
       // Send to all recipients
       for (const recipient of uniqueNotifications) {

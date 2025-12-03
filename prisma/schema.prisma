@@ -681,3 +681,25 @@ model wholesale_orders {
   organizations         organizations           @relation(fields: [brandId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   stores                stores                  @relation(fields: [storeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
+
+// CCPA Compliance - Data Deletion Requests
+// TODO: Run migration to add this table, then uncomment
+// model data_deletion_requests {
+//   id              String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+//   phone           String    // Phone number used to identify customer records
+//   email           String?   // Optional email for confirmation
+//   status          String    @default("pending") // pending, verified, processing, completed, rejected
+//   verificationCode String?  // 6-digit code sent via SMS for verification
+//   verifiedAt      DateTime?
+//   processedAt     DateTime?
+//   completedAt     DateTime?
+//   recordsDeleted  Int?      // Count of records deleted
+//   deletionSummary Json?     // Summary of what was deleted (for audit)
+//   ipAddress       String?   // For fraud prevention
+//   userAgent       String?   // For fraud prevention
+//   createdAt       DateTime  @default(now())
+//   updatedAt       DateTime  @default(now())
+//   
+//   @@index([phone])
+//   @@index([status])
+// }

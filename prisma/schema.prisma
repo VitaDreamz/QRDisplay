@@ -259,11 +259,9 @@ model organizations {
   shopifyWebhookSecret     String?
   brandTier                String?                    @default("free")
   brandStatus              String?                    @default("pending")
-  maxStoresPerMonth        Int?                       @default(5)
+  maxStores                Int?                       @default(5)    // Hard cap on store partnerships (tier-based: Free=5, Basic=50, Pro=250, Enterprise=unlimited)
   maxSampleProducts        Int?                       @default(1)
   maxFullSizeProducts      Int?                       @default(2)
-  storesAddedThisMonth     Int                        @default(0)
-  lastMonthlyReset         DateTime?
   currentActiveStores      Int                        @default(0)
   transactionFeePercent    Float?                     @default(5.0)
   monthlyPlatformFee       Float?                     @default(0.0)

@@ -219,7 +219,6 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
   const [editingPostPurchaseFollowups, setEditingPostPurchaseFollowups] = useState(false);
   const [editingContact, setEditingContact] = useState(false);
   const [changingPin, setChangingPin] = useState(false);
-  const [sendingBlast, setSendingBlast] = useState(false);
   const [sendingStaffMsg, setSendingStaffMsg] = useState(false);
   const [expandedCustomer, setExpandedCustomer] = useState<string | null>(null);
   
@@ -315,10 +314,6 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
     adminPhone: data.store.adminPhone || ''
   });
   const [pinForm, setPinForm] = useState({ current: '', new: '' });
-  const [blastForm, setBlastForm] = useState({
-    audience: 'all' as 'all' | 'undecided' | 'sampling' | 'purchased' | 'ready_for_pickup',
-    message: ''
-  });
   const [staffMsgForm, setStaffMsgForm] = useState({
     recipients: 'all' as 'all' | 'type' | 'specific',
     type: 'Sales',
@@ -535,16 +530,6 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
       setCustomerSortField(field);
       setCustomerSortDirection('asc');
     }
-  };
-
-  // Count for blast audience
-  const getAudienceCount = (audience: string) => {
-    if (audience === 'all') return data.customers.length;
-    if (audience === 'undecided') return data.customers.filter(c => c.currentStage === 'undecided').length;
-    if (audience === 'sampling') return data.customers.filter(c => c.currentStage === 'sampling').length;
-    if (audience === 'purchased') return data.customers.filter(c => c.currentStage === 'purchased' || c.currentStage === 'repeat').length;
-    if (audience === 'ready_for_pickup') return data.customers.filter(c => c.currentStage === 'ready_for_pickup').length;
-    return 0;
   };
 
   const formatRelativeTime = (date: Date) => {
@@ -764,37 +749,6 @@ export default function StoreDashboardClient({ initialData, role }: { initialDat
       alert('Failed to update');
     } finally {
       setSaving(false);
-    }
-  };
-
-  const sendBlast = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const count = getAudienceCount(blastForm.audience);
-    const cost = (count * 0.0075).toFixed(2);
-    
-    if (!confirm(`Send to ${count} customers? Estimated cost: $${cost}`)) {
-      return;
-    }
-    
-    setBlasting(true);
-    try {
-      const res = await fetch('/api/store/message/customers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...blastForm })
-      });
-      const result = await res.json();
-      if (result.success) {
-        alert(`Sent to ${result.sent} customers!${result.failed > 0 ? ` (${result.failed} failed)` : ''}`);
-        setBlastForm({ audience: 'all', message: '' });
-        setSendingBlast(false);
-      } else {
-        alert('Error: ' + result.error);
-      }
-    } catch (err) {
-      alert('Failed to send');
-    } finally {
-      setBlasting(false);
     }
   };
 
